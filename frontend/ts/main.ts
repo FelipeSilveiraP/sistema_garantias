@@ -21,6 +21,25 @@ async function iniciar(): Promise<void> {
       iniciarCarregando();
       return;
     }
+    case "perfis": {
+      const { iniciarPerfis } = await import("./telas/perfis");
+      iniciarPerfis();
+      return;
+    }
+    case "form-tecnico":
+    case "form-veiculo":
+    case "form-produto": {
+      const { iniciarFormCadastro } = await import("./telas/form-cadastro");
+      iniciarFormCadastro(tela);
+      return;
+    }
+    case "todos-tecnicos":
+    case "todos-veiculos":
+    case "todos-produtos": {
+      const { iniciarTodosCadastro } = await import("./telas/todos-cadastro");
+      iniciarTodosCadastro(tela);
+      return;
+    }
     case "cadastrar-garantia": {
       const { iniciarCadastrarGarantia } = await import("./telas/cadastrar-garantia");
       iniciarCadastrarGarantia();

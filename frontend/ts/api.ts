@@ -27,6 +27,9 @@ export interface GarantiaDados {
   cupomStatus: "NAO_LANCADO" | "LANCADO" | "DISPENSADO";
   cupomLancadoEm: string | null;
   origem: "SISTEMA" | "LEGADO";
+  /** perfil (tecnico) que cadastrou; nulo no legado */
+  criadoPor: string | null;
+  idVeiculo: number | null;
 }
 
 export interface GarantiaEntrada {
@@ -47,6 +50,9 @@ export interface GarantiaEntrada {
   tecnico: string;
   observacao?: string;
   forcar?: boolean;
+  criadoPor?: string;
+  /** veiculo do catalogo (o modelo e gravado como "MARCA MODELO") */
+  idVeiculo?: number | null;
 }
 
 export interface ServicoDados {
@@ -60,6 +66,16 @@ export interface ServicoDados {
   pedeItens: boolean;
   peca: boolean;
   ativo: boolean;
+}
+
+export interface VeiculoDados {
+  id: number;
+  idMarca: number;
+  marca: string;
+  modelo: string;
+  ativo: boolean;
+  /** quantas garantias usam esse veiculo */
+  garantias: number;
 }
 
 export interface ItemListaDados {
@@ -190,6 +206,28 @@ export function salvarServico(cfg: FinDeskConfig, dados: Omit<ServicoDados, "id"
   return dados.id
     ? enviar<ServicoDados>(cfg, "PUT", `/api/servicos/${dados.id}`, dados)
     : enviar<ServicoDados>(cfg, "POST", "/api/servicos", dados);
+}
+
+export function excluirServico(cfg: FinDeskConfig, id: number): Promise<void> {
+  return enviar<void>(cfg, "DELETE", `/api/servicos/${id}`);
+}
+
+export function listarVeiculos(cfg: FinDeskConfig): Promise<VeiculoDados[]> {
+  return get<VeiculoDados[]>(cfg, "/api/veiculos");
+}
+
+export function listarMarcas(cfg: FinDeskConfig): Promise<string[]> {
+  return get<string[]>(cfg, "/api/marcas");
+}
+
+export function salvarVeiculo(cfg: FinDeskConfig, dados: { id?: number; marca: string; modelo: string; ativo?: boolean }): Promise<VeiculoDados> {
+  return dados.id
+    ? enviar<VeiculoDados>(cfg, "PUT", `/api/veiculos/${dados.id}`, dados)
+    : enviar<VeiculoDados>(cfg, "POST", "/api/veiculos", dados);
+}
+
+export function excluirVeiculo(cfg: FinDeskConfig, id: number): Promise<void> {
+  return enviar<void>(cfg, "DELETE", `/api/veiculos/${id}`);
 }
 
 export function reajustarPrecos(cfg: FinDeskConfig, percentual: string, incluirPecas: boolean): Promise<{ atualizados: number }> {

@@ -30,7 +30,7 @@ class GarantiaServiceTest {
         ConnectionFactory conexao = new ConnectionFactory(pasta.resolve("garantias.db").toString());
         new DatabaseInitializer(conexao).inicializar();
         servicos = new ServicoRepository(conexao);
-        service = new GarantiaService(new GarantiaRepository(conexao), servicos);
+        service = new GarantiaService(new GarantiaRepository(conexao), servicos, new com.chaveiro.repository.VeiculoRepository(conexao));
     }
 
     private long servico(String nome) throws Exception {
@@ -40,7 +40,7 @@ class GarantiaServiceTest {
     private static Garantia garantia(String placa, boolean semPlaca, String cpf, Long idServico, String servico,
                                      int carcaca, int botao, int pilha, int itens) {
         return new Garantia(null, LocalDate.now(), placa, semPlaca, cpf, "onix", idServico, servico, carcaca, botao,
-                pilha, itens, new BigDecimal("130.00"), "felipe", "chave canivete", null, null, null, null);
+                pilha, itens, new BigDecimal("130.00"), "felipe", "chave canivete", null, null, null, null, null, null);
     }
 
     @Test
@@ -101,7 +101,7 @@ class GarantiaServiceTest {
         Garantia g = service.cadastrar(garantia("DDQ6717", false, null, servico("TROCA GAIOLA"), null, 0, 0, 0, 1), false);
 
         Garantia editada = service.atualizar(g.id(), new Garantia(null, g.dataServico(), "DDQ6717", false, null, "VOYAGE",
-                g.idServico(), null, 0, 0, 0, 2, new BigDecimal("85.00"), "RENATO", null, null, null, null, null));
+                g.idServico(), null, 0, 0, 0, 2, new BigDecimal("85.00"), "RENATO", null, null, null, null, null, null, null));
         assertThat(editada.modelo()).isEqualTo("VOYAGE");
         assertThat(editada.qtdItens()).isEqualTo(2);
         assertThat(editada.valor()).isEqualByComparingTo("85.00");
@@ -118,7 +118,19 @@ class GarantiaServiceTest {
     @Test
     void dataNoFuturoERecusada() {
         Garantia futura = new Garantia(null, LocalDate.now().plusDays(10), "ABC1D23", false, null, "ONIX", null,
-                "CHAVE", 0, 0, 0, 0, BigDecimal.TEN, "FELIPE", null, null, null, null, null);
+                "CHAVE", 0, 0, 0, 0, BigDecimal.TEN, "FELIPE", null, null, null, null, null, null, null);
         assertThatThrownBy(() -> service.cadastrar(futura, false)).isInstanceOf(DadosInvalidosException.class);
+    }
+
+    @Test
+    void guardaQuemCadastrouEMantemNaEdicao() {
+        Garantia nova = new Garantia(null, LocalDate.now(), "PRF1A23", false, null, "ONIX", null, "CHAVE NOVA", 0, 0, 0, 0,
+                BigDecimal.TEN, "RENATO", null, null, null, null, null, "felipe", null);
+        Garantia g = service.cadastrar(nova, false);
+        assertThat(service.buscarPorId(g.id()).criadoPor()).isEqualTo("FELIPE");
+
+        service.atualizar(g.id(), new Garantia(null, g.dataServico(), "PRF1A23", false, null, "CRUZE", null, "CHAVE NOVA",
+                0, 0, 0, 0, BigDecimal.TEN, "RENATO", null, null, null, null, null, null, null));
+        assertThat(service.buscarPorId(g.id()).criadoPor()).isEqualTo("FELIPE");
     }
 }

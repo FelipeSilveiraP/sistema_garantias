@@ -219,12 +219,21 @@ async function ciclo() {
     console.log(`[INFO] tela inicial sem carregamento (fluxo antigo): ${telaInicial}`);
   }
 
+  // como na Netflix: o app abre em "Quem esta usando?"; clique REAL na bolinha do tecnico
+  const perfisProntos = await esperarPredicado(
+    `document.body.dataset.tela === 'perfis' && Number(document.body.dataset.perfisCarregados) > 0`,
+    30000
+  );
+  tempos.perfis_interativo = Date.now() - t0;
+  teste("Tela de perfis liberada com as bolinhas dos técnicos", perfisProntos, `+${tempos.perfis_interativo}ms`);
+  teste("Clique real na bolinha do perfil entra no sistema",
+    await clicarReal('.perfil-cartao[data-perfil="FELIPE"]') && await esperarPredicado(`document.body.dataset.tela === 'menu'`));
   const menuPronto = await esperarPredicado(
-    `document.body.dataset.tela === 'menu' && document.body.dataset.apiStatus !== undefined`,
+    `document.body.dataset.tela === 'menu' && document.body.dataset.apiStatus !== undefined && document.body.dataset.perfil === 'FELIPE'`,
     30000
   );
   tempos.menu_interativo = Date.now() - t0;
-  teste("Menu Principal liberado", menuPronto, `+${tempos.menu_interativo}ms`);
+  teste("Menu Principal liberado com o perfil FELIPE", menuPronto, `+${tempos.menu_interativo}ms`);
   const marcoJanela = marcos.find((m) => m.includes("janela-visivel"));
   const marcoInterface = marcos.find((m) => m.includes("interface-carregada"));
   teste("Marcos de tempo registrados", Boolean(marcoJanela && marcoInterface), [marcoJanela, marcoInterface].join(" | "));
@@ -244,11 +253,12 @@ async function ciclo() {
   await digitarReal("BOT1A23");
   const placaDigitada = await js(`document.getElementById("placa").value`);
   teste("Digitacao real entra na placa", placaDigitada === "BOT1A23", placaDigitada);
-  teste("Clique real + digitacao no modelo",
-    await clicarReal("#modelo") && await esperarPredicado(`document.activeElement && document.activeElement.id === 'modelo'`));
-  await digitarReal("Onix");
-  const modeloDigitado = await js(`document.getElementById("modelo").value`);
-  teste("Digitacao real entra no modelo", modeloDigitado.toUpperCase() === "ONIX", modeloDigitado);
+  teste("Clique real + digitacao na observacao",
+    await clicarReal("#observacao") && await esperarPredicado(`document.activeElement && document.activeElement.id === 'observacao'`));
+  await digitarReal("canivete");
+  const obsDigitada = await js(`document.getElementById("observacao").value`);
+  teste("Digitacao real entra na observacao", obsDigitada.toLowerCase() === "canivete", obsDigitada);
+  teste("CPF travado sem marcar carro sem placa", await js(`document.getElementById("cpf").disabled && getComputedStyle(document.getElementById("cpf")).cursor === "not-allowed"`));
 
   tempos.pesquisar = await medirAbertura("pesquisar-garantias", "#searchInput");
   teste("Pesquisar Garantia abre e esta interativo", true, `${tempos.pesquisar}ms`);

@@ -4,6 +4,8 @@ import com.chaveiro.model.Garantia;
 import com.chaveiro.model.Servico;
 import com.chaveiro.repository.GarantiaRepository;
 import com.chaveiro.repository.ServicoRepository;
+import com.chaveiro.repository.VeiculoRepository;
+import com.chaveiro.model.Veiculo;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -33,10 +35,12 @@ public class GarantiaService {
 
     private final GarantiaRepository repository;
     private final ServicoRepository servicos;
+    private final VeiculoRepository veiculos;
 
-    public GarantiaService(GarantiaRepository repository, ServicoRepository servicos) {
+    public GarantiaService(GarantiaRepository repository, ServicoRepository servicos, VeiculoRepository veiculos) {
         this.repository = repository;
         this.servicos = servicos;
+        this.veiculos = veiculos;
     }
 
     public List<Garantia> listar() {
@@ -160,9 +164,21 @@ public class GarantiaService {
             }
         }
 
-        String modelo = d.modelo() == null ? "" : d.modelo().trim().toUpperCase(Locale.ROOT);
-        if (modelo.isEmpty() || modelo.length() > 60) {
-            erros.put("modelo", "Informe o modelo do carro.");
+        // veiculo do catalogo (caixa de selecao): grava "MARCA MODELO" e a chave estrangeira
+        Veiculo veiculo = null;
+        if (d.idVeiculo() != null) {
+            try {
+                veiculo = veiculos.buscarPorId(d.idVeiculo()).orElse(null);
+            } catch (SQLException erro) {
+                throw new IllegalStateException("falha ao consultar o veiculo", erro);
+            }
+        }
+        String modelo = veiculo != null ? veiculo.descricao()
+                : d.modelo() == null ? "" : d.modelo().trim().toUpperCase(Locale.ROOT);
+        if (d.idVeiculo() != null && veiculo == null) {
+            erros.put("modelo", "Veículo não encontrado. Escolha outro.");
+        } else if (modelo.isEmpty() || modelo.length() > 120) {
+            erros.put("modelo", "Escolha o modelo do carro.");
         }
         String tecnico = d.tecnico() == null ? "" : d.tecnico().trim().toUpperCase(Locale.ROOT);
         if (tecnico.isEmpty() || tecnico.length() > 60) {
@@ -202,6 +218,10 @@ public class GarantiaService {
         if (valor.signum() < 0 || valor.scale() > 2 || valor.compareTo(new BigDecimal("100000")) >= 0) {
             erros.put("valor", "Valor inválido. Exemplo: 150,00.");
         }
+        String criadoPor = d.criadoPor() == null ? null : d.criadoPor().trim().toUpperCase(Locale.ROOT);
+        if (criadoPor != null && (criadoPor.isEmpty() || criadoPor.length() > 60)) {
+            erros.put("criadoPor", "Perfil inválido. Escolha o técnico na tela de perfis.");
+        }
         String observacao = textoOuNulo(d.observacao());
         if (observacao != null && observacao.length() > 500) {
             erros.put("observacao", "A observação deve ter até 500 caracteres.");
@@ -214,7 +234,8 @@ public class GarantiaService {
         return new Garantia(d.id(), d.dataServico(), placa, d.semPlaca(), cpf, modelo,
                 servico == null ? null : servico.id(), nomeServico, carcaca, botao, pilha, itens, valor, tecnico,
                 observacao == null ? null : observacao.toUpperCase(Locale.ROOT),
-                servico == null ? null : servico.codigoCupom(), null, null, "SISTEMA");
+                servico == null ? null : servico.codigoCupom(), null, null, "SISTEMA", criadoPor,
+                veiculo == null ? null : veiculo.id());
     }
 
     /** Quantidade de 1 a 5 quando o servico pede (lista do VBA); 0 quando nao pede. */

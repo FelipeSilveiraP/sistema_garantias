@@ -108,8 +108,14 @@ function planilhaLegada() {
 async function executar() {
   while (!janela) await esperar(100);
   janela.setContentSize(1366, 820);
-  teste("Menu abre e a API responde", await telaPronta("menu") && await esperarPredicado("document.body.dataset.apiStatus === 'ok'", 30000));
-  teste("Menu tem exatamente 3 botões", (await js("document.querySelectorAll('a[data-path]').length")) === 3);
+  teste("App abre em 'Quem está usando?'", await telaPronta("perfis") && await esperarPredicado("Number(document.body.dataset.perfisCarregados) >= 7", 30000));
+  teste("Bolinhas são círculos", await js("getComputedStyle(document.querySelector('.perfil-avatar')).borderTopLeftRadius !== '0px'"));
+  await capturar("perfis-1366x820");
+  await js("document.querySelector('.perfil-cartao[data-perfil=\"FELIPE\"]').click()");
+  teste("Clicar na bolinha entra no Menu com o perfil", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
+  teste("Menu tem exatamente 3 botões quadrados", await js("[...document.querySelectorAll('a[data-path]')].every(a => Math.abs(a.offsetWidth - a.offsetHeight) <= 2)") && (await js("document.querySelectorAll('a[data-path]').length")) === 3);
+  teste("Terceiro botão: Atualização e estatística", (await texto("a[data-path=estatisticas]")).toUpperCase().includes("ATUALIZAÇÃO E ESTATÍSTICA"));
+  teste("Pesquisar é vermelho", (await js("getComputedStyle(document.querySelector('a[data-path=pesquisar-garantias]')).backgroundColor")) === "rgb(255, 59, 48)");
   await capturar("menu-1366x820");
 
   // ---------- CADASTRAR ----------
@@ -124,7 +130,12 @@ async function executar() {
   await js("document.getElementById('btn-salvar').click()");
   teste("Sem placa, modelo e técnico: erros aparecem e nada é salvo",
     await esperarPredicado("!document.querySelector('[data-erro-campo=placa]').classList.contains('hidden') && !document.body.dataset.garantiaSalva", 3000));
-  await js(`(() => { document.getElementById('placa').value = 'smk-1a23'; document.getElementById('modelo').value = 'onix';
+  teste("Técnico já vem com o perfil", (await js("document.getElementById('tecnico').value")) === "FELIPE");
+  teste("CPF travado até marcar carro sem placa", await js("document.getElementById('cpf').disabled"));
+  await js("document.getElementById('sem_placa').click()");
+  teste("Carro sem placa libera o CPF", await js("!document.getElementById('cpf').disabled && document.getElementById('placa').disabled"));
+  await js("document.getElementById('sem_placa').click()");
+  await js(`(() => { document.getElementById('placa').value = 'smk-1a23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })();
     document.getElementById('tecnico').value = 'FELIPE'; document.getElementById('observacao').value = 'chave canivete';
     const v = document.getElementById('valor'); v.value = '130,00'; v.dispatchEvent(new Event('input')); })()`);
   await capturar("cadastrar-garantia-1366x820");
@@ -133,7 +144,7 @@ async function executar() {
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === ''", 3000));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
   await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change'));
-    document.getElementById('placa').value = 'SMK1A23'; document.getElementById('modelo').value = 'ONIX'; document.getElementById('tecnico').value = 'FELIPE';
+    document.getElementById('placa').value = 'SMK1A23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })(); document.getElementById('tecnico').value = 'FELIPE';
     document.getElementById('btn-salvar').click(); })()`);
   teste("Garantia repetida pede confirmação", await esperarPredicado("!!document.querySelector('[data-dialogo]') && document.querySelector('[data-dialogo-titulo]').textContent.includes('GARANTIA PARECIDA')", 4000));
   await js("document.querySelector('[data-dialogo-acao=cancelar]').click()");
@@ -148,10 +159,12 @@ async function executar() {
   await js("(() => { const i = document.getElementById('searchInput'); i.value = ''; i.dispatchEvent(new Event('input')); document.querySelector('[data-filter=TODOS]').click(); })()");
   await js("document.querySelector('#tableBody tr.linha-garantia').click()");
   teste("Clicar na linha abre a área de edição", await esperarPredicado("!document.getElementById('editorContainer').classList.contains('hidden')"));
-  await js(`(() => { const s = document.getElementById('fieldSelect'); s.value = 'modelo'; s.dispatchEvent(new Event('change'));
-    const i = document.getElementById('newValueInput'); i.value = 'CRUZE'; i.dispatchEvent(new Event('input'));
-    document.getElementById('btnApplyChange').click(); })()`);
-  teste("Alterar um campo salva (modelo)", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CRUZE')", 5000));
+  teste("Garantia mostra marca e modelo", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CHEVROLET ONIX')", 5000));
+  await js(`(() => { const s = document.getElementById('fieldSelect'); s.value = 'veiculo'; s.dispatchEvent(new Event('change'));
+    const v = document.getElementById('newValueSelect'); v.value = [...v.options].find(o => o.textContent === 'CHEVROLET CRUZE').value;
+    v.dispatchEvent(new Event('change')); document.getElementById('btnApplyChange').click(); })()`);
+  teste("Alterar um campo salva (modelo pela lista)", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CHEVROLET CRUZE')", 5000));
+  teste("Cadastrada por FELIPE", (await texto("#tableBody tr.linha-garantia")).includes("FELIPE"));
   await js("document.getElementById('btnCupomLancado').click()");
   teste("CUPOM LANÇADO marca o selo", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('Lançado')", 5000));
   teste("Selos de cupom são arredondados", await js("getComputedStyle(document.querySelector('#tableBody .selo')).borderTopLeftRadius !== '0px'"));
@@ -179,7 +192,28 @@ async function executar() {
 
   // ---------- ESTATISTICA E ATUALIZACOES ----------
   await ir("estatisticas");
-  teste("ESTATÍSTICA E ATUALIZAÇÕES tem 2 botões", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 2", 5000));
+  teste("ATUALIZAÇÃO E ESTATÍSTICA tem 3 botões (com CONTROLE)", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 3", 5000));
+  await ir("controle");
+  teste("CONTROLE leva a TÉCNICOS, VEÍCULOS e TABELA DE VALORES", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 3 && document.querySelector('.submenu-grade').textContent.includes('TABELA DE VALORES')", 5000));
+  for (const [sub, form, todos] of [["tecnicos", "form-tecnico", "todos-tecnicos"], ["veiculos", "form-veiculo", "todos-veiculos"], ["produtos", "form-produto", "todos-produtos"]]) {
+    teste(`${sub}: submenu com cadastrar e todos`, await ir(sub) && await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 2", 5000));
+    teste(`${form} abre`, await ir(form));
+    teste(`${todos} lista a tabela`, await ir(todos) && await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000));
+  }
+  await ir("form-veiculo");
+  await esperarPredicado("document.getElementById('marca').options.length > 20", 5000);
+  await js("(() => { const m = document.getElementById('marca'); m.value = 'FIAT'; m.dispatchEvent(new Event('change')); document.getElementById('modelo').value = 'Uno Smoke'; document.getElementById('btn-salvar').click(); })()");
+  teste("Cadastrar veículo grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
+  await ir("todos-veiculos");
+  await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
+  await js("(() => { const i = document.getElementById('searchInput'); i.value = 'uno smoke'; i.dispatchEvent(new Event('input')); })()");
+  teste("Todos os veículos acha o cadastrado", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-cadastro').length === 1", 4000));
+  await capturar("todos-veiculos-1366x820");
+  await ir("form-tecnico");
+  await js("(() => { document.getElementById('nome').value = 'Técnico Smoke'; document.getElementById('btn-salvar').click(); })()");
+  teste("Cadastrar técnico grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
+  await ir("todos-tecnicos");
+  teste("Todos os técnicos mostra o novo com a bolinha", await esperarPredicado("document.querySelector('#tableBody').textContent.includes('TÉCNICO SMOKE') && !!document.querySelector('#tableBody .perfil-avatar')", 6000));
   await ir("graficos");
   teste("GRÁFICOS carregam", await esperarPredicado("document.body.dataset.resumoCarregado === 'true'"));
   teste("Gráficos contam a garantia do mês", (await texto("#kpiQuantidade")) === "1", await texto("#kpiQuantidade"));
@@ -189,17 +223,25 @@ async function executar() {
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); tr.querySelector('button').click(); })()`);
   teste("Salvar preço de um serviço", await esperarPredicado("[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA')).querySelector('input').value === '85,00' && [...document.querySelectorAll('.notificacao__texto')].some(n => n.textContent.includes('preço salvo'))", 5000));
-  await js("(() => { const f = document.querySelector('[data-form-lista=tecnicos]'); f.querySelector('input').value = 'Técnico Smoke'; f.requestSubmit(); })()");
-  teste("Incluir técnico na lista", await esperarPredicado("document.querySelector('[data-itens=tecnicos]').textContent.includes('TÉCNICO SMOKE')", 5000));
   await capturar("atualizar-precos-1366x820");
 
-  // ---------- larguras ----------
+  // ---------- larguras: menu sem rolagem lateral; telas internas com o menu lateral (hamburguer) ----------
   for (const [l, a] of [[1920, 1040], [1024, 768], [760, 800], [480, 800]]) {
     janela.setContentSize(l, a);
     await ir("menu");
     await esperar(400);
     teste(`Menu sem rolagem lateral em ${l}px`, await js("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"));
     await capturar(`menu-${l}x${a}`);
+    await ir("cadastrar-garantia");
+    await esperar(400);
+    const hamb = await js("getComputedStyle(document.querySelector('.nav-hamburguer')).display !== 'none'");
+    teste(`Cadastrar em ${l}px: ${l < 1024 ? "menu lateral (hambúrguer)" : "barra completa"}`, l < 1024 ? hamb : !hamb);
+    if (l < 1024) {
+      await js("document.querySelector('.nav-hamburguer').click()");
+      teste(`Menu lateral abre em ${l}px com o perfil`, await esperarPredicado("document.querySelector('#nav-global').dataset.menuAberto === 'true' && document.querySelector('.nav-painel').textContent.includes('TROCAR PERFIL')", 3000));
+      await capturar(`menu-lateral-${l}x${a}`);
+      await js("document.querySelector('.nav-hamburguer').click()");
+    }
   }
   teste("Sem erros no console", errosConsole.length === 0, errosConsole.join(" | "));
   teste("PDFs só na pasta temporária", abertos.every((a) => a.startsWith(PASTA)), JSON.stringify(abertos));

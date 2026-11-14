@@ -27,5 +27,9 @@ public record Garantia(
         String codigoCupom,
         String cupomStatus,
         String cupomLancadoEm,
-        String origem) {
+        String origem,
+        /** perfil (tecnico) que estava usando o sistema ao cadastrar; nulo no legado */
+        String criadoPor,
+        /** veiculo do catalogo (CONTROLE > VEICULOS); nulo no legado ou se o cadastro for excluido */
+        Long idVeiculo) {
 }

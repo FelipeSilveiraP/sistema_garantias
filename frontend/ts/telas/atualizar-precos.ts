@@ -1,25 +1,18 @@
-// ATUALIZAR PRECOS — tabela de precos dos servicos e pecas (editavel linha a
-// linha e com reajuste em %), novo servico/peca e as listas editaveis de
-// tecnicos e modelos (no VBA eram fixas no codigo).
+// ATUALIZAR PRECOS — tabela de precos dos servicos e pecas, editavel linha a
+// linha e com reajuste em %. Cadastro de produtos, tecnicos e veiculos: CONTROLE.
 import {
-  alterarItemLista,
   buscarStatus,
-  excluirItemLista,
-  incluirNaLista,
-  listarLista,
   listarServicos,
   reajustarPrecos,
   salvarServico,
-  ErroValidacaoApi,
-  NomeLista,
   ServicoDados,
+  ErroValidacaoApi,
 } from "../api";
-import { confirmar, confirmarExclusao } from "../componentes";
+import { confirmar } from "../componentes";
 import { notificar } from "../notificacoes";
 import { montarNavbar } from "../navbar";
 import { formatarMoedaCampo, mascaraMoeda } from "../mascaras";
 
-const LISTAS: NomeLista[] = ["tecnicos", "modelos"];
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -144,97 +137,6 @@ async function reajustar(): Promise<void> {
   }
 }
 
-async function incluirServico(): Promise<void> {
-  const erroEl = document.querySelector<HTMLElement>('[data-erro-campo="novo"]')!;
-  const nome = el<HTMLInputElement>("novo_nome").value.trim();
-  const preco = precoTexto(el<HTMLInputElement>("novo_preco").value);
-  const mostrar = (msg: string): void => {
-    erroEl.textContent = msg;
-    erroEl.classList.toggle("hidden", !msg);
-  };
-  if (nome.length < 2) return mostrar("Informe o nome do serviço ou da peça.");
-  if (preco === null) return mostrar("Preço inválido. Exemplo: 150,00.");
-  const peca = el<HTMLInputElement>("novo_peca").checked;
-  try {
-    await salvarServico(await window.finDesk!.config(), {
-      nome, preco, codigoCupom: el<HTMLInputElement>("novo_codigo").value.trim() || null,
-      pedeCarcaca: !peca && el<HTMLInputElement>("pede_carcaca").checked,
-      pedeBotao: !peca && el<HTMLInputElement>("pede_botao").checked,
-      pedePilha: !peca && el<HTMLInputElement>("pede_pilha").checked,
-      pedeItens: !peca && el<HTMLInputElement>("pede_itens").checked,
-      peca, ativo: true,
-    });
-    mostrar("");
-    el<HTMLFormElement>("formServico").reset();
-    notificar(`${nome.toUpperCase()} incluído na tabela de preços.`);
-    await carregarPrecos();
-  } catch (erro) {
-    mostrar(primeiroErro(erro, "Não foi possível incluir. Tente de novo."));
-  }
-}
-
-// ---------- tecnicos e modelos ----------
-
-function botao(texto: string, perigo = false): HTMLButtonElement {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = texto;
-  if (perigo) b.className = "perigo";
-  return b;
-}
-
-async function carregarLista(lista: NomeLista): Promise<void> {
-  const cfg = await window.finDesk!.config();
-  const itens = await listarLista(cfg, lista);
-  const ul = document.querySelector<HTMLElement>(`[data-itens="${lista}"]`)!;
-  ul.replaceChildren(...itens.map((item) => {
-    const li = document.createElement("li");
-    if (!item.ativo) li.classList.add("inativo");
-    const nome = document.createElement("span");
-    nome.className = "nome";
-    nome.textContent = item.nome;
-    nome.title = item.ativo ? item.nome : `${item.nome} (desativado: não aparece no cadastro)`;
-    const alternar = botao(item.ativo ? "DESATIVAR" : "ATIVAR");
-    alternar.addEventListener("click", () => {
-      void alterarItemLista(cfg, lista, item.id, item.nome, !item.ativo)
-        .then(() => carregarLista(lista))
-        .catch((erro) => notificar(primeiroErro(erro, "Não foi possível alterar."), "erro"));
-    });
-    const excluir = botao("EXCLUIR", true);
-    excluir.addEventListener("click", () => {
-      void (async () => {
-        if (!(await confirmarExclusao(`"${item.nome}" da lista`))) return;
-        await excluirItemLista(cfg, lista, item.id);
-        notificar(`${item.nome} excluído da lista. As garantias antigas continuam com o nome.`);
-        await carregarLista(lista);
-      })().catch((erro) => notificar(primeiroErro(erro, "Não foi possível excluir."), "erro"));
-    });
-    li.append(nome, alternar, excluir);
-    return li;
-  }));
-}
-
-function ligarLista(lista: NomeLista): void {
-  const form = document.querySelector<HTMLFormElement>(`[data-form-lista="${lista}"]`)!;
-  const erroEl = document.querySelector<HTMLElement>(`[data-erro-lista="${lista}"]`)!;
-  form.addEventListener("submit", (evento) => {
-    evento.preventDefault();
-    const input = form.querySelector("input")!;
-    void (async () => {
-      try {
-        const item = await incluirNaLista(await window.finDesk!.config(), lista, input.value);
-        input.value = "";
-        erroEl.classList.add("hidden");
-        notificar(`${item.nome} incluído.`);
-        await carregarLista(lista);
-      } catch (erro) {
-        erroEl.textContent = primeiroErro(erro, "Não foi possível incluir.");
-        erroEl.classList.remove("hidden");
-      }
-    })();
-  });
-}
-
 async function verificarApi(): Promise<void> {
   try {
     await buscarStatus(await window.finDesk!.config());
@@ -246,16 +148,10 @@ async function verificarApi(): Promise<void> {
 
 function iniciar(): void {
   montarNavbar("atualizar-precos");
-  mascaraMoeda(el<HTMLInputElement>("novo_preco"));
   el("btnReajustar").addEventListener("click", () => void reajustar());
-  el<HTMLFormElement>("formServico").addEventListener("submit", (evento) => {
-    evento.preventDefault();
-    void incluirServico();
-  });
-  for (const lista of LISTAS) ligarLista(lista);
   void verificarApi();
-  void Promise.all([carregarPrecos(), ...LISTAS.map(carregarLista)]).catch((erro) => {
-    notificar("Não foi possível carregar os preços e as listas. Feche e abra a tela de novo.", "erro");
+  void carregarPrecos().catch((erro) => {
+    notificar("Não foi possível carregar os preços. Feche e abra a tela de novo.", "erro");
     console.error("[Garantias] falha ao carregar:", erro);
   });
 }

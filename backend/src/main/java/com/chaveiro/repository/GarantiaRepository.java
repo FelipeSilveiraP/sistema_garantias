@@ -25,7 +25,7 @@ public class GarantiaRepository {
 
     private static final String COLUNAS = "id_garantia, data_servico, placa, sem_placa, cpf, modelo, id_servico,"
             + " servico, qtd_carcaca, qtd_botao, qtd_pilha, qtd_itens, valor_centavos, tecnico, observacao,"
-            + " codigo_cupom, cupom_status, cupom_lancado_em, origem";
+            + " codigo_cupom, cupom_status, cupom_lancado_em, origem, criado_por, id_veiculo";
 
     private final ConnectionFactory conexao;
 
@@ -83,10 +83,14 @@ public class GarantiaRepository {
     public Garantia inserir(Connection conn, Garantia g) throws SQLException {
         String sql = "INSERT INTO garantias (data_servico, placa, sem_placa, cpf, modelo, id_servico, servico,"
                 + " qtd_carcaca, qtd_botao, qtd_pilha, qtd_itens, valor_centavos, tecnico, observacao,"
-                + " codigo_cupom, origem) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + " codigo_cupom, origem, criado_por, id_veiculo, id_tecnico) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
+                + " (SELECT id_tecnico FROM tecnicos WHERE nome = ? COLLATE NOCASE))";
         try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             int p = preencher(stmt, g);
-            stmt.setString(p, g.origem() == null ? "SISTEMA" : g.origem());
+            stmt.setString(p++, g.origem() == null ? "SISTEMA" : g.origem());
+            stmt.setString(p++, g.criadoPor());
+            definirVeiculo(stmt, p++, g.idVeiculo());
+            stmt.setString(p, g.tecnico());
             stmt.executeUpdate();
             try (ResultSet chaves = stmt.getGeneratedKeys()) {
                 if (!chaves.next()) {
@@ -103,10 +107,13 @@ public class GarantiaRepository {
     public boolean atualizar(long id, Garantia g) throws SQLException {
         String sql = "UPDATE garantias SET data_servico = ?, placa = ?, sem_placa = ?, cpf = ?, modelo = ?,"
                 + " id_servico = ?, servico = ?, qtd_carcaca = ?, qtd_botao = ?, qtd_pilha = ?, qtd_itens = ?,"
-                + " valor_centavos = ?, tecnico = ?, observacao = ?, codigo_cupom = ? WHERE id_garantia = ?";
+                + " valor_centavos = ?, tecnico = ?, observacao = ?, codigo_cupom = ?, id_veiculo = ?,"
+                + " id_tecnico = (SELECT id_tecnico FROM tecnicos WHERE nome = ? COLLATE NOCASE) WHERE id_garantia = ?";
         return conexao.emTransacao(conn -> {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 int p = preencher(stmt, g);
+                definirVeiculo(stmt, p++, g.idVeiculo());
+                stmt.setString(p++, g.tecnico());
                 stmt.setLong(p, id);
                 boolean ok = stmt.executeUpdate() > 0;
                 if (ok) {
@@ -167,6 +174,14 @@ public class GarantiaRepository {
         return p;
     }
 
+    private static void definirVeiculo(PreparedStatement stmt, int p, Long idVeiculo) throws SQLException {
+        if (idVeiculo == null) {
+            stmt.setNull(p, Types.INTEGER);
+        } else {
+            stmt.setLong(p, idVeiculo);
+        }
+    }
+
     static long centavos(BigDecimal valor) {
         return valor == null ? 0 : valor.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
     }
@@ -174,7 +189,12 @@ public class GarantiaRepository {
     private static Garantia comId(Garantia g, long id) {
         return new Garantia(id, g.dataServico(), g.placa(), g.semPlaca(), g.cpf(), g.modelo(), g.idServico(),
                 g.servico(), g.qtdCarcaca(), g.qtdBotao(), g.qtdPilha(), g.qtdItens(), g.valor(), g.tecnico(),
-                g.observacao(), g.codigoCupom(), "NAO_LANCADO", null, g.origem() == null ? "SISTEMA" : g.origem());
+                g.observacao(), g.codigoCupom(), "NAO_LANCADO", null, g.origem() == null ? "SISTEMA" : g.origem(), g.criadoPor(), g.idVeiculo());
+    }
+
+    private static Long idVeiculo(ResultSet rs) throws SQLException {
+        long id = rs.getLong("id_veiculo");
+        return rs.wasNull() ? null : id;
     }
 
     private static Garantia mapear(ResultSet rs) throws SQLException {
@@ -199,6 +219,8 @@ public class GarantiaRepository {
                 rs.getString("codigo_cupom"),
                 rs.getString("cupom_status"),
                 rs.getString("cupom_lancado_em"),
-                rs.getString("origem"));
+                rs.getString("origem"),
+                rs.getString("criado_por"),
+                idVeiculo(rs));
     }
 }

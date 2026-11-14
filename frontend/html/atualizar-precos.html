@@ -33,39 +33,7 @@
 </div>
 </section>
 
-<section class="bg-white border-2 border-[#1c1b1b]" aria-labelledby="titulo-novo">
-<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-novo"><span class="material-symbols-outlined">add_box</span>Novo serviço ou peça</h2>
-<form class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-end" id="formServico" novalidate>
-<div class="campo-form md:col-span-5"><label class="rotulo-form" for="novo_nome">Nome</label><input class="entrada-form uppercase" id="novo_nome" maxlength="80" placeholder="Ex.: TROCA DE TRANSPONDER" type="text" autocomplete="off"></div>
-<div class="campo-form md:col-span-3"><label class="rotulo-form" for="novo_preco">Preço (R$)</label><input class="entrada-form font-mono" id="novo_preco" inputmode="numeric" placeholder="0,00" type="text" autocomplete="off"></div>
-<div class="campo-form md:col-span-4"><label class="rotulo-form" for="novo_codigo">Código no cupom</label><input class="entrada-form font-mono" id="novo_codigo" maxlength="30" placeholder="Ex.: 4022" type="text" autocomplete="off"></div>
-<div class="md:col-span-9 flex flex-wrap gap-x-5 gap-y-2">
-<span class="font-mono text-xs font-bold uppercase text-neutral-600 w-full">No cadastro, perguntar a quantidade de:</span>
-<label class="caixa-form"><input id="pede_carcaca" type="checkbox"><span>Carcaça</span></label>
-<label class="caixa-form"><input id="pede_botao" type="checkbox"><span>Botão</span></label>
-<label class="caixa-form"><input id="pede_pilha" type="checkbox"><span>Pilha</span></label>
-<label class="caixa-form"><input id="pede_itens" type="checkbox" checked><span>Itens (peça do serviço)</span></label>
-<label class="caixa-form"><input id="novo_peca" type="checkbox"><span>É uma peça (não aparece como serviço)</span></label>
-</div>
-<div class="md:col-span-3 flex md:justify-end"><button class="btn-acao bg-[#FFE600]" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></div>
-<p class="campo-erro hidden md:col-span-12" data-erro-campo="novo"></p>
-</form>
-</section>
-
-<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-<section class="bg-white border-2 border-[#1c1b1b]" data-lista="tecnicos" aria-labelledby="titulo-tecnicos">
-<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-tecnicos"><span class="material-symbols-outlined">engineering</span>Técnicos</h2>
-<form class="flex gap-2 p-4 sm:p-5 pb-3" data-form-lista="tecnicos" novalidate><input class="entrada-form uppercase" maxlength="60" placeholder="Nome do técnico" type="text" autocomplete="off" aria-label="Nome do técnico"><button class="btn-acao bg-[#FFE600] shrink-0" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></form>
-<p class="campo-erro hidden px-4 sm:px-5" data-erro-lista="tecnicos"></p>
-<ul class="lista-editavel" data-itens="tecnicos"></ul>
-</section>
-<section class="bg-white border-2 border-[#1c1b1b]" data-lista="modelos" aria-labelledby="titulo-modelos">
-<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-modelos"><span class="material-symbols-outlined">directions_car</span>Modelos de carro</h2>
-<form class="flex gap-2 p-4 sm:p-5 pb-3" data-form-lista="modelos" novalidate><input class="entrada-form uppercase" maxlength="60" placeholder="Modelo do carro" type="text" autocomplete="off" aria-label="Modelo do carro"><button class="btn-acao bg-[#FFE600] shrink-0" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></form>
-<p class="campo-erro hidden px-4 sm:px-5" data-erro-lista="modelos"></p>
-<ul class="lista-editavel" data-itens="modelos"></ul>
-</section>
-</div>
+<p class="font-mono text-xs font-bold uppercase text-neutral-600 text-center">Para cadastrar produtos, técnicos e veículos: Atualização e Estatística → Controle.</p>
 </div>
 <script type="module" src="../dist/app.js"></script>
 </body></html>

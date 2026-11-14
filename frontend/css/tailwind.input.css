@@ -10,8 +10,9 @@
     overflow-x: hidden;
   }
   /* NEOBRUTALISMO A RISCA: cantos sempre retos (campos, botoes, checkboxes).
-     Excecao: os selos de situacao (.selo) sao pilulas, para nao parecerem botoes. */
-  *:not(.selo), *::before, *::after {
+     Excecoes: os selos de situacao (.selo) sao pilulas, para nao parecerem botoes,
+     e as bolinhas dos perfis (.perfil-avatar) sao circulos. */
+  *:not(.selo):not(.perfil-avatar), *::before, *::after {
     border-radius: 0 !important;
   }
   /* reserva o espaco da barra de rolagem nos dois lados: navbar e conteudo
@@ -1207,16 +1208,9 @@ select.entrada-form { cursor: pointer; }
 .btn-principal-form:focus-visible, .btn-secundario-form:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
 
 /* ===== Menu do Sistema de Garantias: 3 cartoes grandes ===== */
-.menu-titulo {
-  display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1.25rem; background: #ffffff;
-  border: 4px solid #1c1b1b; box-shadow: 6px 6px 0 0 #1c1b1b;
-}
-.menu-titulo img { width: clamp(2.5rem, 6vmin, 3.5rem); height: auto; }
 .menu-tres { display: grid; grid-template-columns: 1fr; gap: clamp(0.75rem, 2.5vmin, 1.5rem); flex: 1; }
-.menu-tres .cartao { aspect-ratio: 429 / 200; }
-@media (min-width: 900px) {
+@media (min-width: 760px) {
   .menu-tres { grid-template-columns: repeat(3, 1fr); }
-  .menu-tres .cartao { aspect-ratio: 3 / 4; max-height: 70vh; }
 }
 .menu-wrap-garantias { width: 100%; max-width: 1200px; margin: auto 0; display: flex; flex-direction: column; gap: clamp(0.75rem, 2.5vmin, 1.5rem); }
 .filter-btn {
@@ -1235,3 +1229,84 @@ select.entrada-form { cursor: pointer; }
 .lista-editavel button:hover { background: #fff9d6; }
 .lista-editavel button.perigo { color: #ba1a1a; }
 .lista-editavel button.perigo:hover { background: #ffdad6; }
+
+/* ===== Perfis ("Quem esta usando?", como na Netflix) em neobrutalismo ===== */
+.perfis-body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; box-sizing: border-box; }
+.perfis-wrap { width: 100%; max-width: 1100px; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+.perfis-titulo { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1.75rem; background: #ffffff; border: 4px solid #1c1b1b; box-shadow: 8px 8px 0 0 #1c1b1b; }
+.perfis-titulo img { width: clamp(2.5rem, 6vmin, 3.75rem); height: auto; }
+.perfis-titulo h1 { margin: 0; font-size: clamp(1.5rem, 4.5vmin, 2.75rem); font-weight: 700; text-transform: uppercase; letter-spacing: -0.01em; }
+.perfis-dica { margin: 0; font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; color: #525252; text-align: center; }
+.perfis-grade { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(1rem, 3vmin, 2.25rem); }
+.perfil-cartao { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.875rem; padding: 0.5rem; background: transparent; border: 0; cursor: pointer; }
+.perfil-avatar { display: flex; align-items: center; justify-content: center; border-radius: 9999px; border: 4px solid #1c1b1b; color: #1c1b1b; font-weight: 700; line-height: 1; letter-spacing: 0.02em; }
+.perfil-avatar--grande { width: clamp(6.5rem, 15vmin, 9.5rem); height: clamp(6.5rem, 15vmin, 9.5rem); font-size: clamp(2rem, 5vmin, 3rem); box-shadow: 6px 6px 0 0 #1c1b1b; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.perfil-avatar--pequena { width: 2.125rem; height: 2.125rem; font-size: 0.8125rem; border-width: 2px; box-shadow: 2px 2px 0 0 #1c1b1b; flex-shrink: 0; }
+.perfil-cartao:hover .perfil-avatar--grande, .perfil-cartao:focus-visible .perfil-avatar--grande { transform: translate(-4px, -4px); box-shadow: 10px 10px 0 0 #1c1b1b; }
+.perfil-cartao:active .perfil-avatar--grande { transform: translate(3px, 3px); box-shadow: 1px 1px 0 0 #1c1b1b; }
+.perfil-cartao:focus-visible { outline: none; }
+.perfil-cartao:focus-visible .perfil-nome { outline: 3px solid #2165ef; outline-offset: 2px; }
+.perfil-nome { padding: 0.25rem 0.75rem; background: #ffffff; border: 3px solid #1c1b1b; font-size: 1rem; font-weight: 700; text-transform: uppercase; box-shadow: 3px 3px 0 0 #1c1b1b; }
+.perfil-cartao--atual .perfil-nome { background: #FFE600; }
+.perfil-tecla { position: absolute; top: 0; right: 0; min-width: 1.5rem; padding: 0.125rem 0.25rem; background: #1c1b1b; color: #ffffff; font-family: ui-monospace, monospace; font-size: 0.75rem; font-weight: 700; text-align: center; }
+.perfil-tecla:empty { display: none; }
+.perfis-erro { margin: 0; padding: 0.75rem 1rem; border: 3px solid #1c1b1b; background: #ffdad6; color: #ba1a1a; font-weight: 700; }
+.perfis-erro.hidden { display: none; }
+.perfis-rodape { margin: 1.5rem 0 0; font-family: ui-monospace, monospace; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; color: #7c775f; text-align: center; }
+/* perfil na barra global e no Menu */
+.nav-perfil { display: inline-flex; align-items: center; gap: 0.5rem; }
+.menu-perfil { display: inline-flex; align-items: center; gap: 0.625rem; margin-left: auto; padding: 0.375rem 0.75rem; background: #ffffff; border: 3px solid #1c1b1b; box-shadow: 3px 3px 0 0 #1c1b1b; cursor: pointer; font-weight: 700; text-transform: uppercase; font-size: 0.8125rem; }
+.menu-perfil:hover { background: #fff9d6; }
+.menu-perfil:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+/* ===== Menu (v1.1): topo em faixa sem sombra e titulo no centro; botoes QUADRADOS ===== */
+.menu-wrap-garantias { max-width: min(1200px, calc((100vh - 13rem) * 3 + 3rem)); }
+.menu-topo {
+  position: relative; display: flex; align-items: center; justify-content: center; min-height: 5.5rem;
+  padding: 0.75rem 1rem; background: #ffffff; border: 2px solid #1c1b1b;
+}
+.menu-topo__emblema { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: clamp(2.25rem, 5.5vmin, 3.25rem); height: auto; }
+.menu-topo__centro { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.25rem; padding: 0 3.5rem; }
+.menu-topo__titulo { margin: 0; font-size: clamp(1.375rem, 3.6vmin, 2.25rem); font-weight: 700; text-transform: uppercase; letter-spacing: -0.01em; }
+.menu-topo__resumo { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #525252; }
+.menu-topo .menu-perfil { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); margin: 0; }
+.menu-perfil__texto { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.menu-perfil__trocar { font-family: ui-monospace, monospace; font-size: 0.625rem; color: #525252; }
+@media (max-width: 899px) {
+  .menu-topo { flex-direction: column; gap: 0.625rem; }
+  .menu-topo .menu-perfil { position: static; transform: none; }
+}
+.cartao-quadrado {
+  aspect-ratio: 1 / 1; display: flex; flex-direction: column; border: 4px solid #1c1b1b; box-shadow: 6px 6px 0 0 #1c1b1b;
+  overflow: hidden; text-decoration: none; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.menu-tres .cartao-quadrado { aspect-ratio: 1 / 1; min-height: 0; }
+.cartao-quadrado:hover { transform: translate(-4px, -4px); box-shadow: 10px 10px 0 0 #1c1b1b; }
+.cartao-quadrado:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 0 #1c1b1b; }
+.cartao-quadrado:focus-visible { outline: 3px solid #2165ef; outline-offset: 3px; }
+.cartao-quadrado__icone { flex: 1; display: flex; align-items: center; justify-content: center; }
+.cartao-quadrado__icone .material-symbols-outlined {
+  display: flex; align-items: center; justify-content: center; width: clamp(4rem, 13vmin, 8.5rem); height: clamp(4rem, 13vmin, 8.5rem);
+  font-size: clamp(2.5rem, 8vmin, 5rem); background: #ffffff; color: #1c1b1b; border: 4px solid #1c1b1b; box-shadow: 4px 4px 0 0 #1c1b1b;
+}
+.cartao-quadrado__rodape {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; background: #ffffff;
+  border-top: 4px solid #1c1b1b; color: #1c1b1b; font-size: clamp(0.9375rem, 2.2vmin, 1.25rem); font-weight: 700; text-transform: uppercase;
+}
+.cartao-quadrado__tecla { width: 2rem; height: 2rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: 2px solid #1c1b1b; box-shadow: 2px 2px 0 0 #1c1b1b; font-family: ui-monospace, monospace; font-size: 0.875rem; }
+
+/* CPF travado ate marcar "carro sem placa": embacado e com o cursor de bloqueio */
+.entrada-form--bloqueada:disabled { filter: blur(1.5px); opacity: 0.55; cursor: not-allowed; background: #e8e5e4; box-shadow: none; }
+/* "carro sem placa": botao grande e visivel (caixa de marcar neobrutalista) */
+.sem-placa { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem; padding: 0.625rem 0.875rem; cursor: pointer;
+  background: #ffffff; border: 3px solid #1c1b1b; box-shadow: 4px 4px 0 0 #1c1b1b; transition: transform 0.12s, box-shadow 0.12s, background 0.12s; }
+.sem-placa:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 0 #1c1b1b; }
+.sem-placa input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sem-placa__caixa { width: 1.75rem; height: 1.75rem; flex-shrink: 0; border: 3px solid #1c1b1b; background: #ffffff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.125rem; }
+.sem-placa__texto { display: flex; flex-direction: column; font-size: 0.9375rem; font-weight: 700; text-transform: uppercase; }
+.sem-placa__texto small { font-family: ui-monospace, monospace; font-size: 0.6875rem; color: #525252; text-transform: none; }
+.sem-placa:has(input:checked) { background: #FFE600; }
+.sem-placa input:checked + .sem-placa__caixa::after { content: "✓"; }
+.sem-placa:has(input:focus-visible) { outline: 3px solid #2165ef; outline-offset: 2px; }

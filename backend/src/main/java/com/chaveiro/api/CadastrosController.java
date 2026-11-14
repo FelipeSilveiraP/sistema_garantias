@@ -52,6 +52,12 @@ public class CadastrosController {
         return service.atualizarServico(id, dados);
     }
 
+    @DeleteMapping("/servicos/{id}")
+    public ResponseEntity<Void> excluirServico(@PathVariable long id) {
+        service.excluirServico(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/servicos/reajuste")
     public Map<String, Integer> reajustar(@RequestBody ReajusteRequest requisicao) {
         return Map.of("atualizados", service.reajustar(requisicao.percentual(), requisicao.incluirPecas()));

@@ -110,6 +110,16 @@ public class ServicoRepository {
         });
     }
 
+    /** Produto em uso por alguma garantia: o gatilho SERVICO_EM_USO recusa (desative em vez de excluir). */
+    public boolean excluir(long id) throws SQLException {
+        return conexao.emTransacao(conn -> {
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM servicos WHERE id_servico = ?")) {
+                stmt.setLong(1, id);
+                return stmt.executeUpdate() > 0;
+            }
+        });
+    }
+
     private static void preencher(PreparedStatement stmt, Servico s) throws SQLException {
         stmt.setString(1, s.nome());
         stmt.setLong(2, GarantiaRepository.centavos(s.preco()));

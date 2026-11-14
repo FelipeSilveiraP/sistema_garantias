@@ -9,11 +9,13 @@ import {
   importarPlanilhaLegada,
   listarGarantias,
   listarLista,
+  listarVeiculos,
   marcarCupom,
   ErroValidacaoApi,
   GarantiaDados,
   GarantiaEntrada,
   ItemListaDados,
+  VeiculoDados,
 } from "../api";
 import { criarEditorCampo, EditorCampo } from "../editor-registro";
 import { confirmar, confirmarExclusao } from "../componentes";
@@ -23,6 +25,7 @@ import { ligarExpansaoColunas } from "../tabela-colunas";
 import { montarNavbar } from "../navbar";
 import { formatarCPF, formatarDataBR, formatarMoedaBR, parseDataBR } from "../mascaras";
 import { correspondeBusca, hojeIso } from "../filtros";
+import { criarAvatar } from "../perfil";
 
 type Filtro = "MES" | "ANO" | "TODOS" | "SEMCUPOM";
 
@@ -34,6 +37,7 @@ const ROTULO_CUPOM: Record<GarantiaDados["cupomStatus"], { texto: string; classe
 
 let garantias: GarantiaDados[] = [];
 let tecnicos: ItemListaDados[] = [];
+let veiculos: VeiculoDados[] = [];
 let filtro: Filtro = "MES";
 let pesquisa = "";
 let selecionadoId: number | null = null;
@@ -89,6 +93,24 @@ function seloTd(texto: string, classeSelo: string, classeTd: string): HTMLTableC
   return c;
 }
 
+/** Bolinha + nome do perfil que cadastrou (planilha antiga: sem perfil). */
+function cadastradaPor(g: GarantiaDados): HTMLTableCellElement {
+  const c = document.createElement("td");
+  c.className = "col-extra py-3 px-3 whitespace-nowrap text-xs";
+  if (!g.criadoPor) {
+    c.textContent = g.origem === "LEGADO" ? "Planilha antiga" : "—";
+    return c;
+  }
+  const t = tecnicos.find((x) => x.nome === g.criadoPor);
+  const caixa = document.createElement("span");
+  caixa.className = "inline-flex items-center gap-2";
+  const nome = document.createElement("span");
+  nome.textContent = g.criadoPor;
+  caixa.append(criarAvatar({ id: t?.id ?? 0, nome: g.criadoPor }, "pequena"), nome);
+  c.appendChild(caixa);
+  return c;
+}
+
 function renderTabela(): void {
   const corpo = el("tableBody");
   corpo.replaceChildren();
@@ -111,6 +133,7 @@ function renderTabela(): void {
         : seloTd(cupom.texto, cupom.classe, "py-3 px-3 text-center whitespace-nowrap"),
       td(g.cpf ? formatarCPF(g.cpf) : "—", "col-extra py-3 px-3 font-mono text-xs whitespace-nowrap"),
       td(g.observacao ?? "", "col-extra py-3 px-3 text-xs"),
+      cadastradaPor(g),
       document.createElement("td"),
     );
     tr.addEventListener("click", () => selecionar(g.id));
@@ -121,7 +144,7 @@ function renderTabela(): void {
     const c = td(garantias.length ? "Nenhuma garantia encontrada com essa pesquisa e esse filtro."
       : "Nenhuma garantia cadastrada. Use CADASTRAR GARANTIA ou IMPORTAR PLANILHA ANTIGA.",
     "py-6 px-3 text-center font-mono text-xs font-bold uppercase text-neutral-500");
-    c.colSpan = 10;
+    c.colSpan = 11;
     tr.appendChild(c);
     corpo.appendChild(tr);
   }
@@ -152,7 +175,7 @@ function fecharEdicao(): void {
 
 async function recarregar(): Promise<void> {
   const cfg = await window.finDesk!.config();
-  [garantias, tecnicos] = await Promise.all([listarGarantias(cfg), listarLista(cfg, "tecnicos")]);
+  [garantias, tecnicos, veiculos] = await Promise.all([listarGarantias(cfg), listarLista(cfg, "tecnicos"), listarVeiculos(cfg)]);
   renderTabela();
   if (selecionadoId !== null) {
     if (garantias.some((g) => g.id === selecionadoId)) selecionar(selecionadoId);
@@ -166,7 +189,7 @@ function valorAtual(g: GarantiaDados, campo: string): string {
     case "dataServico": return formatarDataBR(g.dataServico);
     case "placa": return g.placa ?? "";
     case "cpf": return g.cpf ? formatarCPF(g.cpf) : "";
-    case "modelo": return g.modelo;
+    case "veiculo": return g.idVeiculo ? String(g.idVeiculo) : "";
     case "servico": return g.servico;
     case "valor": return formatarMoedaBR(centavos(g)).replace("R$ ", "");
     case "tecnico": return g.tecnico;
@@ -178,7 +201,7 @@ function valorAtual(g: GarantiaDados, campo: string): string {
 function entradaDe(g: GarantiaDados): GarantiaEntrada {
   return {
     dataServico: g.dataServico, placa: g.placa ?? undefined, semPlaca: g.semPlaca, cpf: g.cpf ?? undefined,
-    modelo: g.modelo, idServico: g.idServico, servico: g.servico, qtdCarcaca: g.qtdCarcaca, qtdBotao: g.qtdBotao,
+    modelo: g.modelo, idVeiculo: g.idVeiculo, idServico: g.idServico, servico: g.servico, qtdCarcaca: g.qtdCarcaca, qtdBotao: g.qtdBotao,
     qtdPilha: g.qtdPilha, qtdItens: g.qtdItens, valor: g.valor.toFixed(2), tecnico: g.tecnico,
     observacao: g.observacao ?? undefined,
   };
@@ -211,7 +234,12 @@ async function aplicarAlteracao(): Promise<void> {
       break;
     }
     case "cpf": dados.cpf = bruto.replace(/\D/g, "") || undefined; break;
-    case "modelo": dados.modelo = bruto; break;
+    case "veiculo": {
+      const id = Number(bruto);
+      if (!id) erro = "Escolha o modelo do carro.";
+      else dados.idVeiculo = id;
+      break;
+    }
     case "servico": {
       // trocar o texto do servico vira "OUTRO" (as quantidades ficam no texto)
       dados.idServico = null;
@@ -376,7 +404,10 @@ function montarEditor(): EditorCampo {
     { valor: "dataServico", rotulo: "Data do serviço", mascara: "data" },
     { valor: "placa", rotulo: "Placa (vazio = sem placa)" },
     { valor: "cpf", rotulo: "CPF do cliente", mascara: "cpf" },
-    { valor: "modelo", rotulo: "Modelo do carro" },
+    {
+      valor: "veiculo", rotulo: "Modelo do carro",
+      opcoes: () => veiculos.filter((v) => v.ativo).map((v) => ({ valor: String(v.id), rotulo: `${v.marca} ${v.modelo}` })),
+    },
     { valor: "servico", rotulo: "Serviço (texto)" },
     { valor: "valor", rotulo: "Valor (R$)", mascara: "moeda" },
     { valor: "tecnico", rotulo: "Técnico", opcoes: () => tecnicos.filter((t) => t.ativo).map((t) => ({ valor: t.nome, rotulo: t.nome })) },

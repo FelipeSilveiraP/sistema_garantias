@@ -6,6 +6,7 @@ import { notificar } from "../notificacoes";
 import { formatarMoedaBR } from "../mascaras";
 import { hojeIso } from "../filtros";
 import { Tela, irPara } from "../navegacao";
+import { criarAvatar, perfilAtual } from "../perfil";
 
 const DESTINOS: Record<string, Tela> = {
   "cadastrar-garantia": "cadastrar-garantia",
@@ -103,7 +104,22 @@ async function iniciar(): Promise<void> {
   }
 }
 
+/** Sem perfil escolhido, volta para "Quem esta usando?" (como na Netflix). */
+function mostrarPerfil(): boolean {
+  const perfil = perfilAtual();
+  if (!perfil) {
+    void window.finDesk?.navegar("perfis");
+    return false;
+  }
+  document.getElementById("perfil-bolinha")!.replaceChildren(criarAvatar(perfil, "pequena"));
+  document.getElementById("perfil-nome")!.textContent = perfil.nome;
+  document.getElementById("btn-perfil")!.addEventListener("click", () => void window.finDesk!.navegar("perfis"));
+  document.body.dataset.perfil = perfil.nome;
+  return true;
+}
+
 export function iniciarMenu(): void {
+  if (!mostrarPerfil()) return;
   registrarBotoes();
   registrarAtalhos();
   void iniciar();

@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Cadastrar produto — Sistema de Garantias — Chaveiro Universal</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'self'">
+<link href="../css/fonts.css" rel="stylesheet">
+<link href="../dist/tailwind.css" rel="stylesheet">
+</head><body class="bg-[#fcf9f8] text-[#1c1b1b] min-h-screen w-full flex flex-col items-center px-4 sm:px-6 font-headline" data-tela="form-produto">
+<header id="nav-global"></header>
+<div class="w-full max-w-3xl flex flex-col gap-6 mt-4 sm:mt-5 mb-8">
+<main class="w-full bg-white border-2 border-[#1c1b1b] p-5 sm:p-6">
+<div class="flex items-center gap-3 pb-3 mb-4 border-b-2 border-[#1c1b1b]">
+<div class="w-10 h-10 bg-[#00FF66] border-2 border-[#1c1b1b] flex items-center justify-center shadow-[2px_2px_0px_0px_#1c1b1b]"><span class="material-symbols-outlined text-2xl">add_box</span></div>
+<h1 class="text-xl sm:text-2xl font-bold uppercase tracking-tight">Cadastrar produto</h1>
+</div>
+<form class="flex flex-col gap-4" id="form-cadastro" novalidate>
+<div class="campo-form">
+<label class="rotulo-form" for="nome"><span>NOME DO SERVIÇO OU PEÇA <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form"></span></label>
+<input class="entrada-form uppercase" id="nome" maxlength="80" placeholder="Ex.: TROCA DE TRANSPONDER" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="nome"></p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="campo-form">
+<label class="rotulo-form" for="preco"><span>PREÇO (R$)</span><span class="dica-form">SUGERIDO NO CADASTRO</span></label>
+<input class="entrada-form font-mono" id="preco" inputmode="numeric" placeholder="0,00" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="preco"></p>
+</div><div class="campo-form">
+<label class="rotulo-form" for="codigoCupom"><span>CÓDIGO NO CUPOM</span><span class="dica-form">PRODUTO NO SAT</span></label>
+<input class="entrada-form font-mono" id="codigoCupom" maxlength="30" placeholder="Ex.: 4022" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="codigoCupom"></p>
+</div></div>
+<div class="flex flex-col gap-2">
+<span class="rotulo-form">NO CADASTRO DA GARANTIA, PERGUNTAR A QUANTIDADE DE:</span>
+<div class="flex flex-wrap gap-x-5 gap-y-2">
+<label class="caixa-form"><input id="pedeCarcaca" type="checkbox"><span>Carcaça</span></label>
+<label class="caixa-form"><input id="pedeBotao" type="checkbox"><span>Botão</span></label>
+<label class="caixa-form"><input id="pedePilha" type="checkbox"><span>Pilha</span></label>
+<label class="caixa-form"><input id="pedeItens" type="checkbox" checked><span>Itens (peça do serviço)</span></label>
+</div>
+<label class="caixa-form"><input id="peca" type="checkbox"><span>É uma peça (como PILHA e BOTÃO: não aparece como serviço)</span></label>
+</div>
+<div class="flex flex-wrap items-center justify-center gap-4 pt-4 border-t-2 border-[#1c1b1b]">
+<button class="btn-secundario-form" id="btn-limpar" type="button"><span class="material-symbols-outlined text-lg">ink_eraser</span>LIMPAR</button>
+<button class="btn-principal-form" id="btn-salvar" type="submit"><span class="material-symbols-outlined text-xl">save</span>SALVAR</button>
+</div>
+</form>
+</main>
+</div>
+<script type="module" src="../dist/app.js"></script>
+</body></html>

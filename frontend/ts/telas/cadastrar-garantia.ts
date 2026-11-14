@@ -8,6 +8,7 @@ import {
   cadastrarGarantia,
   listarLista,
   listarServicos,
+  listarVeiculos,
   ErroDuplicidadeApi,
   ErroValidacaoApi,
   GarantiaEntrada,
@@ -19,6 +20,7 @@ import { montarNavbar } from "../navbar";
 import { voltar } from "../navegacao";
 import { formatarDataBR, formatarMoedaBR, formatarMoedaCampo, mascaraCPF, mascaraData, mascaraMoeda, parseDataBR } from "../mascaras";
 import { hojeIso } from "../filtros";
+import { perfilAtual } from "../perfil";
 
 const OUTRO = "OUTRO";
 let servicos: ServicoDados[] = [];
@@ -77,16 +79,21 @@ function sugerirValor(): void {
   if (!valorDigitado) el<HTMLInputElement>("valor").value = sugerido > 0 ? formatarMoedaCampo(sugerido) : "";
 }
 
-function atualizarSemPlaca(): void {
+/** CPF travado (embacado, cursor de bloqueio) ate marcar "carro sem placa"; a placa trava ao contrario. */
+function atualizarSemPlaca(focar = true): void {
   const sem = el<HTMLInputElement>("sem_placa").checked;
   const placa = el<HTMLInputElement>("placa");
+  const cpf = el<HTMLInputElement>("cpf");
   placa.disabled = sem;
   if (sem) placa.value = "";
   placa.classList.toggle("entrada-form--desligada", sem);
+  cpf.disabled = !sem;
+  if (!sem) cpf.value = "";
+  cpf.title = sem ? "" : "Liberado só para carro sem placa";
   el("placa-obrigatoria").classList.toggle("hidden", sem);
   el("cpf-obrigatorio").classList.toggle("hidden", !sem);
-  el("cpf-dica").textContent = sem ? "11 NÚMEROS" : "OPCIONAL";
-  (sem ? el<HTMLInputElement>("cpf") : placa).focus();
+  el("cpf-dica").textContent = sem ? "11 NÚMEROS" : "SÓ PARA CARRO SEM PLACA";
+  if (focar) (sem ? cpf : placa).focus();
 }
 
 function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
@@ -101,10 +108,9 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
   const cpf = el<HTMLInputElement>("cpf").value.replace(/\D/g, "");
   if (!semPlaca && !/^[A-Z0-9]{7}$/.test(placa)) erros.placa = "Placa inválida: use 7 letras e números (ex.: ABC1D23).";
   if (semPlaca && cpf.length !== 11) erros.cpf = "Sem placa: informe o CPF do cliente (11 números).";
-  if (!semPlaca && cpf && cpf.length !== 11) erros.cpf = "CPF deve ter 11 números (ou deixe em branco).";
 
-  const modelo = el<HTMLInputElement>("modelo").value.trim().toUpperCase();
-  if (!modelo) erros.modelo = "Informe o modelo do carro.";
+  const idVeiculo = Number(el<HTMLSelectElement>("modelo").value) || null;
+  if (!idVeiculo) erros.modelo = "Escolha o modelo do carro.";
   const tecnico = el<HTMLSelectElement>("tecnico").value;
   if (!tecnico) erros.tecnico = "Selecione o técnico.";
 
@@ -123,8 +129,9 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
       dataServico: data ?? "",
       placa: semPlaca ? undefined : placa,
       semPlaca,
-      cpf: cpf || undefined,
-      modelo,
+      cpf: semPlaca ? cpf : undefined,
+      modelo: "",
+      idVeiculo,
       idServico: s ? s.id : null,
       servico: s ? s.nome : outro,
       qtdCarcaca: s?.pedeCarcaca ? qtd("qtdCarcaca") : 0,
@@ -134,6 +141,7 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
       valor: ((centavos ?? 0) / 100).toFixed(2),
       tecnico,
       observacao: el<HTMLInputElement>("observacao").value.trim() || undefined,
+      criadoPor: perfilAtual()?.nome,
     },
   };
 }
@@ -157,6 +165,7 @@ function limpar(): void {
   el<HTMLInputElement>("valor").value = "";
   valorDigitado = false;
   sujo = false;
+  tecnicoDoPerfil();
   atualizarSemPlaca();
   atualizarServico();
   mostrarErros({});
@@ -205,17 +214,36 @@ function opcao(valor: string, rotulo: string): HTMLOptionElement {
   return o;
 }
 
+/** O tecnico ja vem com o perfil em uso (tela "Quem esta usando?"); pode ser trocado. */
+function tecnicoDoPerfil(): void {
+  const perfil = perfilAtual();
+  const sel = el<HTMLSelectElement>("tecnico");
+  if (perfil && [...sel.options].some((o) => o.value === perfil.nome)) sel.value = perfil.nome;
+}
+
 async function carregarListas(): Promise<void> {
   try {
     const cfg = await window.finDesk!.config();
-    const [tecnicos, modelos, lista] = await Promise.all([
-      listarLista(cfg, "tecnicos"), listarLista(cfg, "modelos"), listarServicos(cfg),
+    const [tecnicos, veiculos, lista] = await Promise.all([
+      listarLista(cfg, "tecnicos"), listarVeiculos(cfg), listarServicos(cfg),
     ]);
     servicos = lista;
     const selTecnico = el<HTMLSelectElement>("tecnico");
     for (const t of tecnicos.filter((t) => t.ativo)) selTecnico.appendChild(opcao(t.nome, t.nome));
-    const datalist = el("lista-modelos");
-    for (const m of modelos.filter((m) => m.ativo)) datalist.appendChild(opcao(m.nome, m.nome));
+    tecnicoDoPerfil();
+    // modelos agrupados por marca (catalogo de CONTROLE > VEICULOS)
+    const selModelo = el<HTMLSelectElement>("modelo");
+    const porMarca = new Map<string, HTMLOptGroupElement>();
+    for (const v of veiculos.filter((v) => v.ativo)) {
+      let grupo = porMarca.get(v.marca);
+      if (!grupo) {
+        grupo = document.createElement("optgroup");
+        grupo.label = v.marca;
+        porMarca.set(v.marca, grupo);
+        selModelo.appendChild(grupo);
+      }
+      grupo.appendChild(opcao(String(v.id), `${v.modelo} (${v.marca})`));
+    }
     const selServico = el<HTMLSelectElement>("servico");
     for (const s of servicos.filter((s) => s.ativo && !s.peca)) selServico.appendChild(opcao(String(s.id), s.nome));
     selServico.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
@@ -237,7 +265,13 @@ async function verificarApi(): Promise<void> {
 }
 
 function iniciar(): void {
+  const perfil = perfilAtual();
+  if (!perfil) {
+    void window.finDesk?.navegar("perfis");
+    return;
+  }
   montarNavbar("cadastrar-garantia");
+  el("cadastrando-como").textContent = `Cadastrando como ${perfil.nome}`;
   mascaraData(el<HTMLInputElement>("data_servico"));
   mascaraCPF(el<HTMLInputElement>("cpf"));
   mascaraMoeda(el<HTMLInputElement>("valor"));
@@ -247,7 +281,8 @@ function iniciar(): void {
     sel.addEventListener("change", sugerirValor);
   });
   el("servico").addEventListener("change", atualizarServico);
-  el("sem_placa").addEventListener("change", atualizarSemPlaca);
+  el("sem_placa").addEventListener("change", () => atualizarSemPlaca());
+  atualizarSemPlaca(false);
   el("valor").addEventListener("input", () => {
     valorDigitado = el<HTMLInputElement>("valor").value.trim() !== "";
   });

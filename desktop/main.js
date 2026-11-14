@@ -177,12 +177,23 @@ function diagProcessarPedidos() {
 }
 
 const TELAS = new Map([
+  ["perfis", path.join(__dirname, "..", "frontend", "html", "perfis.html")],
   ["menu", path.join(__dirname, "..", "frontend", "html", "menu.html")],
   ["cadastrar-garantia", path.join(__dirname, "..", "frontend", "html", "cadastrar-garantia.html")],
   ["pesquisar-garantias", path.join(__dirname, "..", "frontend", "html", "pesquisar-garantias.html")],
   ["estatisticas", path.join(__dirname, "..", "frontend", "html", "estatisticas.html")],
   ["graficos", path.join(__dirname, "..", "frontend", "html", "graficos.html")],
   ["atualizar-precos", path.join(__dirname, "..", "frontend", "html", "atualizar-precos.html")],
+  ["controle", path.join(__dirname, "..", "frontend", "html", "controle.html")],
+  ["tecnicos", path.join(__dirname, "..", "frontend", "html", "tecnicos.html")],
+  ["veiculos", path.join(__dirname, "..", "frontend", "html", "veiculos.html")],
+  ["produtos", path.join(__dirname, "..", "frontend", "html", "produtos.html")],
+  ["form-tecnico", path.join(__dirname, "..", "frontend", "html", "form-tecnico.html")],
+  ["form-veiculo", path.join(__dirname, "..", "frontend", "html", "form-veiculo.html")],
+  ["form-produto", path.join(__dirname, "..", "frontend", "html", "form-produto.html")],
+  ["todos-tecnicos", path.join(__dirname, "..", "frontend", "html", "todos-tecnicos.html")],
+  ["todos-veiculos", path.join(__dirname, "..", "frontend", "html", "todos-veiculos.html")],
+  ["todos-produtos", path.join(__dirname, "..", "frontend", "html", "todos-produtos.html")],
 ]);
 
 const NOME_APP = "Sistema de Garantias — Chaveiro Universal";
@@ -286,7 +297,8 @@ async function iniciarBackend() {
 function liberarAplicativo() {
   if (!janela || janela.isDestroyed()) return;
   marco("liberando-menu");
-  janela.loadFile(path.join(__dirname, "..", "frontend", "html", "menu.html"));
+  // como na Netflix: antes do Menu, o tecnico escolhe o perfil ("Quem esta usando?")
+  janela.loadFile(path.join(__dirname, "..", "frontend", "html", "perfis.html"));
 }
 
 async function prepararAplicativo() {
@@ -359,7 +371,7 @@ function criarJanela() {
     janela.focus();
     janela.webContents.focus();
     marco("interface-carregada");
-    if (!menuLiberado && janela.webContents.getURL().includes("menu.html")) {
+    if (!menuLiberado && /(menu|perfis)\.html/.test(janela.webContents.getURL())) {
       menuLiberado = true;
       marco("interacao-liberada");
     }

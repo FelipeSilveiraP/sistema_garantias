@@ -43,7 +43,7 @@ class LegadoESegurancaTest {
         GarantiaRepository repo = new GarantiaRepository(conexao);
         ServicoRepository servicos = new ServicoRepository(conexao);
         legado = new LegadoService(new LegadoRepository(conexao), repo);
-        garantias = new GarantiaService(repo, servicos);
+        garantias = new GarantiaService(repo, servicos, new com.chaveiro.repository.VeiculoRepository(conexao));
         cadastros = new CadastrosService(servicos, new ListaRepository(conexao));
     }
 
@@ -147,7 +147,7 @@ class LegadoESegurancaTest {
     @Test
     void gatilhosAuditamGarantiasEProtegemOBanco() throws Exception {
         Garantia g = garantias.cadastrar(new Garantia(null, java.time.LocalDate.now(), "ABC1D23", false, null, "ONIX",
-                null, "CHAVE NOVA", 0, 0, 0, 0, BigDecimal.TEN, "FELIPE", null, null, null, null, null), false);
+                null, "CHAVE NOVA", 0, 0, 0, 0, BigDecimal.TEN, "FELIPE", null, null, null, null, null, null, null), false);
         garantias.marcarCupom(g.id(), "DISPENSADO");
         garantias.excluir(g.id());
 
@@ -161,7 +161,7 @@ class LegadoESegurancaTest {
         // cupom LANCADO sem data e servico em uso sem poder excluir
         Garantia outra = garantias.cadastrar(new Garantia(null, java.time.LocalDate.now(), "XYZ9A87", false, null, "GOL",
                 cadastros.listarServicos().getFirst().id(), null, 1, 1, 1, 1, BigDecimal.TEN, "FELIPE", null,
-                null, null, null, null), false);
+                null, null, null, null, null, null), false);
         assertThatThrownBy(() -> sql("UPDATE garantias SET cupom_status = 'LANCADO' WHERE id_garantia = " + outra.id()))
                 .hasMessageContaining("CUPOM_INVALIDO");
         assertThatThrownBy(() -> sql("DELETE FROM servicos WHERE id_servico = " + outra.idServico()))

@@ -5,6 +5,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -17,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 1;
+    private static final int VERSAO_ATUAL = 3;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -109,6 +111,9 @@ public class DatabaseInitializer {
     private static List<String> migracao(int versao) {
         return switch (versao) {
             case 1 -> esquemaInicial();
+            // perfis (tela "Quem esta usando?"): quem cadastrou cada garantia
+            case 2 -> List.of("ALTER TABLE garantias ADD COLUMN criado_por TEXT");
+            case 3 -> veiculos();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -310,6 +315,88 @@ public class DatabaseInitializer {
                     SELECT RAISE(ABORT, 'AUDITORIA_SOMENTE_LEITURA: a auditoria nao pode ser apagada');
                 END
                 """);
+        return sql;
+    }
+
+    /** Carros mais comuns do mercado brasileiro, por marca (editaveis em CONTROLE > VEICULOS). */
+    static final Map<String, List<String>> CARROS = new TreeMap<>(Map.ofEntries(
+            Map.entry("CHEVROLET", List.of("ONIX", "ONIX PLUS", "PRISMA", "CELTA", "CORSA", "CLASSIC", "CRUZE", "COBALT", "SPIN", "TRACKER", "MONTANA", "S10", "TRAILBLAZER", "EQUINOX", "AGILE", "ASTRA", "VECTRA", "MERIVA", "ZAFIRA", "KADETT", "MONZA", "OPALA", "CAMARO", "CAPTIVA", "BLAZER")),
+            Map.entry("VOLKSWAGEN", List.of("GOL", "VOYAGE", "FOX", "CROSSFOX", "SPACEFOX", "POLO", "VIRTUS", "T-CROSS", "NIVUS", "TAOS", "TIGUAN", "JETTA", "GOLF", "UP", "SAVEIRO", "AMAROK", "PARATI", "SANTANA", "PASSAT", "FUSCA", "NEW BEETLE", "KOMBI")),
+            Map.entry("FIAT", List.of("UNO", "MOBI", "ARGO", "CRONOS", "PALIO", "PALIO WEEKEND", "SIENA", "GRAND SIENA", "STRADA", "TORO", "PULSE", "FASTBACK", "FIORINO", "DOBLO", "IDEA", "PUNTO", "BRAVO", "STILO", "LINEA", "500", "PREMIO", "TEMPRA", "TIPO", "FREEMONT")),
+            Map.entry("FORD", List.of("KA", "KA SEDAN", "FIESTA", "FOCUS", "ECOSPORT", "FUSION", "RANGER", "TERRITORY", "BRONCO SPORT", "MAVERICK", "ESCORT", "COURIER", "F-1000", "F-250", "DEL REY", "PAMPA", "CORCEL", "EDGE")),
+            Map.entry("RENAULT", List.of("KWID", "SANDERO", "STEPWAY", "LOGAN", "DUSTER", "OROCH", "CAPTUR", "KARDIAN", "CLIO", "MEGANE", "SCENIC", "FLUENCE", "SYMBOL", "MASTER")),
+            Map.entry("TOYOTA", List.of("COROLLA", "COROLLA CROSS", "ETIOS", "YARIS", "HILUX", "SW4", "RAV4", "CAMRY", "PRIUS", "BANDEIRANTE")),
+            Map.entry("HONDA", List.of("CIVIC", "CITY", "FIT", "HR-V", "WR-V", "CR-V", "ACCORD")),
+            Map.entry("HYUNDAI", List.of("HB20", "HB20S", "CRETA", "TUCSON", "IX35", "SANTA FE", "AZERA", "ELANTRA", "I30", "VELOSTER", "HR")),
+            Map.entry("NISSAN", List.of("KICKS", "VERSA", "MARCH", "SENTRA", "FRONTIER", "LIVINA", "TIIDA")),
+            Map.entry("JEEP", List.of("RENEGADE", "COMPASS", "COMMANDER", "CHEROKEE", "GRAND CHEROKEE", "WRANGLER")),
+            Map.entry("MITSUBISHI", List.of("L200", "L200 TRITON", "PAJERO", "PAJERO SPORT", "PAJERO TR4", "OUTLANDER", "ASX", "ECLIPSE CROSS", "LANCER")),
+            Map.entry("PEUGEOT", List.of("206", "207", "208", "2008", "3008", "5008", "307", "308", "408", "PARTNER", "HOGGAR", "EXPERT", "BOXER")),
+            Map.entry("CITROEN", List.of("C3", "C3 AIRCROSS", "C4", "C4 CACTUS", "C4 LOUNGE", "C4 PICASSO", "XSARA PICASSO", "AIRCROSS", "BERLINGO", "JUMPY", "JUMPER")),
+            Map.entry("KIA", List.of("PICANTO", "CERATO", "SPORTAGE", "SORENTO", "SOUL", "STONIC", "CARNIVAL", "BONGO")),
+            Map.entry("BYD", List.of("DOLPHIN", "DOLPHIN MINI", "SEAL", "SONG PLUS", "YUAN PLUS", "KING", "SHARK", "TAN", "HAN")),
+            Map.entry("CAOA CHERY", List.of("TIGGO 2", "TIGGO 3X", "TIGGO 5X", "TIGGO 7", "TIGGO 8", "ARRIZO 5", "ARRIZO 6", "QQ", "CELER")),
+            Map.entry("GWM", List.of("HAVAL H6", "HAVAL JOLION", "ORA 03")),
+            Map.entry("RAM", List.of("RAMPAGE", "1500", "2500", "3500")),
+            Map.entry("DODGE", List.of("JOURNEY", "DAKOTA")),
+            Map.entry("MERCEDES-BENZ", List.of("CLASSE A", "CLASSE C", "CLASSE E", "GLA", "GLC", "SPRINTER")),
+            Map.entry("BMW", List.of("SERIE 1", "SERIE 3", "SERIE 5", "X1", "X3", "X5")),
+            Map.entry("AUDI", List.of("A3", "A4", "A5", "Q3", "Q5", "Q7")),
+            Map.entry("VOLVO", List.of("XC40", "XC60", "XC90", "EX30")),
+            Map.entry("LAND ROVER", List.of("EVOQUE", "DISCOVERY SPORT", "DEFENDER", "FREELANDER")),
+            Map.entry("SUZUKI", List.of("JIMNY", "VITARA", "S-CROSS", "SWIFT")),
+            Map.entry("JAC", List.of("T40", "T50", "J3", "E-JS1")),
+            Map.entry("MINI", List.of("COOPER", "COUNTRYMAN")),
+            Map.entry("TROLLER", List.of("T4"))));
+
+    /**
+     * v3 - entidade de veiculos (marcas + modelos) e as relacoes da garantia nos
+     * moldes do Contas a Pagar: a garantia guarda o NOME (texto, historico) e a
+     * chave estrangeira com ON DELETE SET NULL (excluir o cadastro nao apaga a garantia).
+     */
+    private static List<String> veiculos() {
+        List<String> sql = new ArrayList<>();
+        sql.add("""
+                CREATE TABLE marcas (
+                    id_marca INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL UNIQUE COLLATE NOCASE CHECK (length(trim(nome)) BETWEEN 2 AND 40),
+                    criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+                )
+                """);
+        sql.add("""
+                CREATE TABLE veiculos (
+                    id_veiculo INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_marca INTEGER NOT NULL,
+                    modelo TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(modelo)) BETWEEN 1 AND 60),
+                    ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+                    criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                    UNIQUE (id_marca, modelo),
+                    FOREIGN KEY (id_marca) REFERENCES marcas(id_marca) ON DELETE RESTRICT
+                )
+                """);
+        sql.add("CREATE INDEX idx_veiculos_marca ON veiculos(id_marca)");
+        for (var e : CARROS.entrySet()) {
+            sql.add("INSERT OR IGNORE INTO marcas (nome) VALUES (" + texto(e.getKey()) + ")");
+            for (String modelo : e.getValue()) {
+                sql.add("INSERT OR IGNORE INTO veiculos (id_marca, modelo) SELECT id_marca, " + texto(modelo)
+                        + " FROM marcas WHERE nome = " + texto(e.getKey()));
+            }
+        }
+        // modelos da lista antiga (VBA/editados) que nao estao no catalogo: marca OUTRAS
+        sql.add("INSERT OR IGNORE INTO marcas (nome) VALUES ('OUTRAS')");
+        sql.add("INSERT OR IGNORE INTO veiculos (id_marca, modelo, ativo)"
+                + " SELECT (SELECT id_marca FROM marcas WHERE nome = 'OUTRAS'), m.nome, m.ativo FROM modelos m"
+                + " WHERE NOT EXISTS (SELECT 1 FROM veiculos v WHERE v.modelo = m.nome COLLATE NOCASE)"
+                // a lista original do VBA (com grafias como COROLA e KADET) ja esta coberta pelo catalogo
+                + " AND m.nome NOT IN (" + String.join(", ", MODELOS.stream().map(DatabaseInitializer::texto).toList()) + ")");
+        sql.add("ALTER TABLE garantias ADD COLUMN id_veiculo INTEGER REFERENCES veiculos(id_veiculo) ON DELETE SET NULL");
+        sql.add("ALTER TABLE garantias ADD COLUMN id_tecnico INTEGER REFERENCES tecnicos(id_tecnico) ON DELETE SET NULL");
+        sql.add("CREATE INDEX idx_garantias_veiculo ON garantias(id_veiculo)");
+        sql.add("CREATE INDEX idx_garantias_tecnico ON garantias(id_tecnico)");
+        // liga as garantias que ja existem pelo nome
+        sql.add("UPDATE garantias SET id_tecnico = (SELECT t.id_tecnico FROM tecnicos t WHERE t.nome = garantias.tecnico COLLATE NOCASE)");
+        sql.add("UPDATE garantias SET id_veiculo = (SELECT v.id_veiculo FROM veiculos v WHERE v.modelo = garantias.modelo COLLATE NOCASE"
+                + " ORDER BY v.id_veiculo LIMIT 1)");
         return sql;
     }
 }

@@ -4,12 +4,23 @@ interface FinDeskConfig {
 }
 
 type TelaFinDesk =
+  | "perfis"
   | "menu"
   | "cadastrar-garantia"
   | "pesquisar-garantias"
   | "estatisticas"
   | "graficos"
-  | "atualizar-precos";
+  | "atualizar-precos"
+  | "controle"
+  | "tecnicos"
+  | "veiculos"
+  | "produtos"
+  | "form-tecnico"
+  | "form-veiculo"
+  | "form-produto"
+  | "todos-tecnicos"
+  | "todos-veiculos"
+  | "todos-produtos";
 
 interface Window {
   finDesk?: {

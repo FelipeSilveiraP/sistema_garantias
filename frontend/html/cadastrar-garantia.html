@@ -14,6 +14,7 @@
 <span class="material-symbols-outlined text-2xl text-[#1c1b1b]">post_add</span>
 </div>
 <h1 class="text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1c1b1b]">Cadastrar Garantia</h1>
+<span class="ml-auto font-mono text-xs font-bold uppercase text-neutral-600" id="cadastrando-como"></span>
 </div>
 <form class="flex flex-col gap-4" id="form-garantia" novalidate>
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
@@ -33,20 +34,19 @@
 <div class="campo-form">
 <label class="rotulo-form" for="placa"><span>PLACA <strong class="text-[#ba1a1a]" id="placa-obrigatoria">*</strong></span><span class="dica-form">7 LETRAS E NÚMEROS</span></label>
 <input class="entrada-form font-mono uppercase" id="placa" maxlength="8" placeholder="ABC1D23" type="text" autocomplete="off">
-<label class="caixa-form" for="sem_placa"><input id="sem_placa" type="checkbox"><span>CARRO SEM PLACA (INFORMAR O CPF)</span></label>
+<label class="sem-placa" for="sem_placa"><input id="sem_placa" type="checkbox"><span class="sem-placa__caixa" aria-hidden="true"></span><span class="sem-placa__texto">CARRO SEM PLACA<small>Marque para liberar o CPF do cliente</small></span></label>
 <p class="campo-erro hidden" data-erro-campo="placa"></p>
 </div>
 
 <div class="campo-form">
-<label class="rotulo-form" for="cpf"><span>CPF DO CLIENTE <strong class="text-[#ba1a1a] hidden" id="cpf-obrigatorio">*</strong></span><span class="dica-form" id="cpf-dica">OPCIONAL</span></label>
-<input class="entrada-form font-mono" id="cpf" maxlength="14" placeholder="000.000.000-00" type="text" autocomplete="off">
+<label class="rotulo-form" for="cpf"><span>CPF DO CLIENTE <strong class="text-[#ba1a1a] hidden" id="cpf-obrigatorio">*</strong></span><span class="dica-form" id="cpf-dica">SÓ PARA CARRO SEM PLACA</span></label>
+<input class="entrada-form entrada-form--bloqueada font-mono" id="cpf" maxlength="14" placeholder="000.000.000-00" type="text" autocomplete="off" disabled title="Liberado só para carro sem placa">
 <p class="campo-erro hidden" data-erro-campo="cpf"></p>
 </div>
 
 <div class="campo-form">
-<label class="rotulo-form" for="modelo"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">ESCOLHA OU DIGITE</span></label>
-<input class="entrada-form uppercase" id="modelo" list="lista-modelos" maxlength="60" placeholder="Ex.: ONIX" type="text" autocomplete="off">
-<datalist id="lista-modelos"></datalist>
+<label class="rotulo-form" for="modelo"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">POR MARCA</span></label>
+<select class="entrada-form" id="modelo"><option value="">Selecione o modelo...</option></select>
 <p class="campo-erro hidden" data-erro-campo="modelo"></p>
 </div>
 

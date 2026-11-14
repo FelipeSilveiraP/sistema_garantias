@@ -1,5 +1,6 @@
 import { Tela, irPara, voltar, menuPrincipal } from "./navegacao";
 import { respostaProvisoria, dialogoEstaAberto } from "./componentes";
+import { criarAvatar, perfilAtual } from "./perfil";
 
 type ChaveNav = "voltar" | "menu" | "cadastrar" | "pesquisar" | "estatisticas";
 
@@ -30,11 +31,11 @@ const ITENS_NAV: ItemNav[] = [
     chave: "menu",
     rotulo: "MENU PRINCIPAL",
     icone: "home",
-    // vermelho: o amarelo e a cor de CADASTRAR GARANTIA (como no Menu)
-    cor: "bg-[#FF3B30]",
-    corTexto: "text-[#FF3B30]",
+    // azul: amarelo, vermelho e verde sao as cores dos 3 botoes do Menu
+    cor: "bg-[#2563EB]",
+    corTexto: "text-[#2563EB]",
     svg: '<path d="m3 11 9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-7h4v7"/>',
-    quadrado: "icone-vermelho",
+    quadrado: "icone-azul",
     noPainel: true,
   },
   {
@@ -52,16 +53,16 @@ const ITENS_NAV: ItemNav[] = [
     chave: "pesquisar",
     rotulo: "PESQUISAR GARANTIA",
     icone: "search",
-    cor: "bg-[#2563EB]",
-    corTexto: "text-[#2563EB]",
+    cor: "bg-[#FF3B30]",
+    corTexto: "text-[#FF3B30]",
     svg: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
-    quadrado: "icone-azul",
+    quadrado: "icone-vermelho",
     destino: "pesquisar-garantias",
     noPainel: true,
   },
   {
     chave: "estatisticas",
-    rotulo: "ESTATÍSTICA E ATUALIZAÇÕES",
+    rotulo: "ATUALIZAÇÃO E ESTATÍSTICA",
     icone: "bar_chart",
     cor: "bg-[#00FF66]",
     corTexto: "text-[#00FF66]",
@@ -78,6 +79,16 @@ const MODULO_DA_TELA: Partial<Record<Tela, ChaveNav>> = {
   estatisticas: "estatisticas",
   graficos: "estatisticas",
   "atualizar-precos": "estatisticas",
+  controle: "estatisticas",
+  tecnicos: "estatisticas",
+  veiculos: "estatisticas",
+  produtos: "estatisticas",
+  "form-tecnico": "estatisticas",
+  "form-veiculo": "estatisticas",
+  "form-produto": "estatisticas",
+  "todos-tecnicos": "estatisticas",
+  "todos-veiculos": "estatisticas",
+  "todos-produtos": "estatisticas",
 };
 
 const CLASSE_ITEM_PAINEL =
@@ -168,7 +179,33 @@ ${ITENS_NAV.filter((item) => item.noPainel)
   .join("")}
 </nav>`;
 
+  // perfil em uso (bolinha do tecnico): no fim da barra e no menu lateral; clicar troca o perfil
+  const perfil = perfilAtual();
+  if (perfil) {
+    const naBarra = document.createElement("button");
+    naBarra.type = "button";
+    naBarra.className = "nav-item nav-perfil";
+    naBarra.title = `Usando como ${perfil.nome} — clique para trocar`;
+    naBarra.dataset.trocarPerfil = "";
+    const nome = document.createElement("span");
+    nome.textContent = perfil.nome;
+    naBarra.append(criarAvatar(perfil, "pequena"), nome);
+    raiz.querySelector(".nav-barra")?.appendChild(naBarra);
+    const noPainel = document.createElement("button");
+    noPainel.type = "button";
+    noPainel.className = CLASSE_ITEM_PAINEL;
+    noPainel.dataset.trocarPerfil = "";
+    const texto = document.createElement("span");
+    texto.textContent = `${perfil.nome} · TROCAR PERFIL`;
+    noPainel.append(criarAvatar(perfil, "pequena"), texto);
+    raiz.querySelector(".nav-painel")?.appendChild(noPainel);
+  }
+
   raiz.addEventListener("click", (evento) => {
+    if ((evento.target as HTMLElement).closest("[data-trocar-perfil]")) {
+      void window.finDesk?.navegar("perfis");
+      return;
+    }
     const alvo = (evento.target as HTMLElement).closest<HTMLElement>("[data-nav]");
     if (!alvo || !raiz.contains(alvo)) return;
     const acao = alvo.dataset.nav;

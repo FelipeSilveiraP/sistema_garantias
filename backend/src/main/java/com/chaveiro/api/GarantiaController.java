@@ -23,10 +23,11 @@ public class GarantiaController {
     /** Corpo do cadastro/edicao. idServico nulo + servico preenchido = "OUTRO" (texto livre). */
     public record GarantiaRequest(LocalDate dataServico, String placa, boolean semPlaca, String cpf, String modelo,
                                   Long idServico, String servico, int qtdCarcaca, int qtdBotao, int qtdPilha,
-                                  int qtdItens, BigDecimal valor, String tecnico, String observacao, Boolean forcar) {
+                                  int qtdItens, BigDecimal valor, String tecnico, String observacao, Boolean forcar,
+                                  String criadoPor, Long idVeiculo) {
         Garantia paraModelo() {
             return new Garantia(null, dataServico, placa, semPlaca, cpf, modelo, idServico, servico, qtdCarcaca,
-                    qtdBotao, qtdPilha, qtdItens, valor, tecnico, observacao, null, null, null, "SISTEMA");
+                    qtdBotao, qtdPilha, qtdItens, valor, tecnico, observacao, null, null, null, "SISTEMA", criadoPor, idVeiculo);
         }
     }
 

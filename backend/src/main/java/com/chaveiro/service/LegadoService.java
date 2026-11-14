@@ -104,7 +104,7 @@ public class LegadoService {
         String cpf = GarantiaService.soDigitos(c.get("E"));
         return Optional.of(new Garantia(null, data, placa, semPlaca, cpf.isEmpty() ? null : cpf,
                 padrao(texto(c.get("C"))), null, padrao(texto(c.get("D"))), 0, 0, 0, 0, valor(c.get("F")),
-                padrao(texto(c.get("G"))), texto(c.get("H")), null, null, null, "LEGADO"));
+                padrao(texto(c.get("G"))), texto(c.get("H")), null, null, null, "LEGADO", null, null));
     }
 
     static LocalDate data(String bruto) {

@@ -70,6 +70,19 @@ public class CadastrosService {
         }
     }
 
+    public void excluirServico(long id) {
+        try {
+            if (!servicos.excluir(id)) {
+                throw new RecursoNaoEncontradoException("servico");
+            }
+        } catch (SQLException erro) {
+            if (erro.getMessage() != null && erro.getMessage().contains("SERVICO_EM_USO")) {
+                throw new ConflitoIntegridadeException("produto usado em garantias: desative em vez de excluir");
+            }
+            throw new IllegalStateException("falha ao excluir o produto", erro);
+        }
+    }
+
     /** Reajusta todos os precos ativos em % (de -50% a +200%), numa unica transacao. */
     public int reajustar(BigDecimal percentual, boolean incluirPecas) {
         if (percentual == null || percentual.compareTo(new BigDecimal("-50")) < 0
