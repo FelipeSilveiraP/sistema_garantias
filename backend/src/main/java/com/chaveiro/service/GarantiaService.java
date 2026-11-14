@@ -125,8 +125,28 @@ public class GarantiaService {
         return placa == null ? "" : placa.replace("-", "").replace(" ", "").trim().toUpperCase(Locale.ROOT);
     }
 
+    /** Placa brasileira: antiga (ABC1234) ou Mercosul (ABC1D23), sem consulta externa. */
     static boolean placaValida(String placa) {
-        return placa.matches("[A-Z0-9]{7}");
+        return placa != null && placa.matches("[A-Z]{3}[0-9][A-Z0-9][0-9]{2}");
+    }
+
+    /** CPF: 11 numeros, nao todos iguais, e os 2 digitos verificadores (modulo 11) certos. */
+    static boolean cpfValido(String cpf) {
+        if (cpf == null || !cpf.matches("[0-9]{11}") || cpf.chars().distinct().count() == 1) {
+            return false;
+        }
+        int[] d = cpf.chars().map(c -> c - '0').toArray();
+        for (int pos = 9; pos <= 10; pos++) {
+            int soma = 0;
+            for (int i = 0; i < pos; i++) {
+                soma += d[i] * (pos + 1 - i);
+            }
+            int resto = soma % 11;
+            if (d[pos] != (resto < 2 ? 0 : 11 - resto)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static String soDigitos(String texto) {
@@ -151,16 +171,18 @@ public class GarantiaService {
             cpf = soDigitos(d.cpf());
             if (cpf.length() != 11) {
                 erros.put("cpf", "Sem placa: informe o CPF do cliente (11 números).");
+            } else if (!cpfValido(cpf)) {
+                erros.put("cpf", "CPF inválido: confira os números (os 2 últimos não batem).");
             }
         } else {
             placa = limparPlaca(d.placa());
             if (!placaValida(placa)) {
-                erros.put("placa", "Placa inválida: use 7 letras e números (ex.: ABC1D23).");
+                erros.put("placa", "Placa inválida: use o formato ABC1234 (antiga) ou ABC1D23 (Mercosul).");
             }
             String c = soDigitos(d.cpf());
             cpf = c.isEmpty() ? null : c;
-            if (cpf != null && cpf.length() != 11) {
-                erros.put("cpf", "CPF deve ter 11 números (ou deixe em branco).");
+            if (cpf != null && !cpfValido(cpf)) {
+                erros.put("cpf", "CPF inválido: confira os números (ou deixe em branco).");
             }
         }
 
