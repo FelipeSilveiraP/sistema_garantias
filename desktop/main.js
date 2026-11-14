@@ -194,6 +194,7 @@ const TELAS = new Map([
   ["todos-tecnicos", path.join(__dirname, "..", "frontend", "html", "todos-tecnicos.html")],
   ["todos-veiculos", path.join(__dirname, "..", "frontend", "html", "todos-veiculos.html")],
   ["todos-produtos", path.join(__dirname, "..", "frontend", "html", "todos-produtos.html")],
+  ["contas", path.join(__dirname, "..", "frontend", "html", "contas.html")],
 ]);
 
 const NOME_APP = "Sistema de Garantias — Chaveiro Universal";

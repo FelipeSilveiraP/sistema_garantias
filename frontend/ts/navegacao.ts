@@ -15,7 +15,8 @@ export type Tela =
   | "form-produto"
   | "todos-tecnicos"
   | "todos-veiculos"
-  | "todos-produtos";
+  | "todos-produtos"
+  | "contas";
 
 const CHAVE_PILHA = "findesk.pilha-navegacao";
 

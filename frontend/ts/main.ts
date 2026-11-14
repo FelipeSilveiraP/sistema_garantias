@@ -40,6 +40,11 @@ async function iniciar(): Promise<void> {
       iniciarTodosCadastro(tela);
       return;
     }
+    case "contas": {
+      const { iniciarContas } = await import("./telas/contas");
+      iniciarContas();
+      return;
+    }
     case "cadastrar-garantia": {
       const { iniciarCadastrarGarantia } = await import("./telas/cadastrar-garantia");
       iniciarCadastrarGarantia();

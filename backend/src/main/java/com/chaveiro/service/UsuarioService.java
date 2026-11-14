@@ -1,0 +1,464 @@
+package com.chaveiro.service;
+
+import com.chaveiro.repository.UsuarioRepository;
+import com.chaveiro.repository.UsuarioRepository.Acesso;
+import com.chaveiro.repository.UsuarioRepository.Linha;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * Contas de usuario da tela "Quem esta usando?": PIN de 4 a 6 numeros, sessao,
+ * bloqueio apos 5 PINs errados, historico de acessos, redefinicao por e-mail
+ * (codigo de 6 digitos, 15 minutos) e o administrador, o UNICO que cadastra e
+ * edita contas (nome, foto, login, e-mail, PIN). Login, e-mail e PIN nunca ficam
+ * em texto no banco (Cripto). As permissoes sao conferidas AQUI, no servidor.
+ */
+@Service
+public class UsuarioService {
+
+    private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
+    static final int MAX_FALHAS = 5;
+    static final int MINUTOS_BLOQUEIO = 5;
+    static final int MINUTOS_CODIGO = 15;
+    private static final long HORAS_SESSAO = 12;
+    private static final int LIMITE_FOTO = 1024 * 1024;
+    private static final String CFG_REMETENTE = "email.remetente";
+    private static final String CFG_SENHA_APP = "email.senha_app";
+
+    /** O que o admin ve (login e e-mail ja decifrados). */
+    public record Usuario(long id, String nome, String login, String email, boolean admin, boolean ativo, boolean temFoto,
+                          int acessos, String ultimoAcesso, boolean bloqueado, String criadoEm) {
+    }
+
+    /** Bolinha da tela de perfis: sem login nem e-mail. */
+    public record Perfil(long id, String nome, boolean temFoto, boolean admin) {
+    }
+
+    public record Sessao(String token, long id, String nome, boolean admin, Instant expira) {
+    }
+
+    public record Dados(String nome, String login, String email, String pin, Boolean admin, Boolean ativo) {
+    }
+
+    private final UsuarioRepository repository;
+    private final Cripto cripto;
+    private final Carteiro carteiro;
+    private final Map<String, Sessao> sessoes = new ConcurrentHashMap<>();
+
+    public UsuarioService(UsuarioRepository repository, Cripto cripto, Carteiro carteiro) {
+        this.repository = repository;
+        this.cripto = cripto;
+        this.carteiro = carteiro;
+    }
+
+    private interface Sql<T> {
+        T executar() throws SQLException;
+    }
+
+    private static <T> T banco(Sql<T> acao) {
+        try {
+            return acao.executar();
+        } catch (SQLException erro) {
+            String msg = erro.getMessage() == null ? "" : erro.getMessage();
+            if (msg.contains("ULTIMO_ADMIN")) {
+                throw new ConflitoIntegridadeException("o sistema precisa de pelo menos um administrador ativo");
+            }
+            log.error("falha no banco de usuarios", erro);
+            throw new IllegalStateException("falha ao acessar as contas", erro);
+        }
+    }
+
+    // ---------- perfis e entrada ----------
+
+    public boolean primeiroAcesso() {
+        return banco(repository::contar) == 0;
+    }
+
+    public List<Perfil> perfis() {
+        return banco(repository::listar).stream().filter(Linha::ativo)
+                .map(l -> new Perfil(l.id(), l.nome(), l.temFoto(), l.admin())).toList();
+    }
+
+    public byte[] foto(long id) {
+        byte[] f = banco(() -> repository.foto(id));
+        if (f == null) {
+            throw new RecursoNaoEncontradoException("foto");
+        }
+        return f;
+    }
+
+    /** Primeira abertura: a primeira conta e a do administrador (e so funciona enquanto nao houver contas). */
+    public Sessao criarPrimeiroAdmin(Dados d) {
+        if (!primeiroAcesso()) {
+            throw new AcessoNegadoException(403, "o administrador ja foi criado");
+        }
+        long id = inserir(d, true, null);
+        Linha l = banco(() -> repository.buscarPorId(id)).orElseThrow();
+        banco(() -> {
+            repository.registrarEntrada(id, l.nome());
+            return null;
+        });
+        log.info("primeiro administrador criado (id={})", id);
+        return abrirSessao(l);
+    }
+
+    public Sessao entrar(long id, String pin) {
+        Linha l = banco(() -> repository.buscarPorId(id)).filter(Linha::ativo)
+                .orElseThrow(() -> new AcessoNegadoException(401, "conta inexistente ou desativada"));
+        if (banco(() -> repository.bloqueada(id))) {
+            throw new AcessoNegadoException(423, "conta bloqueada por PINs errados", Map.of("minutos", MINUTOS_BLOQUEIO));
+        }
+        if (!cripto.conferirPin(pin == null ? "" : pin.trim(), l.pinHash())) {
+            int falhas = banco(() -> repository.registrarFalha(id, l.nome(), MAX_FALHAS, MINUTOS_BLOQUEIO));
+            if (falhas >= MAX_FALHAS) {
+                log.warn("conta id={} bloqueada por {} PINs errados", id, MAX_FALHAS);
+                throw new AcessoNegadoException(423, "conta bloqueada por PINs errados", Map.of("minutos", MINUTOS_BLOQUEIO));
+            }
+            throw new AcessoNegadoException(401, "PIN incorreto", Map.of("tentativasRestantes", MAX_FALHAS - falhas));
+        }
+        banco(() -> {
+            repository.registrarEntrada(id, l.nome());
+            return null;
+        });
+        return abrirSessao(l);
+    }
+
+    private Sessao abrirSessao(Linha l) {
+        Sessao s = new Sessao(Cripto.tokenAleatorio(), l.id(), l.nome(), l.admin(), Instant.now().plus(HORAS_SESSAO, ChronoUnit.HOURS));
+        sessoes.put(s.token(), s);
+        return s;
+    }
+
+    public void sair(String token) {
+        if (token != null) {
+            sessoes.remove(token);
+        }
+    }
+
+    /** Sessao valida de uma conta que continua ativa (desativar/excluir derruba a sessao). */
+    public Sessao sessao(String token) {
+        Sessao s = token == null ? null : sessoes.get(token);
+        if (s == null || s.expira().isBefore(Instant.now())) {
+            if (s != null) {
+                sessoes.remove(token);
+            }
+            throw new AcessoNegadoException(401, "entre com o seu perfil e PIN");
+        }
+        Linha l = banco(() -> repository.buscarPorId(s.id())).filter(Linha::ativo).orElse(null);
+        if (l == null) {
+            sessoes.remove(token);
+            throw new AcessoNegadoException(401, "conta desativada");
+        }
+        return new Sessao(token, l.id(), l.nome(), l.admin(), s.expira());
+    }
+
+    public Sessao exigirAdmin(String token) {
+        Sessao s = sessao(token);
+        if (!s.admin()) {
+            throw new AcessoNegadoException(403, "so o administrador pode fazer isso");
+        }
+        return s;
+    }
+
+    /** Nome do perfil da sessao (para "cadastrada por"), ou nulo sem sessao valida. */
+    public String nomeDaSessao(String token) {
+        try {
+            return token == null ? null : sessao(token).nome();
+        } catch (AcessoNegadoException semSessao) {
+            return null;
+        }
+    }
+
+    // ---------- esqueci o PIN (codigo por e-mail) ----------
+
+    /** Envia o codigo para o e-mail da conta e devolve o e-mail mascarado (f****@gmail.com). */
+    public String esqueciPin(String login) {
+        String remetente = banco(() -> repository.config(CFG_REMETENTE)).map(cripto::decifrar).orElse(null);
+        String senhaApp = banco(() -> repository.config(CFG_SENHA_APP)).map(cripto::decifrar).orElse(null);
+        if (remetente == null || senhaApp == null) {
+            throw new DadosInvalidosException(Map.of("email", "O e-mail que envia os códigos ainda não foi configurado. Peça ao administrador."));
+        }
+        Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(login == null ? "" : login))).filter(Linha::ativo)
+                .orElseThrow(() -> new DadosInvalidosException(Map.of("login", "Login não encontrado ou sem e-mail cadastrado.")));
+        String email = cripto.decifrar(l.emailCifrado());
+        if (email == null || email.isBlank()) {
+            throw new DadosInvalidosException(Map.of("login", "Login não encontrado ou sem e-mail cadastrado."));
+        }
+        String codigo = Cripto.codigoAleatorio();
+        banco(() -> {
+            repository.criarCodigo(l.id(), cripto.hashCodigo(codigo), MINUTOS_CODIGO);
+            return null;
+        });
+        try {
+            carteiro.enviar(remetente, senhaApp, email, "Código para criar um novo PIN — Sistema de Garantias",
+                    "Olá, " + l.nome() + ".\n\nSeu código para criar um novo PIN é: " + codigo
+                            + "\n\nEle vale por " + MINUTOS_CODIGO + " minutos. Se não foi você, ignore este e-mail.\n\nChaveiro Universal");
+        } catch (RuntimeException erro) {
+            log.warn("falha ao enviar o codigo de redefinicao: {}", erro.getClass().getSimpleName());
+            throw new DadosInvalidosException(Map.of("email", "Não foi possível enviar o e-mail. Confira a internet e tente de novo."));
+        }
+        banco(() -> {
+            repository.registrarEvento(l.id(), l.nome(), "CODIGO_ENVIADO");
+            return null;
+        });
+        return mascarar(email);
+    }
+
+    public void redefinirPin(String login, String codigo, String novoPin) {
+        String pin = validarPin(novoPin);
+        Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(login == null ? "" : login))).filter(Linha::ativo)
+                .orElseThrow(() -> new DadosInvalidosException(Map.of("codigo", "Código inválido ou vencido.")));
+        var c = banco(() -> repository.codigoValido(l.id()))
+                .orElseThrow(() -> new DadosInvalidosException(Map.of("codigo", "Código inválido ou vencido. Peça outro.")));
+        if (!cripto.hashCodigo(codigo == null ? "" : codigo.trim()).equals(c.codigoHash())) {
+            banco(() -> {
+                repository.tentativaCodigo(c.id());
+                return null;
+            });
+            throw new DadosInvalidosException(Map.of("codigo", "Código incorreto."));
+        }
+        banco(() -> repository.atualizarPin(l.id(), cripto.hashPin(pin)));
+        banco(() -> {
+            repository.registrarEvento(l.id(), l.nome(), "PIN_REDEFINIDO_EMAIL");
+            return null;
+        });
+    }
+
+    static String mascarar(String email) {
+        int arroba = email.indexOf('@');
+        if (arroba <= 1) {
+            return "***" + email.substring(Math.max(arroba, 0));
+        }
+        return email.charAt(0) + "*".repeat(Math.min(arroba - 1, 6)) + email.substring(arroba);
+    }
+
+    // ---------- conta propria (qualquer usuario) ----------
+
+    public Usuario eu(String token) {
+        return visao(banco(() -> repository.buscarPorId(sessao(token).id())).orElseThrow());
+    }
+
+    public void trocarMeuPin(String token, String pinAtual, String novoPin) {
+        Sessao s = sessao(token);
+        Linha l = banco(() -> repository.buscarPorId(s.id())).orElseThrow();
+        if (!cripto.conferirPin(pinAtual == null ? "" : pinAtual.trim(), l.pinHash())) {
+            throw new DadosInvalidosException(Map.of("pinAtual", "PIN atual incorreto."));
+        }
+        banco(() -> repository.atualizarPin(s.id(), cripto.hashPin(validarPin(novoPin))));
+        banco(() -> {
+            repository.registrarEvento(s.id(), s.nome(), "PIN_TROCADO");
+            return null;
+        });
+    }
+
+    // ---------- administrador ----------
+
+    public List<Usuario> listar(String token) {
+        exigirAdmin(token);
+        return banco(repository::listar).stream().map(this::visao).toList();
+    }
+
+    public Usuario cadastrar(String token, Dados d, byte[] foto) {
+        exigirAdmin(token);
+        long id = inserir(d, Boolean.TRUE.equals(d.admin()), foto);
+        return visao(banco(() -> repository.buscarPorId(id)).orElseThrow());
+    }
+
+    public Usuario atualizar(String token, long id, Dados d) {
+        exigirAdmin(token);
+        Linha atual = banco(() -> repository.buscarPorId(id)).orElseThrow(() -> new RecursoNaoEncontradoException("usuario"));
+        Map<String, String> erros = new LinkedHashMap<>();
+        String nome = d.nome() == null ? atual.nome() : nome(d.nome(), erros);
+        String login = d.login() == null ? cripto.decifrar(atual.loginCifrado()) : login(d.login(), erros);
+        String email = d.email() == null ? cripto.decifrar(atual.emailCifrado()) : email(d.email(), erros);
+        if (!erros.isEmpty()) {
+            throw new DadosInvalidosException(erros);
+        }
+        String indice = cripto.indice(login);
+        if (banco(() -> repository.indiceEmUso(indice, id))) {
+            throw new DadosInvalidosException(Map.of("login", "Esse login já é de outra conta."));
+        }
+        boolean admin = d.admin() == null ? atual.admin() : d.admin();
+        boolean ativo = d.ativo() == null ? atual.ativo() : d.ativo();
+        banco(() -> repository.atualizarDados(id, nome, indice, cripto.cifrar(login), email == null ? null : cripto.cifrar(email), admin, ativo));
+        if (!ativo) {
+            sessoes.values().removeIf(s -> s.id() == id);
+        }
+        return visao(banco(() -> repository.buscarPorId(id)).orElseThrow());
+    }
+
+    /** So o admin cria um PIN novo para qualquer conta (sem saber o anterior). */
+    public void novoPin(String token, long id, String novoPin) {
+        exigirAdmin(token);
+        Linha l = banco(() -> repository.buscarPorId(id)).orElseThrow(() -> new RecursoNaoEncontradoException("usuario"));
+        banco(() -> repository.atualizarPin(id, cripto.hashPin(validarPin(novoPin))));
+        banco(() -> {
+            repository.registrarEvento(id, l.nome(), "PIN_REDEFINIDO_ADMIN");
+            return null;
+        });
+    }
+
+    public void trocarFoto(String token, long id, byte[] foto) {
+        exigirAdmin(token);
+        if (foto != null) {
+            validarFoto(foto);
+        }
+        if (!banco(() -> repository.atualizarFoto(id, foto))) {
+            throw new RecursoNaoEncontradoException("usuario");
+        }
+    }
+
+    public void excluir(String token, long id) {
+        Sessao s = exigirAdmin(token);
+        if (s.id() == id) {
+            throw new ConflitoIntegridadeException("voce nao pode excluir a sua propria conta");
+        }
+        if (!banco(() -> repository.excluir(id))) {
+            throw new RecursoNaoEncontradoException("usuario");
+        }
+        sessoes.values().removeIf(x -> x.id() == id);
+    }
+
+    public List<Acesso> acessos(String token, Long id, int limite) {
+        exigirAdmin(token);
+        return banco(() -> repository.acessos(id, Math.max(1, Math.min(limite, 500))));
+    }
+
+    public Map<String, Object> configEmail(String token) {
+        exigirAdmin(token);
+        String remetente = banco(() -> repository.config(CFG_REMETENTE)).map(cripto::decifrar).orElse(null);
+        boolean temSenha = banco(() -> repository.config(CFG_SENHA_APP)).isPresent();
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("remetente", remetente);
+        r.put("configurado", remetente != null && temSenha);
+        return r;
+    }
+
+    public void gravarConfigEmail(String token, String remetente, String senhaApp) {
+        exigirAdmin(token);
+        Map<String, String> erros = new LinkedHashMap<>();
+        String r = email(remetente, erros);
+        String senha = senhaApp == null ? "" : senhaApp.replace(" ", "");
+        if (r == null) {
+            erros.put("remetente", "Informe o Gmail da loja.");
+        }
+        if (senha.length() != 16) {
+            erros.put("senhaApp", "A senha de app do Google tem 16 letras.");
+        }
+        if (!erros.isEmpty()) {
+            throw new DadosInvalidosException(erros);
+        }
+        banco(() -> {
+            repository.gravarConfig(CFG_REMETENTE, cripto.cifrar(r));
+            repository.gravarConfig(CFG_SENHA_APP, cripto.cifrar(senha));
+            return null;
+        });
+    }
+
+    public void testarEmail(String token, String destino) {
+        exigirAdmin(token);
+        Map<String, String> erros = new LinkedHashMap<>();
+        String para = email(destino, erros);
+        if (para == null || !erros.isEmpty()) {
+            throw new DadosInvalidosException(Map.of("destino", "Informe o e-mail que vai receber o teste."));
+        }
+        String remetente = banco(() -> repository.config(CFG_REMETENTE)).map(cripto::decifrar)
+                .orElseThrow(() -> new DadosInvalidosException(Map.of("remetente", "Grave o Gmail e a senha de app primeiro.")));
+        String senha = banco(() -> repository.config(CFG_SENHA_APP)).map(cripto::decifrar).orElseThrow();
+        try {
+            carteiro.enviar(remetente, senha, para, "Teste — Sistema de Garantias", "O envio de e-mails do Sistema de Garantias está funcionando.");
+        } catch (RuntimeException erro) {
+            log.warn("teste de e-mail falhou: {}", erro.getClass().getSimpleName());
+            throw new DadosInvalidosException(Map.of("destino", "Não foi possível enviar. Confira o Gmail, a senha de app e a internet."));
+        }
+    }
+
+    // ---------- validacao ----------
+
+    private long inserir(Dados d, boolean admin, byte[] foto) {
+        Map<String, String> erros = new LinkedHashMap<>();
+        String nome = nome(d.nome(), erros);
+        String login = login(d.login(), erros);
+        String email = email(d.email(), erros);
+        String pin = null;
+        try {
+            pin = validarPin(d.pin());
+        } catch (DadosInvalidosException e) {
+            erros.putAll(e.getCampos());
+        }
+        if (foto != null) {
+            try {
+                validarFoto(foto);
+            } catch (DadosInvalidosException e) {
+                erros.putAll(e.getCampos());
+            }
+        }
+        if (!erros.isEmpty()) {
+            throw new DadosInvalidosException(erros);
+        }
+        String indice = cripto.indice(login);
+        if (banco(() -> repository.indiceEmUso(indice, null))) {
+            throw new DadosInvalidosException(Map.of("login", "Esse login já é de outra conta."));
+        }
+        String hash = cripto.hashPin(pin);
+        return banco(() -> repository.inserir(nome, indice, cripto.cifrar(login), email == null ? null : cripto.cifrar(email), hash, admin, foto));
+    }
+
+    private static String nome(String nome, Map<String, String> erros) {
+        String n = nome == null ? "" : nome.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        if (n.length() < 2 || n.length() > 40) {
+            erros.put("nome", "Informe o nome (de 2 a 40 letras).");
+        }
+        return n;
+    }
+
+    private static String login(String login, Map<String, String> erros) {
+        String l = login == null ? "" : login.trim().toLowerCase(Locale.ROOT);
+        if (!l.matches("[a-z0-9._-]{3,40}")) {
+            erros.put("login", "Login de 3 a 40 letras sem espaço (pode usar números, ponto, traço).");
+        }
+        return l;
+    }
+
+    private static String email(String email, Map<String, String> erros) {
+        String e = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (e.isEmpty()) {
+            return null;
+        }
+        if (e.length() > 120 || !e.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+")) {
+            erros.put("email", "E-mail inválido.");
+        }
+        return e;
+    }
+
+    static String validarPin(String pin) {
+        String p = pin == null ? "" : pin.trim();
+        if (!p.matches("\\d{4,6}")) {
+            throw new DadosInvalidosException(Map.of("pin", "O PIN tem de 4 a 6 números."));
+        }
+        return p;
+    }
+
+    private static void validarFoto(byte[] foto) {
+        boolean png = foto.length > 8 && (foto[0] & 0xFF) == 0x89 && foto[1] == 'P' && foto[2] == 'N' && foto[3] == 'G';
+        boolean jpg = foto.length > 3 && (foto[0] & 0xFF) == 0xFF && (foto[1] & 0xFF) == 0xD8;
+        if (foto.length > LIMITE_FOTO || !(png || jpg)) {
+            throw new DadosInvalidosException(Map.of("foto", "Foto inválida: use JPG ou PNG de até 1 MB."));
+        }
+    }
+
+    private Usuario visao(Linha l) {
+        boolean bloqueado = banco(() -> repository.bloqueada(l.id()));
+        return new Usuario(l.id(), l.nome(), cripto.decifrar(l.loginCifrado()), cripto.decifrar(l.emailCifrado()), l.admin(),
+                l.ativo(), l.temFoto(), l.acessos(), l.ultimoAcesso(), bloqueado, l.criadoEm());
+    }
+}

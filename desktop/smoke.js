@@ -108,11 +108,23 @@ function planilhaLegada() {
 async function executar() {
   while (!janela) await esperar(100);
   janela.setContentSize(1366, 820);
-  teste("App abre em 'Quem está usando?'", await telaPronta("perfis") && await esperarPredicado("Number(document.body.dataset.perfisCarregados) >= 7", 30000));
+  teste("Primeira abertura pede a conta do administrador", await telaPronta("perfis") && await esperarPredicado("document.body.dataset.primeiroAcesso === 'true'", 30000));
+  await capturar("primeiro-admin-1366x820");
+  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('adm_nome', 'Felipe'); v('adm_login', 'felipe');
+    v('adm_email', 'felipe@exemplo.com'); v('adm_pin', '1234'); v('adm_pin2', '4321'); document.querySelector('#form-admin button[type=submit]').click(); })()`);
+  teste("PINs diferentes não criam o admin", await esperarPredicado("!document.querySelector('[data-erro-campo=pin2]').classList.contains('hidden')", 3000));
+  await js(`(() => { document.getElementById('adm_pin2').value = '1234'; document.querySelector('#form-admin button[type=submit]').click(); })()`);
+  teste("Admin criado entra direto no Menu", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
+  await ir("perfis");
+  teste("Voltar aos perfis mostra a bolinha do admin", await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 1"));
   teste("Bolinhas são círculos", await js("getComputedStyle(document.querySelector('.perfil-avatar')).borderTopLeftRadius !== '0px'"));
-  await capturar("perfis-1366x820");
   await js("document.querySelector('.perfil-cartao[data-perfil=\"FELIPE\"]').click()");
-  teste("Clicar na bolinha entra no Menu com o perfil", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
+  teste("Clicar na bolinha abre o pop-up do PIN", await esperarPredicado("document.body.dataset.pinAberto === 'true'", 3000));
+  await js("(() => { document.getElementById('pin-campo').value = '9999'; document.getElementById('pin-entrar').click(); })()");
+  teste("PIN errado avisa quantas tentativas faltam", await esperarPredicado("document.getElementById('pin-erro').textContent.includes('4 tentativa')", 5000));
+  await capturar("perfis-pin-1366x820");
+  await js("(() => { document.getElementById('pin-campo').value = '1234'; document.getElementById('pin-entrar').click(); })()");
+  teste("PIN certo entra no Menu com o perfil", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
   teste("Menu tem exatamente 3 botões quadrados", await js("[...document.querySelectorAll('a[data-path]')].every(a => Math.abs(a.offsetWidth - a.offsetHeight) <= 2)") && (await js("document.querySelectorAll('a[data-path]').length")) === 3);
   teste("Terceiro botão: Atualização e estatística", (await texto("a[data-path=estatisticas]")).toUpperCase().includes("ATUALIZAÇÃO E ESTATÍSTICA"));
   teste("Pesquisar é vermelho", (await js("getComputedStyle(document.querySelector('a[data-path=pesquisar-garantias]')).backgroundColor")) === "rgb(255, 59, 48)");
@@ -224,6 +236,32 @@ async function executar() {
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); tr.querySelector('button').click(); })()`);
   teste("Salvar preço de um serviço", await esperarPredicado("[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA')).querySelector('input').value === '85,00' && [...document.querySelectorAll('.notificacao__texto')].some(n => n.textContent.includes('preço salvo'))", 5000));
   await capturar("atualizar-precos-1366x820");
+
+  // ---------- CONTAS (icone na barra): o admin cadastra; o usuario comum nao administra ----------
+  await ir("contas");
+  teste("CONTAS abre com a área do administrador", await esperarPredicado("document.body.dataset.adminCarregado === 'true' && !document.getElementById('area-admin').classList.contains('hidden')", 8000));
+  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('u_nome', 'Renato'); v('u_login', 'renato'); v('u_pin', '5678');
+    document.querySelector('#form-usuario button[type=submit]').click(); })()`);
+  teste("Admin cadastra uma conta", await esperarPredicado("document.body.dataset.usuarioCriado === 'RENATO' && document.getElementById('tabela-usuarios').textContent.includes('renato')", 6000));
+  teste("Histórico de acessos registra as entradas", (await texto("#acessos-todos")).includes("FELIPE"));
+  await capturar("contas-1366x820");
+  teste("Barra tem o ícone CONTAS", await js("!!document.querySelector('#nav-global .nav-contas')"));
+  await ir("perfis");
+  await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 2");
+  await js("document.querySelector('.perfil-cartao[data-perfil=\"RENATO\"]').click()");
+  await js("(() => { document.getElementById('pin-campo').value = '5678'; document.getElementById('pin-entrar').click(); })()");
+  teste("Renato entra com o PIN dele", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'RENATO'"));
+  await ir("contas");
+  await esperar(1200);
+  teste("Usuário comum não vê a administração de contas", await js("document.getElementById('area-admin').classList.contains('hidden')") && (await texto("#minha-conta")).includes("RENATO"));
+  const negado = await js(`(async () => { const cfg = await window.finDesk.config(); const p = JSON.parse(sessionStorage.getItem('garantias.perfil'));
+    const r = await fetch('http://127.0.0.1:' + cfg.port + '/api/usuarios', { headers: { 'X-FinDesk-Token': cfg.token, 'X-Garantias-Sessao': p.token } }); return r.status; })()`);
+  teste("Servidor recusa a lista de contas para quem não é admin (403)", negado === 403, String(negado));
+  await ir("perfis");
+  await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 2");
+  await js("document.querySelector('.perfil-cartao[data-perfil=\"FELIPE\"]').click()");
+  await js("(() => { document.getElementById('pin-campo').value = '1234'; document.getElementById('pin-entrar').click(); })()");
+  await telaPronta("menu");
 
   // ---------- larguras: menu sem rolagem lateral; telas internas com o menu lateral (hamburguer) ----------
   for (const [l, a] of [[1920, 1040], [1024, 768], [760, 800], [480, 800]]) {

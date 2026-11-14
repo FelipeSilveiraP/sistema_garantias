@@ -20,7 +20,8 @@ type TelaFinDesk =
   | "form-produto"
   | "todos-tecnicos"
   | "todos-veiculos"
-  | "todos-produtos";
+  | "todos-produtos"
+  | "contas";
 
 interface Window {
   finDesk?: {

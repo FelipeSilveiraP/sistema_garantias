@@ -220,14 +220,27 @@ async function ciclo() {
   }
 
   // como na Netflix: o app abre em "Quem esta usando?"; clique REAL na bolinha do tecnico
+  await esperarPredicado(`document.body.dataset.tela === 'perfis' && (document.body.dataset.primeiroAcesso === 'true' || Number(document.body.dataset.perfisCarregados) > 0)`, 30000);
+  if (await js("document.body.dataset.primeiroAcesso === 'true'")) {
+    // banco novo: cria o admin pela API e recarrega a tela de perfis
+    await js(`(async () => { const cfg = await window.finDesk.config();
+      const r = await fetch('http://127.0.0.1:' + cfg.port + '/api/perfis/primeiro-admin', { method: 'POST',
+        headers: { 'X-FinDesk-Token': cfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: 'FELIPE', login: 'felipe', email: 'felipe@exemplo.com', pin: '1234' }) });
+      return r.status; })()`);
+    await js("window.finDesk.navegar('perfis')");
+  }
   const perfisProntos = await esperarPredicado(
     `document.body.dataset.tela === 'perfis' && Number(document.body.dataset.perfisCarregados) > 0`,
     30000
   );
   tempos.perfis_interativo = Date.now() - t0;
-  teste("Tela de perfis liberada com as bolinhas dos técnicos", perfisProntos, `+${tempos.perfis_interativo}ms`);
-  teste("Clique real na bolinha do perfil entra no sistema",
-    await clicarReal('.perfil-cartao[data-perfil="FELIPE"]') && await esperarPredicado(`document.body.dataset.tela === 'menu'`));
+  teste("Tela de perfis liberada com as bolinhas das contas", perfisProntos, `+${tempos.perfis_interativo}ms`);
+  teste("Clique real na bolinha abre o pop-up do PIN",
+    await clicarReal('.perfil-cartao[data-perfil="FELIPE"]') && await esperarPredicado(`document.activeElement && document.activeElement.id === 'pin-campo'`));
+  await digitarReal("1234");
+  entradaReal("enter");
+  teste("PIN digitado de verdade entra no sistema", await esperarPredicado(`document.body.dataset.tela === 'menu'`, 15000));
   const menuPronto = await esperarPredicado(
     `document.body.dataset.tela === 'menu' && document.body.dataset.apiStatus !== undefined && document.body.dataset.perfil === 'FELIPE'`,
     30000

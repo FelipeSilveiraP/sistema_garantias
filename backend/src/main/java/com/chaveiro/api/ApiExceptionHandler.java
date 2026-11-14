@@ -3,6 +3,7 @@ package com.chaveiro.api;
 import com.chaveiro.service.ConflitoIntegridadeException;
 import com.chaveiro.service.DadosInvalidosException;
 import com.chaveiro.service.PossivelDuplicataException;
+import com.chaveiro.service.AcessoNegadoException;
 import com.chaveiro.service.RecursoNaoEncontradoException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,6 +53,14 @@ public class ApiExceptionHandler {
         corpo.put("tipo", "possivel_duplicata");
         corpo.put("existente", erro.getExistente());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(corpo);
+    }
+
+    /** Contas: 401 (sem sessao/PIN errado), 403 (so admin), 423 (bloqueada). */
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<Map<String, Object>> acessoNegado(AcessoNegadoException erro) {
+        Map<String, Object> corpo = new LinkedHashMap<>(erro.getExtra());
+        corpo.put("erro", erro.getMessage());
+        return ResponseEntity.status(erro.getStatus()).body(corpo);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

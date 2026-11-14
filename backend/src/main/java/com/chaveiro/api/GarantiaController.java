@@ -2,6 +2,7 @@ package com.chaveiro.api;
 
 import com.chaveiro.model.Garantia;
 import com.chaveiro.service.GarantiaService;
+import com.chaveiro.service.UsuarioService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -35,9 +36,11 @@ public class GarantiaController {
     }
 
     private final GarantiaService service;
+    private final UsuarioService usuarios;
 
-    public GarantiaController(GarantiaService service) {
+    public GarantiaController(GarantiaService service, UsuarioService usuarios) {
         this.service = service;
+        this.usuarios = usuarios;
     }
 
     @GetMapping
@@ -51,8 +54,17 @@ public class GarantiaController {
     }
 
     @PostMapping
-    public ResponseEntity<Garantia> cadastrar(@RequestBody GarantiaRequest requisicao) {
-        Garantia criada = service.cadastrar(requisicao.paraModelo(), Boolean.TRUE.equals(requisicao.forcar()));
+    public ResponseEntity<Garantia> cadastrar(@RequestBody GarantiaRequest requisicao,
+            @org.springframework.web.bind.annotation.RequestHeader(value = UsuarioController.SESSAO, required = false) String sessao) {
+        // "cadastrada por": o perfil da SESSAO (PIN conferido), nao o que a tela mandar
+        Garantia g = requisicao.paraModelo();
+        String perfil = usuarios.nomeDaSessao(sessao);
+        if (perfil != null) {
+            g = new Garantia(g.id(), g.dataServico(), g.placa(), g.semPlaca(), g.cpf(), g.modelo(), g.idServico(), g.servico(),
+                    g.qtdCarcaca(), g.qtdBotao(), g.qtdPilha(), g.qtdItens(), g.valor(), g.tecnico(), g.observacao(),
+                    g.codigoCupom(), g.cupomStatus(), g.cupomLancadoEm(), g.origem(), perfil, g.idVeiculo());
+        }
+        Garantia criada = service.cadastrar(g, Boolean.TRUE.equals(requisicao.forcar()));
         return ResponseEntity.status(HttpStatus.CREATED).body(criada);
     }
 

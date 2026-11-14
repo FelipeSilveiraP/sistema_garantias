@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 3;
+    private static final int VERSAO_ATUAL = 4;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -114,6 +114,7 @@ public class DatabaseInitializer {
             // perfis (tela "Quem esta usando?"): quem cadastrou cada garantia
             case 2 -> List.of("ALTER TABLE garantias ADD COLUMN criado_por TEXT");
             case 3 -> veiculos();
+            case 4 -> usuarios();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -397,6 +398,94 @@ public class DatabaseInitializer {
         sql.add("UPDATE garantias SET id_tecnico = (SELECT t.id_tecnico FROM tecnicos t WHERE t.nome = garantias.tecnico COLLATE NOCASE)");
         sql.add("UPDATE garantias SET id_veiculo = (SELECT v.id_veiculo FROM veiculos v WHERE v.modelo = garantias.modelo COLLATE NOCASE"
                 + " ORDER BY v.id_veiculo LIMIT 1)");
+        return sql;
+    }
+
+    /**
+     * v4 - contas de usuario (tela "Quem esta usando?" com PIN). Login, e-mail e
+     * PIN NUNCA ficam em texto: login e e-mail cifrados (AES-256-GCM) + indice HMAC
+     * do login para a busca; PIN como hash PBKDF2 com sal e chave secreta fora do
+     * banco (service/Cripto). O primeiro usuario criado e o administrador.
+     */
+    private static List<String> usuarios() {
+        List<String> sql = new ArrayList<>();
+        sql.add("""
+                CREATE TABLE usuarios (
+                    id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL CHECK (length(trim(nome)) BETWEEN 2 AND 40),
+                    login_indice TEXT NOT NULL UNIQUE,
+                    login_cifrado TEXT NOT NULL,
+                    email_cifrado TEXT,
+                    pin_hash TEXT NOT NULL,
+                    foto BLOB,
+                    admin INTEGER NOT NULL DEFAULT 0 CHECK (admin IN (0, 1)),
+                    ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+                    falhas INTEGER NOT NULL DEFAULT 0 CHECK (falhas >= 0),
+                    bloqueado_ate TEXT,
+                    acessos INTEGER NOT NULL DEFAULT 0 CHECK (acessos >= 0),
+                    ultimo_acesso TEXT,
+                    criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+                )
+                """);
+        // historico de acessos: a conta pode ser excluida, o historico fica (com o nome)
+        sql.add("""
+                CREATE TABLE acessos_usuario (
+                    id_acesso INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_usuario INTEGER REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+                    nome TEXT NOT NULL,
+                    momento TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')),
+                    tipo TEXT NOT NULL CHECK (tipo IN ('ENTRADA', 'PIN_ERRADO', 'BLOQUEIO', 'PIN_TROCADO',
+                        'PIN_REDEFINIDO_EMAIL', 'PIN_REDEFINIDO_ADMIN', 'CODIGO_ENVIADO'))
+                )
+                """);
+        sql.add("CREATE INDEX idx_acessos_usuario ON acessos_usuario(id_usuario, momento)");
+        sql.add("""
+                CREATE TABLE codigos_redefinicao (
+                    id_codigo INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+                    codigo_hash TEXT NOT NULL,
+                    expira_em TEXT NOT NULL,
+                    tentativas INTEGER NOT NULL DEFAULT 0,
+                    usado INTEGER NOT NULL DEFAULT 0 CHECK (usado IN (0, 1)),
+                    criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+                )
+                """);
+        // nunca ficar sem administrador ativo
+        sql.add("""
+                CREATE TRIGGER trg_ultimo_admin_nao_sai
+                BEFORE UPDATE OF admin, ativo ON usuarios
+                WHEN OLD.admin = 1 AND OLD.ativo = 1 AND (NEW.admin = 0 OR NEW.ativo = 0)
+                    AND (SELECT COUNT(*) FROM usuarios WHERE admin = 1 AND ativo = 1) <= 1
+                BEGIN
+                    SELECT RAISE(ABORT, 'ULTIMO_ADMIN: o sistema precisa de pelo menos um administrador ativo');
+                END
+                """);
+        sql.add("""
+                CREATE TRIGGER trg_ultimo_admin_nao_exclui
+                BEFORE DELETE ON usuarios
+                WHEN OLD.admin = 1 AND OLD.ativo = 1
+                    AND (SELECT COUNT(*) FROM usuarios WHERE admin = 1 AND ativo = 1) <= 1
+                BEGIN
+                    SELECT RAISE(ABORT, 'ULTIMO_ADMIN: o sistema precisa de pelo menos um administrador ativo');
+                END
+                """);
+        // historico somente-inclusao (so o ON DELETE SET NULL da conta pode mexer nele)
+        sql.add("""
+                CREATE TRIGGER trg_acessos_nao_altera
+                BEFORE UPDATE ON acessos_usuario
+                WHEN NOT (NEW.id_usuario IS NULL AND OLD.id_usuario IS NOT NULL
+                    AND NEW.nome = OLD.nome AND NEW.momento = OLD.momento AND NEW.tipo = OLD.tipo)
+                BEGIN
+                    SELECT RAISE(ABORT, 'ACESSOS_SOMENTE_LEITURA: o historico de acessos nao pode ser alterado');
+                END
+                """);
+        sql.add("""
+                CREATE TRIGGER trg_acessos_nao_apaga
+                BEFORE DELETE ON acessos_usuario
+                BEGIN
+                    SELECT RAISE(ABORT, 'ACESSOS_SOMENTE_LEITURA: o historico de acessos nao pode ser apagado');
+                END
+                """);
         return sql;
     }
 }

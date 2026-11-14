@@ -114,6 +114,7 @@ function mostrarPerfil(): boolean {
   document.getElementById("perfil-bolinha")!.replaceChildren(criarAvatar(perfil, "pequena"));
   document.getElementById("perfil-nome")!.textContent = perfil.nome;
   document.getElementById("btn-perfil")!.addEventListener("click", () => void window.finDesk!.navegar("perfis"));
+  document.getElementById("btn-contas")!.addEventListener("click", () => void irPara("contas"));
   document.body.dataset.perfil = perfil.nome;
   return true;
 }

@@ -199,9 +199,29 @@ ${ITENS_NAV.filter((item) => item.noPainel)
     texto.textContent = `${perfil.nome} · TROCAR PERFIL`;
     noPainel.append(criarAvatar(perfil, "pequena"), texto);
     raiz.querySelector(".nav-painel")?.appendChild(noPainel);
+    // CONTAS: icone compacto na barra (sem botao grande no Menu)
+    const contas = document.createElement("button");
+    contas.type = "button";
+    contas.className = "nav-item nav-contas";
+    contas.dataset.irContas = "";
+    contas.title = "Contas";
+    contas.setAttribute("aria-label", "Contas");
+    if (tela === "contas") contas.setAttribute("aria-current", "page");
+    contas.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="18" cy="15" r="2.5"/><path d="M18 11v1.5M18 17.5V19M21 15h-1.5M16.5 15H15"/></svg>';
+    raiz.querySelector(".nav-barra")?.insertBefore(contas, naBarra);
+    const contasPainel = document.createElement("button");
+    contasPainel.type = "button";
+    contasPainel.className = CLASSE_ITEM_PAINEL;
+    contasPainel.dataset.irContas = "";
+    contasPainel.textContent = "CONTAS";
+    raiz.querySelector(".nav-painel")?.insertBefore(contasPainel, noPainel);
   }
 
   raiz.addEventListener("click", (evento) => {
+    if ((evento.target as HTMLElement).closest("[data-ir-contas]")) {
+      void irPara("contas");
+      return;
+    }
     if ((evento.target as HTMLElement).closest("[data-trocar-perfil]")) {
       void window.finDesk?.navegar("perfis");
       return;
