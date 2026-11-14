@@ -1,0 +1,1237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden;
+  }
+  /* NEOBRUTALISMO A RISCA: cantos sempre retos (campos, botoes, checkboxes).
+     Excecao: os selos de situacao (.selo) sao pilulas, para nao parecerem botoes. */
+  *:not(.selo), *::before, *::after {
+    border-radius: 0 !important;
+  }
+  /* reserva o espaco da barra de rolagem nos dois lados: navbar e conteudo
+     ficam no MESMO centro com ou sem rolagem. So em janelas largas: abaixo de
+     1024px os ~30px reservados derrubariam os submenus de 2 para 1 coluna. */
+  @media (min-width: 1024px) {
+    body {
+      scrollbar-gutter: stable both-edges;
+    }
+  }
+  /* CENTRALIZACAO VERTICAL de todas as telas: o bloco "navbar + conteudo"
+     fica no meio da janela, com o mesmo espaco em cima e embaixo. Usa margens
+     automaticas (e nao justify-content:center): se o conteudo for maior que a
+     janela, as margens viram zero e a pagina rola normalmente, sem cortar o topo. */
+  body:not(.submenu-body):not(.menu-body) {
+    display: flex;
+    flex-direction: column;
+    padding-top: clamp(0.75rem, 2.5vmin, 2rem);
+    padding-bottom: clamp(0.75rem, 2.5vmin, 2rem);
+  }
+  body:not(.submenu-body):not(.menu-body) > #nav-global {
+    display: block;
+    flex: 0 0 auto;
+    margin-top: auto;
+    /* ocupa a largura toda mesmo em telas com "items-center" (Inserir Conta):
+       sem isto a area encolhia para o meio e o hamburguer ficava centralizado */
+    align-self: stretch;
+  }
+  body:not(.submenu-body):not(.menu-body) > #nav-global + * {
+    flex: 0 0 auto;
+    margin-bottom: auto;
+    /* largura explicita: com margem auto o item encolhia/esticava pelo conteudo
+       (tabela larga) e a tela inteira ficava maior que a janela, cortando itens */
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ===== Tela de carregamento — chave neobrutalista entrando no cadeado =====
+   2D chapado: chave laranja com contorno preto grosso e sombra dura, desenhada
+   NA FRENTE do cadeado. Ela vem de frente ate o buraco da fechadura e a lamina
+   e cortada (clip-path) na borda do buraco: parece entrar pela fechadura, nao
+   passar por tras do cadeado. Depois o cadeado "estala" e abre (haste sobe +
+   riscos de impacto) e tudo volta. Movimento em degraus curtos. */
+
+.chave-carregando {
+  width: 13rem;
+  max-width: 70vw;
+}
+
+.chave-carregando__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  animation: chave-ciclo 2.6s steps(1, end) infinite;
+}
+
+.chave-carregando__chave {
+  animation: chave-entrar 2.6s cubic-bezier(0.7, 0, 0.3, 1) infinite;
+}
+
+.chave-carregando__haste {
+  animation: cadeado-abrir 2.6s cubic-bezier(0.2, 1.6, 0.4, 1) infinite;
+}
+
+.chave-carregando__estalo {
+  opacity: 0;
+  animation: cadeado-estalo 2.6s steps(1, end) infinite;
+}
+
+/* marcador para os testes: a animacao principal existe e roda sem timers */
+@keyframes chave-ciclo {
+  from { opacity: 1; }
+  to { opacity: 1; }
+}
+
+@keyframes chave-entrar {
+  0%, 8% { transform: translateX(-44px); }
+  32%, 78% { transform: translateX(0); }
+  92%, 100% { transform: translateX(-44px); }
+}
+
+@keyframes cadeado-abrir {
+  0%, 36% { transform: translateY(0); }
+  44%, 76% { transform: translateY(-14px); }
+  84%, 100% { transform: translateY(0); }
+}
+
+@keyframes cadeado-estalo {
+  0%, 40% { opacity: 0; }
+  42%, 62% { opacity: 1; }
+  64%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chave-carregando__svg,
+  .chave-carregando__chave,
+  .chave-carregando__haste,
+  .chave-carregando__estalo {
+    animation: none;
+  }
+}
+
+/* ===== Menu Principal — layout responsivo (Grid/Flexbox + media queries) ===== */
+
+.menu-body {
+  box-sizing: border-box;
+  min-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(0.5rem, 2vmin, 1.5rem);
+}
+
+.menu-wrap {
+  width: 100%;
+  max-width: 1500px;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, 2vmin, 1.25rem);
+}
+
+.menu-grade {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+  gap: clamp(0.5rem, 2vmin, 1.25rem);
+  flex: 1;
+  min-height: 0;
+}
+
+.cartao {
+  aspect-ratio: 429 / 240;
+  min-height: 7.5rem;
+}
+
+/* Tabela mensagens: linhas rotuladas quando estreita */
+@media (max-width: 599px) {
+  .tabela-avisos thead { display: none; }
+  .tabela-avisos tbody,
+  .tabela-avisos tr,
+  .tabela-avisos td { display: block; width: 100%; }
+  .tabela-avisos tr { border-bottom: 2px solid #1c1b1b; padding: 0.35rem 0; }
+  .tabela-avisos tbody tr:last-child { border-bottom: 0; }
+  .tabela-avisos td {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    text-align: left;
+  }
+  .tabela-avisos td::before {
+    content: attr(data-rotulo);
+    min-width: 5.25rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    opacity: 0.75;
+  }
+}
+
+/* ===== Navbar global (barra desktop + menu lateral compacto) ===== */
+
+/* CONTAINER PRINCIPAL (design de referencia do usuario) */
+
+.barra-navegacao {
+  display: flex;
+  align-items: stretch;
+
+  width: max-content;
+  max-width: 100%;
+
+  margin: 0 auto;
+
+  background: var(--branco-nav, #ffffff);
+
+  border: 3px solid var(--preto-nav, #111111);
+
+  box-shadow: 6px 6px 0 var(--preto-nav, #111111);
+
+  font-family: Arial, Helvetica, sans-serif;
+
+  box-sizing: border-box;
+}
+
+/* BOTOES */
+
+.barra-navegacao .nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  min-height: 48px;
+
+  padding: 8px 14px;
+
+  background: var(--branco-nav, #ffffff);
+  color: var(--preto-nav, #111111);
+
+  border: none;
+  border-right: 3px solid var(--preto-nav, #111111);
+
+  font-size: 14px;
+  font-weight: 900;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition: background-color 0.15s ease;
+
+  box-sizing: border-box;
+}
+
+/* ULTIMO BOTAO NAO PRECISA DE DIVISORIA */
+
+.barra-navegacao .nav-item:last-child {
+  border-right: none;
+}
+
+/* BOTAO VOLTAR */
+
+.barra-navegacao .nav-voltar {
+  min-width: 54px;
+  padding: 8px 12px;
+}
+
+.barra-navegacao .nav-voltar > svg {
+  width: 27px;
+  height: 27px;
+
+  fill: none;
+  stroke: var(--preto-nav, #111111);
+  stroke-width: 3;
+
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* QUADRADOS COLORIDOS DOS ICONES */
+
+.nav-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 33px;
+  height: 33px;
+
+  flex-shrink: 0;
+
+  border: 3px solid var(--preto-nav, #111111);
+
+  box-sizing: border-box;
+}
+
+/* SVG DOS ICONES */
+
+.nav-icone svg {
+  width: 23px;
+  height: 23px;
+
+  fill: none;
+  stroke: var(--preto-nav, #111111);
+
+  stroke-width: 2.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* CORES DOS ICONES (quadrado) — cor oficial do modulo */
+
+.icone-amarelo {
+  background: #ffe600;
+}
+
+.icone-vermelho {
+  background: #ff3b30;
+}
+
+.icone-laranja {
+  background: #ff8c00;
+}
+
+.icone-azul {
+  background: #2563eb;
+}
+
+.icone-rosa {
+  background: #ff5e89;
+}
+
+.icone-verde {
+  background: #00ff66;
+}
+
+/* COR DO MODULO + CONTRASTE DE TEXTO POR BOTAO */
+
+.barra-navegacao .nav-item[data-nav="menu"] {
+  --cor-modulo: #ff3b30;
+  --cor-texto-forte: #1c1b1b;
+}
+
+.barra-navegacao .nav-item[data-nav="inserir"] {
+  --cor-modulo: #ffe600;
+  --cor-texto-forte: #1c1b1b;
+}
+
+.barra-navegacao .nav-item[data-nav="cadastros"] {
+  --cor-modulo: #ff8c00;
+  --cor-texto-forte: #1c1b1b;
+}
+
+.barra-navegacao .nav-item[data-nav="controle"] {
+  --cor-modulo: #2563eb;
+  --cor-texto-forte: #ffffff;
+}
+
+.barra-navegacao .nav-item[data-nav="mensagens"] {
+  --cor-modulo: #ff5e89;
+  --cor-texto-forte: #1c1b1b;
+}
+
+.barra-navegacao .nav-item[data-nav="graficos"] {
+  --cor-modulo: #00ff66;
+  --cor-texto-forte: #1c1b1b;
+}
+
+/* HOVER: a cor do modulo preenche o botao inteiro (nao so o quadrado do
+   icone) e o icone (glifo SVG) fica branco; sem mudanca de tamanho */
+
+.barra-navegacao .nav-item:hover {
+  background: var(--cor-modulo, #eeeeee);
+  color: var(--cor-texto-forte, #1c1b1b);
+}
+
+.barra-navegacao .nav-item:hover .nav-icone {
+  background: var(--cor-modulo, transparent);
+}
+
+.barra-navegacao .nav-item:hover .nav-icone svg {
+  stroke: #ffffff;
+}
+
+/* no amarelo (INSERIR CONTA) o icone branco sumiria: fica preto */
+.barra-navegacao .nav-item[data-nav="inserir"]:hover .nav-icone svg {
+  stroke: #1c1b1b;
+}
+
+.barra-navegacao .nav-voltar:hover > svg {
+  stroke: #1c1b1b;
+}
+
+/* ESTADO ATIVO: fundo branco preservado + barra inferior grossa na cor do
+   modulo — indicacao clara do modulo atual, distinguivel do hover */
+
+.barra-navegacao .nav-item[aria-current="page"] {
+  box-shadow: inset 0 -5px 0 var(--cor-modulo, #1c1b1b);
+}
+
+/* FOCO PARA NAVEGACAO POR TECLADO */
+
+.barra-navegacao .nav-item:focus-visible {
+  outline: 3px solid #2165ef;
+  outline-offset: -5px;
+}
+
+/* RESPONSIVIDADE INTERMEDIARIA: botoes compactos ate 1279px (7 botoes) */
+
+@media (max-width: 1279px) {
+  .barra-navegacao .nav-item {
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .nav-icone {
+    width: 30px;
+    height: 30px;
+  }
+
+  .nav-icone svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Exibicao da barra (desktop) x hamburguer (compacto) */
+
+.nav-barra {
+  display: none;
+}
+
+.nav-hamburguer {
+  display: none;
+}
+
+.nav-veu {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(28, 27, 27, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 250ms ease, visibility 250ms ease;
+}
+
+.nav-painel {
+  position: fixed;
+  top: calc(clamp(0.75rem, 2.5vmin, 2rem) + 4.25rem);
+  left: clamp(0.75rem, 2.5vmin, 2rem);
+  width: min(20rem, calc(100vw - 2 * clamp(0.75rem, 2.5vmin, 2rem)));
+  z-index: 50;
+  transform: translateX(calc(-100% - 3rem));
+  visibility: hidden;
+  transition: transform 250ms ease, visibility 250ms ease;
+}
+
+[data-menu-aberto="true"] .nav-veu {
+  opacity: 1;
+  visibility: visible;
+}
+
+[data-menu-aberto="true"] .nav-painel {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.nav-hamburguer__linha {
+  display: block;
+  width: 1.75rem;
+  height: 0.25rem;
+  background: #1c1b1b;
+  transition: transform 250ms ease, opacity 250ms ease;
+}
+
+[data-menu-aberto="true"] .nav-hamburguer__linha:nth-child(1) {
+  transform: translateY(0.625rem) rotate(45deg);
+}
+
+[data-menu-aberto="true"] .nav-hamburguer__linha:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0.25);
+}
+
+[data-menu-aberto="true"] .nav-hamburguer__linha:nth-child(3) {
+  transform: translateY(-0.625rem) rotate(-45deg);
+}
+
+/* Com 7 botoes a barra precisa de ~950px: ela aparece a partir de 1024px de
+   janela; abaixo disso vale o botao hamburguer com menu lateral */
+@media (min-width: 1024px) {
+  .nav-barra { display: flex; }
+}
+
+/* Janela estreita (e futuro celular): o hamburguer fica SEMPRE no mesmo lugar,
+   canto superior esquerdo, numa faixa fixa no topo (padrao de apps/sites).
+   A faixa continua visivel ao rolar e o conteudo passa por baixo dela (e nao
+   por baixo do botao). O conteudo comeca logo abaixo da faixa. */
+@media (max-width: 1023px) {
+  .nav-hamburguer { display: inline-flex; }
+  #nav-global {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 45;
+    height: var(--altura-faixa-nav);
+    margin: 0 !important;
+    padding: 12px 16px;
+    box-sizing: border-box;
+    background: #fcf9f8;
+    border-bottom: 3px solid #1c1b1b;
+  }
+  body:has(#nav-global) {
+    padding-top: calc(var(--altura-faixa-nav) + clamp(0.75rem, 2.5vmin, 1.25rem)) !important;
+  }
+}
+
+:root { --altura-faixa-nav: 84px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-veu,
+  .nav-painel,
+  .nav-hamburguer__linha {
+    transition: none;
+  }
+}
+
+/* ===== Submenus (Controle/Cadastros/Mensagens) - layout responsivo =====
+   Layout compartilhado por TODOS os submenus: espacamento unico entre a
+   navbar e os cartoes + dimensoes padronizadas de cartao (referencia: os
+   3 cartoes da tela Controle). A quantidade de cartoes NAO altera o tamanho
+   individual deles — o grupo centraliza e quebra linha quando nao cabe. */
+
+.submenu-body {
+  box-sizing: border-box;
+  min-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(0.75rem, 2.5vmin, 2rem);
+}
+
+.submenu-wrap {
+  width: 100%;
+  max-width: 72rem;
+  /* margens automaticas: navbar + conteudo centralizados na vertical (ver base) */
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 3vmin, 2.25rem);
+  flex: 0 0 auto;
+}
+
+.submenu-grade {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: clamp(0.75rem, 2vmin, 1.5rem);
+  flex: 0 0 auto;
+}
+
+.submenu-cartao {
+  width: 16.5rem;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.submenu-cartao__area {
+  height: clamp(7.5rem, 28vmin, 18rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.75rem, 2vmin, 1.5rem);
+}
+
+.submenu-cartao__descricao {
+  height: 5rem;
+}
+
+/* Compacto: 2 colunas (600–960px) */
+@media (min-width: 600px) {
+  .menu-grade { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 600px) and (max-width: 960px) {
+  .cartao--graficos { grid-column: span 2; aspect-ratio: 878 / 240; }
+}
+
+/* Padrão: quincunx 3x3 do Stitch (>=961px), proporcao 1360/1059 do design */
+@media (min-width: 961px) {
+  .menu-wrap {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    aspect-ratio: 1360 / 1059;
+  }
+  .menu-grade {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  /* cartoes preenchem a celula da grade (altura pela tela, nao pela largura):
+     o Menu cabe inteiro na janela, sem rolagem */
+  .menu-grade .cartao { aspect-ratio: auto; min-height: 0; height: 100%; }
+  .cartao--inserir   { grid-area: 1 / 1; }
+  .cartao--controle  { grid-area: 1 / 3; }
+  .cartao--cadastros { grid-area: 2 / 2; }
+  .cartao--mensagens { grid-area: 3 / 1; }
+  .cartao--graficos  { grid-area: 3 / 3; }
+}
+
+/* Faixas de largura fixa do cartao (referencia: 3 cartoes da tela Controle) */
+@media (min-width: 768px) {
+  .submenu-cartao { width: 21.5rem; }
+}
+
+/* Estreito: cartoes ocupam a largura disponivel */
+@media (max-width: 599px) {
+  .submenu-cartao { width: 100%; }
+}
+
+/* ===== Dialogos globais neobrutalistas (dialogos.ts) ===== */
+
+.dialogo-veu {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(28, 27, 27, 0.55);
+}
+
+.dialogo {
+  width: min(26rem, 100%);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 4px solid #1c1b1b;
+  box-shadow: 10px 10px 0 0 #1c1b1b;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+/* tres respostas (ex.: CANCELAR / SALVAR NO COMPUTADOR / IMPRIMIR) cabem numa linha */
+.dialogo--largo { width: min(36rem, 100%); }
+
+.dialogo__cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  border-bottom: 4px solid #1c1b1b;
+  background: #ff8c00;
+  color: #1c1b1b;
+}
+
+/* tons das confirmacoes: normal (laranja), atencao (amarelo), perigo (vermelho) */
+[data-dialogo="atencao"] .dialogo__cabecalho { background: #ffe600; color: #1c1b1b; }
+[data-dialogo="perigo"] .dialogo__cabecalho { background: #dc2626; color: #ffffff; }
+
+.dialogo__icone {
+  font-size: 1.75rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.dialogo__titulo {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dialogo__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.125rem 1.25rem;
+  overflow-y: auto;
+}
+
+.dialogo__mensagem {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #1c1b1b;
+}
+
+.dialogo__detalhes {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #1c1b1b;
+  background: #f6f3f2;
+  border: 2px solid #1c1b1b;
+}
+
+.dialogo__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+.dialogo-botao {
+  min-height: 2.875rem;
+  padding: 0.5rem 1.125rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 3px solid #1c1b1b;
+  box-shadow: 4px 4px 0 0 #1c1b1b;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.dialogo-botao:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 #1c1b1b;
+}
+
+.dialogo-botao:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 #1c1b1b;
+}
+
+.dialogo-botao:focus-visible {
+  outline: 3px solid #2165ef;
+  outline-offset: 2px;
+}
+
+.dialogo-botao--neutro {
+  background: #ffffff;
+  color: #1c1b1b;
+}
+
+/* botao da acao (direita) na cor do tom; cancelar (esquerda) sempre branco */
+.dialogo-botao--acao {
+  background: #ff8c00;
+  color: #1c1b1b;
+}
+
+[data-dialogo="atencao"] .dialogo-botao--acao { background: #ffe600; color: #1c1b1b; }
+[data-dialogo="perigo"] .dialogo-botao--acao { background: #dc2626; color: #ffffff; }
+
+/* ===== Notificacoes (toasts) — canto inferior direito, abaixo do veu do dialogo ===== */
+
+.notificacoes {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(21rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.notificacoes__regiao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notificacao {
+  /* o clique atravessa o aviso; so ABRIR/DESFAZER e o X sao clicaveis */
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border: 3px solid #1c1b1b;
+  box-shadow: 4px 4px 0 0 #1c1b1b;
+  background: #3ffdae;
+  color: #1c1b1b;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  animation: notificacao-entrar 0.18s ease-out;
+}
+
+.notificacao[data-notificacao="erro"] { background: #dc2626; color: #ffffff; }
+.notificacao[data-notificacao="info"] { background: #ffffff; }
+
+.notificacao__icone { font-size: 1.35rem; line-height: 1; font-weight: 700; flex: 0 0 auto; }
+
+.notificacao__texto {
+  margin: 0;
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.notificacao__acao,
+.notificacao__fechar {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  border: 3px solid #1c1b1b;
+  background: #ffffff;
+  color: #1c1b1b;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notificacao__acao { padding: 0.25rem 0.6rem; font-size: 0.75rem; text-transform: uppercase; }
+.notificacao__fechar { width: 1.75rem; height: 1.75rem; font-size: 1rem; line-height: 1; }
+.notificacao__acao:focus-visible,
+.notificacao__fechar:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+@keyframes notificacao-entrar {
+  from { transform: translateY(0.75rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogo-botao,
+  .notificacao {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ===== Impressao (PDF gerado por findesk:imprimir-pdf) =====
+   So o conteudo do relatorio: sem navbar, notificacoes, botoes e editores. */
+@media print {
+  #nav-global,
+  .notificacoes,
+  .dialogo-veu,
+  [data-nao-imprimir],
+  button,
+  select,
+  input[type="search"] {
+    display: none !important;
+  }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+  body {
+    padding: 0 !important;
+  }
+  body > #nav-global + * {
+    margin: 0 !important;
+  }
+  section, table, tr {
+    break-inside: avoid;
+  }
+}
+
+/* ===== Folha formal de impressao (impressao.ts > imprimirDocumento) =====
+   Documento simples e sobrio (preto no branco, bordas finas), sem o visual
+   neobrutalista da tela. Fica escondida na tela; na impressao, so ela aparece. */
+.folha-impressao { display: none; }
+
+@media print {
+  body.imprimindo-documento > *:not(.folha-impressao) { display: none !important; }
+  body.imprimindo-documento { display: block !important; }
+  body.imprimindo-documento .folha-impressao { display: block; }
+}
+
+.folha-impressao {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  font-size: 11pt;
+  line-height: 1.35;
+}
+.folha__pagina { padding: 10mm 12mm; }
+.folha__pagina + .folha__pagina { break-before: page; }
+.folha__cabecalho { border-bottom: 1.5pt solid #000; padding-bottom: 6pt; margin-bottom: 12pt; }
+.folha__empresa { margin: 0; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.04em; }
+.folha__titulo { margin: 2pt 0; font-size: 15pt; font-weight: 700; text-transform: uppercase; }
+.folha__emissao { margin: 0; font-size: 9pt; }
+.folha__secao { margin: 14pt 0 6pt; font-size: 10pt; font-weight: 700; text-transform: uppercase; }
+.folha__campos { width: 100%; border-collapse: collapse; }
+.folha__campos th,
+.folha__campos td { border: 0.75pt solid #000; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+.folha__campos th { width: 34%; font-weight: 700; background: #f2f2f2; }
+.folha__lista { width: 100%; border-collapse: collapse; font-size: 9pt; }
+.folha__lista th,
+.folha__lista td { border: 0.75pt solid #000; padding: 3pt 5pt; text-align: left; }
+.folha__lista th { background: #f2f2f2; font-weight: 700; text-transform: uppercase; font-size: 8pt; }
+.folha__lista td.folha__num,
+.folha__lista th.folha__num { text-align: right; white-space: nowrap; }
+.folha__lista tr { break-inside: avoid; }
+.folha__lista tfoot td { font-weight: 700; }
+.folha__nota { margin: 8pt 0 0; font-size: 9pt; }
+.folha__assinaturas { display: flex; gap: 24pt; margin-top: 36pt; }
+.folha__assinatura { flex: 1; display: flex; flex-direction: column; gap: 3pt; font-size: 9pt; text-align: center; }
+.folha__linha { border-top: 0.75pt solid #000; height: 0; }
+.folha__imagem { display: block; max-width: 100%; max-height: 250mm; margin: 0 auto; object-fit: contain; }
+
+/* ===== Tabelas: colunas principais + botao » que mostra as demais =====
+   As colunas .col-extra ficam escondidas ate o usuario expandir a tabela. */
+.tabela-colunas:not(.tabela-expandida) .col-extra { display: none; }
+
+.btn-expandir-colunas {
+  /* prende o texto .sr-only (absoluto) ao botao: sem isto ele esticava a pagina */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: #ffffff;
+  color: #1c1b1b;
+  border: 2px solid #1c1b1b;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+.btn-expandir-colunas:hover { background: #ffe600; }
+.btn-expandir-colunas:focus-visible { outline: 3px solid #ffe600; outline-offset: 2px; }
+.btn-expandir-colunas[aria-expanded="true"] > span:first-child { display: inline-block; transform: scaleX(-1); }
+
+/* Aviso FORA da tabela marcando onde surge a area de edicao */
+.area-edicao-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem;
+  border: 2px dashed #1c1b1b;
+  color: #57534e;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+}
+.area-edicao-vazia p { margin: 0; }
+
+/* Botoes de acao da area de edicao (mesma altura, borda simples) */
+.btn-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 2px solid #1c1b1b;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.btn-acao:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-acao:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+/* nota fiscal na area de edicao (Todas as contas): o quadro inteiro e um botao;
+   o PDF fica sem eventos de mouse/foco (o clique vai para o quadro e o
+   visualizador de PDF nunca rouba o foco dos inputs) */
+.nota-visualizacao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #1c1b1b;
+  background: #f6f3f2;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 0 #1c1b1b;
+  transition: box-shadow 0.12s ease, transform 0.12s ease;
+}
+.nota-visualizacao:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 0 #1c1b1b; }
+.nota-visualizacao:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+.nota-visualizacao.hidden { display: none; }
+.nota-visualizacao__conteudo {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: min(36rem, 70vh);
+  overflow: hidden;
+  background: #ffffff;
+}
+.nota-visualizacao__conteudo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.nota-visualizacao__conteudo embed { width: 100%; height: 100%; border: 0; pointer-events: none; }
+.nota-visualizacao__arquivo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 100%;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 1rem;
+}
+.nota-visualizacao__dica {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 2px solid #1c1b1b;
+  background: #ffe600;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+/* selos de situacao (NAO, VENCE HOJE, PJ, BOLETO...): pilula arredondada, borda
+   fina e sem sombra, para nao parecer botao (botoes sao retangulos com sombra) */
+.selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* previa da nota escolhida no Inserir Conta (mesmo desenho do Controle, mais baixa) */
+.nota-previa {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #1c1b1b;
+  box-shadow: 4px 4px 0 0 #1c1b1b;
+  background: #ffffff;
+}
+.nota-previa.hidden { display: none; }
+.nota-previa__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  border-bottom: 2px solid #1c1b1b;
+  background: #ffe600;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.nota-visualizacao__conteudo.nota-previa__conteudo { height: min(24rem, 50vh); }
+
+/* conta SEM nota: quadro proprio com icone, motivo e botao grande de anexar.
+   data-motivo: nao-anexada (amarelo claro) | sem-nota (cinza) | apagada (laranja claro) */
+.nota-vazia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 2rem 1.25rem;
+  border: 3px dashed #1c1b1b;
+  background: #fff9d6;
+  text-align: center;
+  color: #1c1b1b;
+}
+.nota-vazia[data-motivo="sem-nota"] { background: #f1efee; }
+.nota-vazia[data-motivo="apagada"] { background: #ffe8cc; }
+.nota-vazia.hidden { display: none; }
+.nota-vazia__icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  font-size: 2.5rem;
+  border: 3px solid #1c1b1b;
+  background: #ffffff;
+  box-shadow: 4px 4px 0 0 #1c1b1b;
+}
+.nota-vazia__titulo {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.nota-vazia__texto {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.nota-vazia__formatos {
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #525252;
+}
+
+/* o aviso some quando a area de edicao logo depois dele aparece */
+.aviso-selecao:has(+ #editorContainer:not(.hidden)) { display: none; }
+/* as classes acima ficam fora de @layer: garantir que .hidden continue valendo */
+.area-edicao-vazia.hidden,
+.btn-acao.hidden { display: none; }
+/* listas longas podem quebrar entre paginas (so as LINHAS ficam inteiras);
+   o cabecalho repete em cada pagina e o total aparece so no fim */
+@media print {
+  .folha-impressao section,
+  .folha-impressao table { break-inside: auto; }
+  .folha__lista thead { display: table-header-group; }
+  .folha__lista tfoot { display: table-row-group; }
+}
+@media print {
+  .folha__pagina:last-child { padding-bottom: 0; }
+}
+
+/* ===== Menu: painel "Mensagens do dia" (botoes EXPANDIR / VER NO CONTROLE,
+   recados em lista propria e pop-up de tela cheia) ===== */
+.btn-painel-dia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3rem 0.65rem;
+  background: #ffffff;
+  color: #1c1b1b;
+  border: 2px solid #1c1b1b;
+  box-shadow: 2px 2px 0 0 #1c1b1b;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.btn-painel-dia:hover { background: #1c1b1b; color: #ffffff; }
+.btn-painel-dia:active { transform: translate(2px, 2px); box-shadow: none; }
+.btn-painel-dia:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+.recado-dia {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+.recado-dia strong { flex: 0 0 auto; text-transform: uppercase; }
+.recado-dia strong::after { content: ":"; }
+.recado-dia span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recado-dia--completo { padding: 0.5rem 0.75rem; border: 2px solid #1c1b1b; background: #fcf9f8; }
+.recado-dia--completo span { white-space: normal; }
+
+.painel-expandido {
+  width: min(78rem, 100%);
+  height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 4px solid #1c1b1b;
+  box-shadow: 10px 10px 0 0 #1c1b1b;
+  font-family: "Space Grotesk", Arial, sans-serif;
+}
+.painel-expandido__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: #ffe600;
+  border-bottom: 4px solid #1c1b1b;
+}
+.painel-expandido__cabecalho h2 { margin: 0; font-size: 1.125rem; font-weight: 700; text-transform: uppercase; }
+.painel-expandido__corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 1.5rem;
+}
+.painel-expandido__secao { margin: 0.5rem 0 0; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; }
+
+/* ===== Sistema de Garantias: formularios (Cadastrar Garantia, Atualizar Precos) ===== */
+.campo-form { display: flex; flex-direction: column; gap: 0.375rem; width: 100%; }
+.campo-form.hidden { display: none; }
+.rotulo-form {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+  font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1c1b1b;
+}
+.dica-form { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 0.6875rem; font-weight: 700; color: #7c775f; }
+.entrada-form {
+  width: 100%; box-sizing: border-box; background: #ffffff; border: 2px solid #1c1b1b;
+  padding: 0.625rem 0.875rem; font-size: 0.9375rem; font-weight: 700; color: #1c1b1b;
+  box-shadow: 3px 3px 0 0 #1c1b1b; transition: background 0.12s, box-shadow 0.12s;
+}
+.entrada-form:focus { outline: none; background: #fffde6; box-shadow: 4px 4px 0 0 #FFE600; }
+.entrada-form--desligada, .entrada-form:disabled { background: #e8e5e4; color: #7c775f; box-shadow: none; cursor: not-allowed; }
+select.entrada-form { cursor: pointer; }
+.caixa-form { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start; cursor: pointer;
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.caixa-form input { width: 1.125rem; height: 1.125rem; accent-color: #1c1b1b; cursor: pointer; }
+.quantidade-form { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.625rem;
+  border: 2px solid #1c1b1b; background: #fffde6; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.quantidade-form.hidden { display: none; }
+.quantidade-form select { border: 2px solid #1c1b1b; background: #ffffff; font-weight: 700; padding: 0.125rem 0.375rem; cursor: pointer; }
+.campo-erro { margin: 0; font-size: 0.75rem; font-weight: 700; color: #ba1a1a; }
+.campo-erro.hidden { display: none; }
+.btn-principal-form, .btn-secundario-form {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;
+  border: 3px solid #1c1b1b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.btn-principal-form { background: #FFE600; padding: 0.875rem 2rem; font-size: 1.0625rem; box-shadow: 6px 6px 0 0 #1c1b1b; }
+.btn-secundario-form { background: #ffffff; padding: 0.75rem 1.5rem; font-size: 0.875rem; box-shadow: 4px 4px 0 0 #1c1b1b; }
+.btn-principal-form:hover, .btn-secundario-form:hover { transform: translate(-2px, -2px); }
+.btn-principal-form:active, .btn-secundario-form:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #1c1b1b; }
+.btn-principal-form:disabled { opacity: 0.5; cursor: wait; }
+.btn-principal-form:focus-visible, .btn-secundario-form:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+/* ===== Menu do Sistema de Garantias: 3 cartoes grandes ===== */
+.menu-titulo {
+  display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1.25rem; background: #ffffff;
+  border: 4px solid #1c1b1b; box-shadow: 6px 6px 0 0 #1c1b1b;
+}
+.menu-titulo img { width: clamp(2.5rem, 6vmin, 3.5rem); height: auto; }
+.menu-tres { display: grid; grid-template-columns: 1fr; gap: clamp(0.75rem, 2.5vmin, 1.5rem); flex: 1; }
+.menu-tres .cartao { aspect-ratio: 429 / 200; }
+@media (min-width: 900px) {
+  .menu-tres { grid-template-columns: repeat(3, 1fr); }
+  .menu-tres .cartao { aspect-ratio: 3 / 4; max-height: 70vh; }
+}
+.menu-wrap-garantias { width: 100%; max-width: 1200px; margin: auto 0; display: flex; flex-direction: column; gap: clamp(0.75rem, 2.5vmin, 1.5rem); }
+.filter-btn {
+  border: 2px solid #1c1b1b; background: #ffffff; color: #1c1b1b; padding: 0.5rem 0.75rem; cursor: pointer;
+  font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 0.75rem; font-weight: 700; line-height: 1;
+  white-space: nowrap; box-shadow: 2px 2px 0 0 #1c1b1b;
+}
+.filter-btn:hover { background: #f5f5f5; }
+.filter-btn.active-filter { background: #1c1b1b; color: #ffffff; }
+.filter-btn:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+.lista-editavel { list-style: none; margin: 0; padding: 0 1rem 1rem; max-height: 22rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.375rem; }
+.lista-editavel li { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border: 2px solid #1c1b1b; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; }
+.lista-editavel li.inativo { background: #f1efee; color: #7c775f; }
+.lista-editavel li span.nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista-editavel button { border: 2px solid #1c1b1b; background: #ffffff; padding: 0.125rem 0.5rem; font-family: ui-monospace, monospace; font-size: 0.6875rem; font-weight: 700; cursor: pointer; }
+.lista-editavel button:hover { background: #fff9d6; }
+.lista-editavel button.perigo { color: #ba1a1a; }
+.lista-editavel button.perigo:hover { background: #ffdad6; }

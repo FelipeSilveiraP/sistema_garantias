@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Cadastrar Garantia — Sistema de Garantias — Chaveiro Universal</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'self'">
+<link href="../css/fonts.css" rel="stylesheet">
+<link href="../dist/tailwind.css" rel="stylesheet">
+</head><body class="bg-[#fcf9f8] text-[#1c1b1b] min-h-screen w-full flex flex-col items-center px-4 sm:px-6 lg:px-8 font-headline" data-tela="cadastrar-garantia">
+<header id="nav-global"></header>
+<div class="w-full max-w-5xl flex flex-col gap-6 mt-4 sm:mt-5 mb-8">
+<main class="w-full bg-white border-2 border-[#1c1b1b] p-5 sm:p-6">
+<div class="flex items-center gap-3 pb-3 mb-4 border-b-2 border-[#1c1b1b]">
+<div class="w-10 h-10 bg-[#FFE600] border-2 border-[#1c1b1b] flex items-center justify-center shadow-[2px_2px_0px_0px_#1c1b1b]">
+<span class="material-symbols-outlined text-2xl text-[#1c1b1b]">post_add</span>
+</div>
+<h1 class="text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1c1b1b]">Cadastrar Garantia</h1>
+</div>
+<form class="flex flex-col gap-4" id="form-garantia" novalidate>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+
+<div class="campo-form">
+<label class="rotulo-form" for="data_servico"><span>DATA DO SERVIÇO <strong class="text-[#ba1a1a]">*</strong></span></label>
+<input class="entrada-form font-mono" id="data_servico" maxlength="10" placeholder="DD/MM/AAAA" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="dataServico"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="tecnico"><span>TÉCNICO <strong class="text-[#ba1a1a]">*</strong></span></label>
+<select class="entrada-form" id="tecnico"><option value="">Selecione o técnico...</option></select>
+<p class="campo-erro hidden" data-erro-campo="tecnico"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="placa"><span>PLACA <strong class="text-[#ba1a1a]" id="placa-obrigatoria">*</strong></span><span class="dica-form">7 LETRAS E NÚMEROS</span></label>
+<input class="entrada-form font-mono uppercase" id="placa" maxlength="8" placeholder="ABC1D23" type="text" autocomplete="off">
+<label class="caixa-form" for="sem_placa"><input id="sem_placa" type="checkbox"><span>CARRO SEM PLACA (INFORMAR O CPF)</span></label>
+<p class="campo-erro hidden" data-erro-campo="placa"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="cpf"><span>CPF DO CLIENTE <strong class="text-[#ba1a1a] hidden" id="cpf-obrigatorio">*</strong></span><span class="dica-form" id="cpf-dica">OPCIONAL</span></label>
+<input class="entrada-form font-mono" id="cpf" maxlength="14" placeholder="000.000.000-00" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="cpf"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="modelo"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">ESCOLHA OU DIGITE</span></label>
+<input class="entrada-form uppercase" id="modelo" list="lista-modelos" maxlength="60" placeholder="Ex.: ONIX" type="text" autocomplete="off">
+<datalist id="lista-modelos"></datalist>
+<p class="campo-erro hidden" data-erro-campo="modelo"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="servico"><span>SERVIÇO <strong class="text-[#ba1a1a]">*</strong></span></label>
+<select class="entrada-form" id="servico"><option value="">Selecione o serviço...</option></select>
+<p class="campo-erro hidden" data-erro-campo="servico"></p>
+</div>
+
+<div class="campo-form lg:col-span-2 hidden" id="bloco-outro">
+<label class="rotulo-form" for="servico_outro"><span>DESCREVA O SERVIÇO <strong class="text-[#ba1a1a]">*</strong></span></label>
+<input class="entrada-form uppercase" id="servico_outro" maxlength="120" placeholder="Ex.: CÓPIA DE CHAVE CODIFICADA" type="text" autocomplete="off">
+</div>
+
+<div class="campo-form lg:col-span-2 hidden" id="bloco-quantidades">
+<span class="rotulo-form"><span>QUANTIDADES</span><span class="dica-form">DE 1 A 5</span></span>
+<div class="flex flex-wrap gap-3">
+<label class="quantidade-form hidden" id="q-carcaca"><span>CARCAÇA</span><select data-qtd="qtdCarcaca"></select></label>
+<label class="quantidade-form hidden" id="q-botao"><span>BOTÃO</span><select data-qtd="qtdBotao"></select></label>
+<label class="quantidade-form hidden" id="q-pilha"><span>PILHA</span><select data-qtd="qtdPilha"></select></label>
+<label class="quantidade-form hidden" id="q-itens"><span id="q-itens-rotulo">ITENS</span><select data-qtd="qtdItens"></select></label>
+</div>
+<p class="campo-erro hidden" data-erro-campo="quantidade"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="valor"><span>VALOR (R$)</span><span class="dica-form" id="valor-dica"></span></label>
+<input class="entrada-form font-mono" id="valor" inputmode="numeric" placeholder="0,00" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="valor"></p>
+</div>
+
+<div class="campo-form">
+<label class="rotulo-form" for="observacao"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></label>
+<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="observacao"></p>
+</div>
+</div>
+
+<div class="flex flex-wrap items-center justify-center gap-4 pt-4 border-t-2 border-[#1c1b1b]">
+<button class="btn-secundario-form" id="btn-limpar" type="button"><span class="material-symbols-outlined text-lg">ink_eraser</span>LIMPAR</button>
+<button class="btn-principal-form" id="btn-salvar" type="submit"><span class="material-symbols-outlined text-xl">save</span>SALVAR GARANTIA</button>
+</div>
+</form>
+</main>
+</div>
+<script type="module" src="../dist/app.js"></script>
+</body></html>

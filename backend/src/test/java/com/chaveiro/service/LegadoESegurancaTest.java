@@ -1,0 +1,170 @@
+package com.chaveiro.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import com.chaveiro.database.ConnectionFactory;
+import com.chaveiro.database.DatabaseInitializer;
+import com.chaveiro.model.Garantia;
+import com.chaveiro.model.ItemLista;
+import com.chaveiro.repository.GarantiaRepository;
+import com.chaveiro.repository.LegadoRepository;
+import com.chaveiro.repository.ListaRepository;
+import com.chaveiro.repository.ListaRepository.Lista;
+import com.chaveiro.repository.ServicoRepository;
+import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/** Importacao da planilha legada, tabela de precos/listas e gatilhos de seguranca (SQLite real em tmp). */
+class LegadoESegurancaTest {
+
+    @TempDir
+    Path pasta;
+
+    private ConnectionFactory conexao;
+    private LegadoService legado;
+    private GarantiaService garantias;
+    private CadastrosService cadastros;
+
+    @BeforeEach
+    void preparar() {
+        conexao = new ConnectionFactory(pasta.resolve("garantias.db").toString());
+        new DatabaseInitializer(conexao).inicializar();
+        GarantiaRepository repo = new GarantiaRepository(conexao);
+        ServicoRepository servicos = new ServicoRepository(conexao);
+        legado = new LegadoService(new LegadoRepository(conexao), repo);
+        garantias = new GarantiaService(repo, servicos);
+        cadastros = new CadastrosService(servicos, new ListaRepository(conexao));
+    }
+
+    private void sql(String comando) throws SQLException {
+        try (Connection conn = conexao.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute(comando);
+        }
+    }
+
+    private int contar(String consulta) throws SQLException {
+        try (Connection conn = conexao.getConnection(); Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(consulta)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    /** Planilha no formato do legado: abas de meses, cabecalho na linha 1, data como numero de serie. */
+    private static byte[] planilhaLegada() throws Exception {
+        List<String> cab = List.of("DATA", "PLACA", "MODELO (CARRO)", "SERVIÇO", "CPF", "VALOR", "TÉCNICO ", "OBSERVAÇÃO");
+        return PlanilhaXlsx.gerar(List.of(
+                new PlanilhaXlsx.Aba("JANEIRO", cab, List.of(
+                        List.of(46027, "GEW5638", "RENEGADE", "01 TROCA DE CARCAÇA", "", 240, "FELIPE", ""),
+                        List.of(46028, "SEM PLACA", "ONIX", "01 CARCAÇA CANIVETE E PILHA", "12345678909", 130, "RENATO", "CLIENTE VOLTA"),
+                        List.of("", "", "", "", "", "", "", ""))),
+                new PlanilhaXlsx.Aba("MARÇO", cab, List.of(
+                        List.of("15/03/2026", "ddq-6717", "voiage", "01 TROCA DA GAIOLA", "", "85,50", "renato", ""))),
+                new PlanilhaXlsx.Aba("RESUMO", cab, List.of(
+                        List.of(46027, "NAO E MES", "X", "X", "", 1, "X", "")))));
+    }
+
+    @Test
+    void importaAsAbasDeMesesSemDuplicarAoRepetir() throws Exception {
+        byte[] arquivo = planilhaLegada();
+
+        LegadoService.Resultado r = legado.importar("GARANTIAS-2026.xlsm", arquivo);
+
+        assertThat(r.importadas()).isEqualTo(3);
+        List<Garantia> lista = garantias.listar();
+        assertThat(lista).hasSize(3).allMatch(g -> "LEGADO".equals(g.origem()));
+        Garantia renegade = lista.stream().filter(g -> "GEW5638".equals(g.placa())).findFirst().orElseThrow();
+        assertThat(renegade.dataServico()).hasToString("2026-01-05");
+        assertThat(renegade.valor()).isEqualByComparingTo("240.00");
+        Garantia semPlaca = lista.stream().filter(Garantia::semPlaca).findFirst().orElseThrow();
+        assertThat(semPlaca.placa()).isNull();
+        assertThat(semPlaca.cpf()).isEqualTo("12345678909");
+        Garantia gaiola = lista.stream().filter(g -> "DDQ6717".equals(g.placa())).findFirst().orElseThrow();
+        assertThat(gaiola.valor()).isEqualByComparingTo("85.50");
+        assertThat(gaiola.tecnico()).isEqualTo("RENATO");
+        assertThat(contar("SELECT COUNT(*) FROM legado_garantias WHERE id_garantia_migrada IS NOT NULL")).isEqualTo(3);
+
+        LegadoService.Resultado deNovo = legado.importar("GARANTIAS-2026.xlsm", arquivo);
+        assertThat(deNovo.importadas()).isZero();
+        assertThat(deNovo.jaImportadas()).isEqualTo(3);
+        assertThat(garantias.listar()).hasSize(3);
+    }
+
+    @Test
+    void arquivoQueNaoEPlanilhaERecusado() {
+        assertThatThrownBy(() -> legado.importar("x.xlsm", "nao e zip".getBytes()))
+                .isInstanceOf(DadosInvalidosException.class);
+    }
+
+    /** Usa a planilha real da loja quando ela existe nesta maquina (no CI o teste e pulado). */
+    @Test
+    void importaAPlanilhaRealDoLegadoQuandoDisponivel() throws Exception {
+        Path real = Path.of(System.getProperty("user.home"), "Desktop", "FELIPE IMPORTANTE 2.0", "CHAVEIRO",
+                "GARANTIAS-2026 - Copia.xlsm");
+        assumeTrue(Files.exists(real), "planilha real ausente nesta maquina");
+
+        LegadoService.Resultado r = legado.importar(real.getFileName().toString(), Files.readAllBytes(real));
+
+        assertThat(r.importadas()).isGreaterThan(0);
+        assertThat(garantias.listar()).allSatisfy(g -> {
+            assertThat(g.dataServico().getYear()).isEqualTo(2026);
+            assertThat(g.valor()).isNotNull();
+        });
+    }
+
+    @Test
+    void reajusteDePrecosEmUmaTransacaoFicaNaAuditoria() throws Exception {
+        assertThat(cadastros.listarServicos()).extracting(s -> s.nome()).contains("TROCA CARCAÇA", "PILHA", "BOTÃO");
+        int atualizados = cadastros.reajustar(new BigDecimal("10"), true);
+
+        assertThat(atualizados).isEqualTo(11);
+        assertThat(cadastros.listarServicos()).filteredOn(s -> s.nome().equals("PILHA"))
+                .singleElement().satisfies(s -> assertThat(s.preco()).isEqualByComparingTo("13.20"));
+        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'servicos' AND operacao = 'UPDATE'"))
+                .isEqualTo(2); // so PILHA e BOTAO tinham preco > 0
+        assertThatThrownBy(() -> cadastros.reajustar(new BigDecimal("500"), true)).isInstanceOf(DadosInvalidosException.class);
+    }
+
+    @Test
+    void listasComecamComAsDoVbaENaoAceitamRepetidos() {
+        assertThat(cadastros.listar(Lista.TECNICOS)).extracting(ItemLista::nome)
+                .contains("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
+        assertThat(cadastros.listar(Lista.MODELOS)).hasSizeGreaterThan(80);
+        cadastros.incluir(Lista.TECNICOS, "  marcos  ");
+        assertThatThrownBy(() -> cadastros.incluir(Lista.TECNICOS, "MARCOS")).isInstanceOf(DadosInvalidosException.class);
+    }
+
+    @Test
+    void gatilhosAuditamGarantiasEProtegemOBanco() throws Exception {
+        Garantia g = garantias.cadastrar(new Garantia(null, java.time.LocalDate.now(), "ABC1D23", false, null, "ONIX",
+                null, "CHAVE NOVA", 0, 0, 0, 0, BigDecimal.TEN, "FELIPE", null, null, null, null, null), false);
+        garantias.marcarCupom(g.id(), "DISPENSADO");
+        garantias.excluir(g.id());
+
+        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'garantias' AND id_registro = " + g.id()))
+                .isEqualTo(3);
+        assertThatThrownBy(() -> sql("DELETE FROM auditoria_operacoes")).hasMessageContaining("AUDITORIA_SOMENTE_LEITURA");
+        assertThatThrownBy(() -> sql("UPDATE auditoria_operacoes SET tabela = 'x'")).hasMessageContaining("AUDITORIA_SOMENTE_LEITURA");
+        // placa fora da regra, direto no banco, e recusada pelo CHECK
+        assertThatThrownBy(() -> sql("INSERT INTO garantias (data_servico, placa, modelo, servico, tecnico)"
+                + " VALUES ('2026-01-01', 'X', 'ONIX', 'CHAVE', 'FELIPE')")).isInstanceOf(SQLException.class);
+        // cupom LANCADO sem data e servico em uso sem poder excluir
+        Garantia outra = garantias.cadastrar(new Garantia(null, java.time.LocalDate.now(), "XYZ9A87", false, null, "GOL",
+                cadastros.listarServicos().getFirst().id(), null, 1, 1, 1, 1, BigDecimal.TEN, "FELIPE", null,
+                null, null, null, null), false);
+        assertThatThrownBy(() -> sql("UPDATE garantias SET cupom_status = 'LANCADO' WHERE id_garantia = " + outra.id()))
+                .hasMessageContaining("CUPOM_INVALIDO");
+        assertThatThrownBy(() -> sql("DELETE FROM servicos WHERE id_servico = " + outra.idServico()))
+                .hasMessageContaining("SERVICO_EM_USO");
+    }
+}

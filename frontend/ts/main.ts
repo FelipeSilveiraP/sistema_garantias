@@ -1,0 +1,60 @@
+// Despacho por tela com carregamento sob demanda: cada pagina importa somente
+// o modulo que utiliza (chunks ESM gerados pelo esbuild --splitting).
+import { iniciarDiagnostico } from "./diagnostico";
+import { iniciarNotificacoes } from "./notificacoes";
+
+iniciarDiagnostico();
+// regioes vivas das notificacoes existem desde o carregamento (e mostram o aviso deixado pela tela anterior)
+iniciarNotificacoes();
+
+const tela = document.body.dataset.tela ?? "menu";
+
+async function iniciar(): Promise<void> {
+  switch (tela) {
+    case "menu": {
+      const { iniciarMenu } = await import("./telas/menu");
+      iniciarMenu();
+      return;
+    }
+    case "carregando": {
+      const { iniciarCarregando } = await import("./telas/carregando");
+      iniciarCarregando();
+      return;
+    }
+    case "cadastrar-garantia": {
+      const { iniciarCadastrarGarantia } = await import("./telas/cadastrar-garantia");
+      iniciarCadastrarGarantia();
+      return;
+    }
+    case "pesquisar-garantias": {
+      const { iniciarPesquisarGarantias } = await import("./telas/pesquisar-garantias");
+      iniciarPesquisarGarantias();
+      return;
+    }
+    case "graficos": {
+      const { iniciarGraficos } = await import("./telas/graficos");
+      iniciarGraficos();
+      return;
+    }
+    case "atualizar-precos": {
+      const { iniciarAtualizarPrecos } = await import("./telas/atualizar-precos");
+      iniciarAtualizarPrecos();
+      return;
+    }
+    default: {
+      const { iniciarSubmenu } = await import("./telas/submenu");
+      const { SUBMENUS } = await import("./submenus-config");
+      const config = (SUBMENUS as Record<string, Parameters<typeof iniciarSubmenu>[1]>)[tela];
+      if (config) {
+        iniciarSubmenu(tela as Parameters<typeof iniciarSubmenu>[0], config);
+      } else {
+        console.error("[Garantias] tela desconhecida:", tela);
+      }
+    }
+  }
+}
+
+void iniciar().then(() => {
+  // Sinal de prontidao: componentes da tela ja inicializados.
+  document.body.dataset.pronto = "true";
+});

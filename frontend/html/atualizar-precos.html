@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Atualizar Preços — Sistema de Garantias — Chaveiro Universal</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'self'">
+<link href="../css/fonts.css" rel="stylesheet">
+<link href="../dist/tailwind.css" rel="stylesheet">
+</head><body class="bg-[#fcf9f8] text-[#1c1b1b] min-h-screen w-full font-headline antialiased" data-tela="atualizar-precos">
+<header id="nav-global"></header>
+<div class="max-w-6xl mx-auto py-4 px-4 sm:px-6 flex flex-col gap-5 mb-8">
+<header class="bg-white border-2 border-[#1c1b1b] px-4 py-3 sm:px-6 flex items-center gap-3">
+<div class="w-10 h-10 bg-[#FF8C00] border-2 border-[#1c1b1b] flex items-center justify-center shadow-[2px_2px_0px_0px_#1c1b1b]"><span class="material-symbols-outlined text-2xl">sell</span></div>
+<h1 class="text-xl sm:text-2xl font-bold uppercase tracking-tight">Atualizar preços</h1>
+</header>
+
+<section class="bg-white border-2 border-[#1c1b1b]" aria-labelledby="titulo-precos">
+<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b]">
+<h2 class="text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-precos"><span class="material-symbols-outlined">request_quote</span>Tabela de preços</h2>
+<div class="flex flex-wrap items-center gap-2">
+<label class="font-mono text-xs font-bold uppercase" for="reajuste">Reajustar todos em</label>
+<input class="entrada-form !w-24 !py-1.5 font-mono" id="reajuste" inputmode="decimal" placeholder="10" type="text" autocomplete="off">
+<span class="font-mono text-sm font-bold">%</span>
+<label class="caixa-form" for="reajuste_pecas"><input id="reajuste_pecas" type="checkbox" checked><span>Incluir peças</span></label>
+<button class="btn-acao bg-[#FFE600]" id="btnReajustar" type="button"><span class="material-symbols-outlined text-base font-bold">trending_up</span>APLICAR REAJUSTE</button>
+</div>
+</div>
+<p class="px-4 sm:px-5 pt-3 font-mono text-xs font-bold uppercase text-neutral-600">O preço é sugerido no cadastro da garantia. PILHA e BOTÃO são peças: o preço delas soma ao serviço e divide o valor no cupom fiscal.</p>
+<div class="overflow-x-auto p-4 sm:p-5 pt-3">
+<table class="w-full text-left border-collapse border-2 border-[#1c1b1b]" id="tabelaPrecos">
+<thead><tr class="bg-[#1c1b1b] text-white font-mono text-xs uppercase"><th class="py-2.5 px-3">Serviço / peça</th><th class="py-2.5 px-3 text-center">Tipo</th><th class="py-2.5 px-3 w-40">Preço (R$)</th><th class="py-2.5 px-3 w-36">Código no cupom</th><th class="py-2.5 px-3 text-center">Ativo</th><th class="py-2.5 px-3 w-28"></th></tr></thead>
+<tbody class="divide-y-2 divide-[#1c1b1b] text-sm font-bold" id="corpoPrecos"></tbody>
+</table>
+</div>
+</section>
+
+<section class="bg-white border-2 border-[#1c1b1b]" aria-labelledby="titulo-novo">
+<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-novo"><span class="material-symbols-outlined">add_box</span>Novo serviço ou peça</h2>
+<form class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-end" id="formServico" novalidate>
+<div class="campo-form md:col-span-5"><label class="rotulo-form" for="novo_nome">Nome</label><input class="entrada-form uppercase" id="novo_nome" maxlength="80" placeholder="Ex.: TROCA DE TRANSPONDER" type="text" autocomplete="off"></div>
+<div class="campo-form md:col-span-3"><label class="rotulo-form" for="novo_preco">Preço (R$)</label><input class="entrada-form font-mono" id="novo_preco" inputmode="numeric" placeholder="0,00" type="text" autocomplete="off"></div>
+<div class="campo-form md:col-span-4"><label class="rotulo-form" for="novo_codigo">Código no cupom</label><input class="entrada-form font-mono" id="novo_codigo" maxlength="30" placeholder="Ex.: 4022" type="text" autocomplete="off"></div>
+<div class="md:col-span-9 flex flex-wrap gap-x-5 gap-y-2">
+<span class="font-mono text-xs font-bold uppercase text-neutral-600 w-full">No cadastro, perguntar a quantidade de:</span>
+<label class="caixa-form"><input id="pede_carcaca" type="checkbox"><span>Carcaça</span></label>
+<label class="caixa-form"><input id="pede_botao" type="checkbox"><span>Botão</span></label>
+<label class="caixa-form"><input id="pede_pilha" type="checkbox"><span>Pilha</span></label>
+<label class="caixa-form"><input id="pede_itens" type="checkbox" checked><span>Itens (peça do serviço)</span></label>
+<label class="caixa-form"><input id="novo_peca" type="checkbox"><span>É uma peça (não aparece como serviço)</span></label>
+</div>
+<div class="md:col-span-3 flex md:justify-end"><button class="btn-acao bg-[#FFE600]" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></div>
+<p class="campo-erro hidden md:col-span-12" data-erro-campo="novo"></p>
+</form>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+<section class="bg-white border-2 border-[#1c1b1b]" data-lista="tecnicos" aria-labelledby="titulo-tecnicos">
+<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-tecnicos"><span class="material-symbols-outlined">engineering</span>Técnicos</h2>
+<form class="flex gap-2 p-4 sm:p-5 pb-3" data-form-lista="tecnicos" novalidate><input class="entrada-form uppercase" maxlength="60" placeholder="Nome do técnico" type="text" autocomplete="off" aria-label="Nome do técnico"><button class="btn-acao bg-[#FFE600] shrink-0" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></form>
+<p class="campo-erro hidden px-4 sm:px-5" data-erro-lista="tecnicos"></p>
+<ul class="lista-editavel" data-itens="tecnicos"></ul>
+</section>
+<section class="bg-white border-2 border-[#1c1b1b]" data-lista="modelos" aria-labelledby="titulo-modelos">
+<h2 class="px-4 py-3 sm:px-5 border-b-2 border-[#1c1b1b] text-base font-bold uppercase tracking-wider flex items-center gap-2" id="titulo-modelos"><span class="material-symbols-outlined">directions_car</span>Modelos de carro</h2>
+<form class="flex gap-2 p-4 sm:p-5 pb-3" data-form-lista="modelos" novalidate><input class="entrada-form uppercase" maxlength="60" placeholder="Modelo do carro" type="text" autocomplete="off" aria-label="Modelo do carro"><button class="btn-acao bg-[#FFE600] shrink-0" type="submit"><span class="material-symbols-outlined text-base font-bold">add</span>INCLUIR</button></form>
+<p class="campo-erro hidden px-4 sm:px-5" data-erro-lista="modelos"></p>
+<ul class="lista-editavel" data-itens="modelos"></ul>
+</section>
+</div>
+</div>
+<script type="module" src="../dist/app.js"></script>
+</body></html>

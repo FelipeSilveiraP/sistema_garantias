@@ -1,0 +1,91 @@
+# ==========================================
+# Compilação e Artefatos de Build (Maven)
+# ==========================================
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# ==========================================
+# Dados Sensíveis, Confidenciais e Operacionais
+# ==========================================
+# Planilhas financeiras reais e rotinas proprietárias do cliente
+vba/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# Configuração local de agentes
+.agents/
+*.zip
+*.tar
+*.gz
+*.tmp
+*.bak
+
+# Banco de dados local SQLite (nunca commitar dados de produção)
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+data/
+database/*.db
+
+# Logs e arquivos de diagnóstico
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+chat_mimo.ps1
+*.pfx
+*.p12
+*.jks
+*.pid
+backups/
+
+# ==========================================
+# Node / Electron (Fase 1)
+# ==========================================
+node_modules/
+dist/
+release/
+.webpack/
+
+# ==========================================
+# IDEs e Editores
+# ==========================================
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.settings/
+.project
+.classpath
+
+# ==========================================
+# Sistema Operacional
+# ==========================================
+Thumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# Gerados pelo instalador: Java minimo (jlink) e pasta de trabalho do empacotamento
+build/

@@ -1,0 +1,209 @@
+import { Tela, irPara, voltar, menuPrincipal } from "./navegacao";
+import { respostaProvisoria, dialogoEstaAberto } from "./componentes";
+
+type ChaveNav = "voltar" | "menu" | "cadastrar" | "pesquisar" | "estatisticas";
+
+interface ItemNav {
+  chave: ChaveNav;
+  rotulo: string;
+  icone: string;
+  cor: string;
+  corTexto: string;
+  svg: string;
+  quadrado?: string;
+  destino?: Tela;
+  provisorio?: string;
+  noPainel: boolean;
+}
+
+const ITENS_NAV: ItemNav[] = [
+  {
+    chave: "voltar",
+    rotulo: "VOLTAR",
+    icone: "arrow_back",
+    cor: "",
+    corTexto: "",
+    svg: '<path d="M20 12H4M11 5l-7 7 7 7"/>',
+    noPainel: true,
+  },
+  {
+    chave: "menu",
+    rotulo: "MENU PRINCIPAL",
+    icone: "home",
+    // vermelho: o amarelo e a cor de CADASTRAR GARANTIA (como no Menu)
+    cor: "bg-[#FF3B30]",
+    corTexto: "text-[#FF3B30]",
+    svg: '<path d="m3 11 9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-7h4v7"/>',
+    quadrado: "icone-vermelho",
+    noPainel: true,
+  },
+  {
+    chave: "cadastrar",
+    rotulo: "CADASTRAR GARANTIA",
+    icone: "post_add",
+    cor: "bg-[#FFE600]",
+    corTexto: "text-[#e0c900]",
+    svg: '<path d="M6 3h8l4 4v14H6z"/><path d="M12 10v7M8.5 13.5h7"/>',
+    quadrado: "icone-amarelo",
+    destino: "cadastrar-garantia",
+    noPainel: true,
+  },
+  {
+    chave: "pesquisar",
+    rotulo: "PESQUISAR GARANTIA",
+    icone: "search",
+    cor: "bg-[#2563EB]",
+    corTexto: "text-[#2563EB]",
+    svg: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
+    quadrado: "icone-azul",
+    destino: "pesquisar-garantias",
+    noPainel: true,
+  },
+  {
+    chave: "estatisticas",
+    rotulo: "ESTATÍSTICA E ATUALIZAÇÕES",
+    icone: "bar_chart",
+    cor: "bg-[#00FF66]",
+    corTexto: "text-[#00FF66]",
+    svg: '<path d="M5 20v-6h3v6M11 20V9h3v11M17 20V4h3v16"/>',
+    quadrado: "icone-verde",
+    destino: "estatisticas",
+    noPainel: true,
+  },
+];
+
+const MODULO_DA_TELA: Partial<Record<Tela, ChaveNav>> = {
+  "cadastrar-garantia": "cadastrar",
+  "pesquisar-garantias": "pesquisar",
+  estatisticas: "estatisticas",
+  graficos: "estatisticas",
+  "atualizar-precos": "estatisticas",
+};
+
+const CLASSE_ITEM_PAINEL =
+  "nav-item-painel flex items-center gap-3 w-full px-4 py-3 text-left font-headline font-bold text-sm uppercase tracking-wider text-[#1c1b1b] cursor-pointer transition-colors border-b-2 border-[#1c1b1b] last:border-b-0";
+
+function iconeHtml(nome: string, classe: string): string {
+  return `<span class="material-symbols-outlined ${classe}">${nome}</span>`;
+}
+
+function botaoBarraHtml(item: ItemNav, ativo: boolean): string {
+  const atual = ativo ? ' aria-current="page"' : "";
+  if (item.chave === "voltar") {
+    return `<button class="nav-item nav-voltar" type="button" data-nav="${item.chave}" aria-label="Voltar"${atual}><svg viewBox="0 0 24 24" aria-hidden="true">${item.svg}</svg></button>`;
+  }
+  return `<button class="nav-item" type="button" data-nav="${item.chave}"${atual}><span class="nav-icone ${item.quadrado}"><svg viewBox="0 0 24 24" aria-hidden="true">${item.svg}</svg></span><span>${item.rotulo}</span></button>`;
+}
+
+function itemPainelHtml(item: ItemNav, ativo: boolean): string {
+  const fundo = ativo ? item.cor : "bg-white";
+  const corIcone = ativo ? "text-[#1c1b1b]" : item.corTexto;
+  return `<button class="${CLASSE_ITEM_PAINEL} ${fundo} hover:bg-[#f0edeb]" data-nav="${item.chave}" type="button">${iconeHtml(
+    item.icone,
+    `text-xl leading-none font-bold ${corIcone}`
+  )}<span>${item.rotulo}</span></button>`;
+}
+
+function menuEstaAberto(raiz: HTMLElement): boolean {
+  return raiz.dataset.menuAberto === "true";
+}
+
+/** Menu lateral colado logo ABAIXO do botao (o botao fica por cima, encostado no topo do menu). */
+function posicionarPainel(raiz: HTMLElement): void {
+  const hamburguer = raiz.querySelector<HTMLElement>(".nav-hamburguer");
+  const painel = raiz.querySelector<HTMLElement>(".nav-painel");
+  if (!hamburguer || !painel) return;
+  const r = hamburguer.getBoundingClientRect();
+  const borda = 4; // as bordas de 4px se sobrepoem: botao e menu ficam colados
+  painel.style.top = `${Math.max(0, r.bottom - borda)}px`;
+  painel.style.left = `${Math.max(0, r.left)}px`;
+  painel.style.width = `${Math.min(320, window.innerWidth - r.left - 16)}px`;
+}
+
+function definirMenu(raiz: HTMLElement, aberto: boolean): void {
+  if (aberto) posicionarPainel(raiz);
+  raiz.dataset.menuAberto = aberto ? "true" : "false";
+  raiz.querySelector(".nav-hamburguer")?.setAttribute("aria-expanded", String(aberto));
+}
+
+function acionar(item: ItemNav): void {
+  console.info(`[Garantias] nav "${item.rotulo}" acionada`);
+  if (item.destino) {
+    void irPara(item.destino);
+    return;
+  }
+  if (item.chave === "voltar") {
+    void voltar();
+    return;
+  }
+  if (item.chave === "menu") {
+    void menuPrincipal();
+    return;
+  }
+  if (item.provisorio) {
+    respostaProvisoria(item.provisorio, "Módulo");
+  }
+}
+
+export function montarNavbar(tela: Tela): void {
+  const raiz = document.getElementById("nav-global");
+  if (!raiz) return;
+  const moduloAtivo = MODULO_DA_TELA[tela];
+  const itens = new Map(ITENS_NAV.map((item) => [item.chave, item]));
+
+  raiz.dataset.menuAberto = "false";
+  raiz.innerHTML = `
+<nav class="barra-navegacao nav-barra" aria-label="Navegação principal">
+${ITENS_NAV.map((item) => botaoBarraHtml(item, item.chave === moduloAtivo)).join("\n")}
+</nav>
+<button class="nav-hamburguer relative z-[60] flex-col items-center justify-center gap-1.5 w-14 h-14 bg-white border-4 border-[#1c1b1b] shadow-[4px_4px_0_0_#1c1b1b] cursor-pointer transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#1c1b1b] active:translate-x-1 active:translate-y-1 active:shadow-[1px_1px_0_0_#1c1b1b]" aria-label="Abrir menu de navegação" aria-expanded="false" type="button">
+<span class="nav-hamburguer__linha"></span>
+<span class="nav-hamburguer__linha"></span>
+<span class="nav-hamburguer__linha"></span>
+</button>
+<div class="nav-veu" data-nav="fechar" aria-hidden="true"></div>
+<nav class="nav-painel bg-white border-4 border-[#1c1b1b] shadow-[6px_6px_0_0_#1c1b1b]" aria-label="Menu de módulos">
+${ITENS_NAV.filter((item) => item.noPainel)
+  .map((item) => itemPainelHtml(item, item.chave === moduloAtivo))
+  .join("")}
+</nav>`;
+
+  raiz.addEventListener("click", (evento) => {
+    const alvo = (evento.target as HTMLElement).closest<HTMLElement>("[data-nav]");
+    if (!alvo || !raiz.contains(alvo)) return;
+    const acao = alvo.dataset.nav;
+    if (acao === "fechar") {
+      definirMenu(raiz, false);
+      return;
+    }
+    const item = itens.get(acao as ChaveNav);
+    if (!item) return;
+    definirMenu(raiz, false);
+    acionar(item);
+  });
+
+  // o hamburguer fica fixo no canto (CSS); so o menu aberto acompanha a janela
+  const reposicionar = (): void => {
+    if (menuEstaAberto(raiz)) posicionarPainel(raiz);
+  };
+  window.addEventListener("resize", reposicionar);
+  window.addEventListener("scroll", reposicionar, { passive: true });
+
+  raiz.querySelector(".nav-hamburguer")?.addEventListener("click", () => {
+    definirMenu(raiz, !menuEstaAberto(raiz));
+    console.info(`[Garantias] menu lateral ${menuEstaAberto(raiz) ? "aberto" : "fechado"}`);
+  });
+
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Escape") return;
+    if (dialogoEstaAberto()) return;
+    evento.preventDefault();
+    if (menuEstaAberto(raiz)) {
+      definirMenu(raiz, false);
+      return;
+    }
+    void voltar();
+  });
+
+  console.info(`[Garantias] navbar global montada (tela: ${tela}, módulo ativo: ${moduloAtivo ?? "nenhum"})`);
+}
