@@ -130,6 +130,7 @@ async function acaoEsqueci(): Promise<void> {
 async function criarAdmin(): Promise<void> {
   const v = (id: string): string => el<HTMLInputElement>(id).value.trim();
   const erros: Record<string, string> = {};
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v("adm_email_loja"))) erros.emailLoja = "Informe o e-mail da loja (ex.: loja@gmail.com).";
   if (!/^\d{4,6}$/.test(v("adm_pin"))) erros.pin = "O PIN tem de 4 a 6 números.";
   else if (v("adm_pin") !== v("adm_pin2")) erros.pin2 = "Os dois PINs não são iguais.";
   const mostrar = (e: Record<string, string>): void => {
@@ -143,7 +144,7 @@ async function criarAdmin(): Promise<void> {
   if (Object.keys(erros).length) return;
   try {
     const sessao = await criarPrimeiroAdmin(await window.finDesk!.config(), {
-      nome: v("adm_nome"), email: v("adm_email"), pin: v("adm_pin"),
+      nome: v("adm_nome"), email: v("adm_email"), emailLoja: v("adm_email_loja"), pin: v("adm_pin"),
     });
     notificar(`Administrador ${sessao.nome} criado. Cadastre as outras contas em CONTAS, na barra.`);
     await entrar(sessao);

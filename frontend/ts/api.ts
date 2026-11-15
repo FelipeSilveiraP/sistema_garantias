@@ -317,6 +317,8 @@ export interface UsuarioEntrada {
   admin?: boolean;
   ativo?: boolean;
   fotoBase64?: string;
+  /** so na primeira conta (admin) */
+  emailLoja?: string;
 }
 
 export function listarPerfis(cfg: FinDeskConfig): Promise<{ primeiroAcesso: boolean; perfis: PerfilConta[] }> {

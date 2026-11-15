@@ -17,7 +17,7 @@
 - Agrupar nos gráficos os nomes de serviço da planilha antiga (ex.: "01 TROCA DE CARCAÇA" e "TROCA CARCAÇA").
 
 ## Pendências do usuário
-- Em CONTAS: gravar o Gmail da loja e a senha de app do Google (sem isso, "Esqueci meu PIN" não funciona) e cadastrar as contas dos técnicos.
+- Em CONTAS: gravar a senha de app do Google do e-mail da loja (o e-mail já vem da criação do admin) (sem isso, "Esqueci meu PIN" não funciona) e cadastrar as contas dos técnicos.
 - Guardar uma cópia do arquivo `chave-garantias.key` (pasta de dados): sem ele, logins e e-mails cifrados ficam ilegíveis.
 - Preencher os preços dos serviços em ATUALIZAR PREÇOS (começam em R$ 0,00; só PILHA e BOTÃO vieram do VBA).
 - Importar a planilha real da loja por PESQUISAR GARANTIA → IMPORTAR PLANILHA ANTIGA.

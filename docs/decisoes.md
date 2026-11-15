@@ -47,4 +47,5 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 - **O login é o e-mail da pessoa (pedido do usuário), e qualquer e-mail válido serve** (Gmail, Hotmail, da empresa...). As telas têm um campo só, "E-MAIL (É O LOGIN)", obrigatório. No banco, `login` e `email` recebem o mesmo valor (cifrados, com o índice HMAC do login); trocar o e-mail em CONTAS troca o login junto. Contas antigas com login que não é e-mail continuam entrando pelo login antigo até o admin trocar o e-mail.
 - **Esqueci o PIN: o código vai para o e-mail da conta E para o e-mail da loja** (o Gmail configurado em CONTAS, que envia). A cópia da loja diz de qual conta é o pedido. Se um dos envios falhar, vale o outro; só dá erro se nenhum sair. A tela mostra os dois destinos mascarados.
+- **E-mail da loja já na criação do administrador (pedido do usuário):** a primeira conta tem dois campos, SEU E-MAIL (login do admin) e E-MAIL DA LOJA. O da loja vira o e-mail que envia os códigos e recebe a cópia; a senha de app do Google continua sendo gravada em CONTAS (o e-mail já aparece preenchido lá).
 

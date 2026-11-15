@@ -101,10 +101,33 @@ public class UsuarioService {
 
     /** Primeira abertura: a primeira conta e a do administrador (e so funciona enquanto nao houver contas). */
     public Sessao criarPrimeiroAdmin(Dados d) {
+        return criarPrimeiroAdmin(d, null);
+    }
+
+    /**
+     * Primeira conta (admin). `emailLoja` e o e-mail da loja: vira o e-mail que envia os
+     * codigos de "Esqueci o PIN" e recebe uma copia deles (a senha de app vai em CONTAS).
+     */
+    public Sessao criarPrimeiroAdmin(Dados d, String emailLoja) {
         if (!primeiroAcesso()) {
             throw new AcessoNegadoException(403, "o administrador ja foi criado");
         }
+        String loja = null;
+        if (emailLoja != null) {
+            loja = emailLoja.trim().toLowerCase(Locale.ROOT);
+            if (!emailValido(loja)) {
+                throw new DadosInvalidosException(Map.of("emailLoja", loja.isEmpty()
+                        ? "Informe o e-mail da loja." : "E-mail da loja inválido. Exemplo: loja@gmail.com"));
+            }
+        }
         long id = inserir(d, true, null);
+        if (loja != null) {
+            String lojaCifrado = cripto.cifrar(loja);
+            banco(() -> {
+                repository.gravarConfig(CFG_REMETENTE, lojaCifrado);
+                return null;
+            });
+        }
         Linha l = banco(() -> repository.buscarPorId(id)).orElseThrow();
         banco(() -> {
             repository.registrarEntrada(id, l.nome());

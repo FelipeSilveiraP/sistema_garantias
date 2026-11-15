@@ -39,8 +39,9 @@ public class UsuarioController {
     public record EntrarRequest(long idUsuario, String pin) {
     }
 
+    /** `emailLoja` so na primeira conta (admin): o e-mail da loja. */
     public record UsuarioRequest(String nome, String login, String email, String pin, Boolean admin, Boolean ativo,
-                                 String fotoBase64) {
+                                 String fotoBase64, String emailLoja) {
         Dados dados() {
             return new Dados(nome, login, email, pin, admin, ativo);
         }
@@ -104,7 +105,7 @@ public class UsuarioController {
 
     @PostMapping("/perfis/primeiro-admin")
     public ResponseEntity<Map<String, Object>> primeiroAdmin(@RequestBody UsuarioRequest r) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(sessao(service.criarPrimeiroAdmin(r.dados())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(sessao(service.criarPrimeiroAdmin(r.dados(), r.emailLoja())));
     }
 
     @PostMapping("/sessao")

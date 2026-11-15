@@ -112,7 +112,7 @@ async function executar() {
   await capturar("primeiro-admin-1366x820");
   teste("Primeira conta: o login é o e-mail (sem campo LOGIN)", await js("!document.getElementById('adm_login') && !!document.getElementById('adm_email')"));
   await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('adm_nome', 'Felipe');
-    v('adm_email', 'felipe@exemplo.com'); v('adm_pin', '1234'); v('adm_pin2', '4321'); document.querySelector('#form-admin button[type=submit]').click(); })()`);
+    v('adm_email', 'felipe@exemplo.com'); v('adm_email_loja', 'loja@gmail.com'); v('adm_pin', '1234'); v('adm_pin2', '4321'); document.querySelector('#form-admin button[type=submit]').click(); })()`);
   teste("PINs diferentes não criam o admin", await esperarPredicado("!document.querySelector('[data-erro-campo=pin2]').classList.contains('hidden')", 3000));
   await js(`(() => { document.getElementById('adm_pin2').value = '1234'; document.querySelector('#form-admin button[type=submit]').click(); })()`);
   teste("Admin criado entra direto no Menu", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
