@@ -2,7 +2,7 @@
 
 > Máximo 30 linhas. **Reescreva** este arquivo a cada entrega (sem histórico — decisões vão em `decisoes.md`).
 
-**Atualizado em:** 2026-11-15 — branch `main` (ainda sem repositório no GitHub: falta o login do `gh`)
+**Atualizado em:** 2026-11-15 — branch `main`, enviada para https://github.com/FelipeSilveiraP/sistema_garantias (público)
 
 ## Situação
 - Projeto irmão do Sistema de Contas a Pagar, com a mesma base (Electron + TS puro + Spring Boot 3.3/Java 21 + SQLite WAL), para substituir a planilha `GARANTIAS-AAAA.xlsm`.
@@ -12,13 +12,11 @@
 - **Testes (2026-11-15), todos verdes:** JUnit 39 · máscaras 74 · filtros 22 · automações 26 · smoke 84 · smoke-boot 2 ciclos (25/25 e 23/23; na 1ª rodada o ciclo 2 reprovou porque a tela de carregamento saiu durante a captura, e o teste foi corrigido) · persistência 11 (a 1ª rodada falhou com erro 500 no cadastro e não se repetiu em 3 rodadas nem no teste de atualização v4 → v5).
 
 ## Próximos passos
-- Criar o repositório no GitHub e enviar a `main` (depende do login do `gh`).
 - Automação do cupom fiscal no SAT web da RM Software (`app.rmsoftware.dev.br`): estrutura pronta (`codigo_cupom`, `cupom_status`, `cupom_lancado_em`, `PUT /api/garantias/{id}/cupom`).
 - Adaptar do Contas a Pagar os testes `smoke-real`, `smoke-dev` (regressão do bug de foco), CRUD real, hambúrguer e layout.
 - Agrupar nos gráficos os nomes de serviço da planilha antiga (ex.: "01 TROCA DE CARCAÇA" e "TROCA CARCAÇA").
 
 ## Pendências do usuário
-- **GitHub:** concluir `gh auth login` (responder Y e autorizar o código no navegador) e dizer se o repositório será público ou privado.
 - Em CONTAS: gravar o Gmail da loja e a senha de app do Google (sem isso, "Esqueci meu PIN" não funciona) e cadastrar as contas dos técnicos.
 - Guardar uma cópia do arquivo `chave-garantias.key` (pasta de dados): sem ele, logins e e-mails cifrados ficam ilegíveis.
 - Preencher os preços dos serviços em ATUALIZAR PREÇOS (começam em R$ 0,00; só PILHA e BOTÃO vieram do VBA).
