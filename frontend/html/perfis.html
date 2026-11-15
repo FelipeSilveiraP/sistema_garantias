@@ -17,11 +17,10 @@
 
 <section class="perfis-admin hidden" id="primeiro-admin" aria-labelledby="titulo-admin">
 <h2 id="titulo-admin">Primeira vez: crie a conta do administrador</h2>
-<p class="perfis-dica">O administrador cadastra as outras contas e pode trocar nome, foto, login, e-mail e PIN de todos.</p>
+<p class="perfis-dica">O administrador cadastra as outras contas e pode trocar nome, foto, e-mail e PIN de todos. O login é o e-mail; se esquecer o PIN, o código vai para esse e-mail e para o e-mail da loja.</p>
 <form class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="form-admin" novalidate>
 <div class="campo-form"><label class="rotulo-form" for="adm_nome">NOME (APARECE NA BOLINHA)</label><input class="entrada-form uppercase" id="adm_nome" maxlength="40" type="text" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="nome"></p></div>
-<div class="campo-form"><label class="rotulo-form" for="adm_login">LOGIN</label><input class="entrada-form" id="adm_login" maxlength="40" type="text" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="login"></p></div>
-<div class="campo-form sm:col-span-2"><label class="rotulo-form" for="adm_email"><span>E-MAIL</span><span class="dica-form">PARA RECEBER O CÓDIGO SE ESQUECER O PIN</span></label><input class="entrada-form" id="adm_email" maxlength="120" type="email" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="email"></p></div>
+<div class="campo-form"><label class="rotulo-form" for="adm_email"><span>E-MAIL (É O SEU LOGIN)</span></label><input class="entrada-form" id="adm_email" maxlength="120" type="email" autocomplete="off" placeholder="nome@gmail.com"><p class="campo-erro hidden" data-erro-campo="email"></p></div>
 <div class="campo-form"><label class="rotulo-form" for="adm_pin">PIN (4 A 6 NÚMEROS)</label><input class="entrada-form font-mono" id="adm_pin" inputmode="numeric" maxlength="6" type="password" autocomplete="new-password"><p class="campo-erro hidden" data-erro-campo="pin"></p></div>
 <div class="campo-form"><label class="rotulo-form" for="adm_pin2">REPITA O PIN</label><input class="entrada-form font-mono" id="adm_pin2" inputmode="numeric" maxlength="6" type="password" autocomplete="new-password"><p class="campo-erro hidden" data-erro-campo="pin2"></p></div>
 <div class="sm:col-span-2 flex justify-center pt-2"><button class="btn-principal-form" type="submit"><span class="material-symbols-outlined text-xl">admin_panel_settings</span>CRIAR ADMINISTRADOR</button></div>
@@ -42,9 +41,9 @@
 <div class="dialogo__acoes !p-0 !pt-2"><button class="dialogo-botao dialogo-botao--neutro" id="pin-cancelar" type="button">CANCELAR</button><button class="dialogo-botao dialogo-botao--acao" id="pin-entrar" type="submit">ENTRAR</button></div>
 </form>
 <form class="dialogo__corpo hidden" id="esqueci-form" novalidate>
-<p class="dialogo__mensagem" id="esqueci-texto">Digite o seu login. Vamos mandar um código de 6 números para o e-mail da conta.</p>
-<label class="rotulo-form" for="esqueci-login">LOGIN</label>
-<input class="entrada-form" id="esqueci-login" maxlength="40" type="text" autocomplete="off">
+<p class="dialogo__mensagem" id="esqueci-texto">Digite o e-mail da sua conta. Vamos mandar um código de 6 números para ele e para o e-mail da loja.</p>
+<label class="rotulo-form" for="esqueci-login">E-MAIL DA CONTA</label>
+<input class="entrada-form" id="esqueci-login" maxlength="120" type="email" autocomplete="off" placeholder="nome@gmail.com">
 <div class="hidden flex-col gap-2" id="esqueci-etapa2">
 <label class="rotulo-form" for="esqueci-codigo">CÓDIGO DO E-MAIL</label>
 <input class="entrada-form font-mono" id="esqueci-codigo" inputmode="numeric" maxlength="6" type="text" autocomplete="one-time-code">

@@ -9,6 +9,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -180,37 +183,52 @@ public class UsuarioService {
 
     // ---------- esqueci o PIN (codigo por e-mail) ----------
 
-    /** Envia o codigo para o e-mail da conta e devolve o e-mail mascarado (f****@gmail.com). */
+    /**
+     * Envia o codigo para o e-mail da conta E para o e-mail da loja (o Gmail que envia),
+     * e devolve para onde foi, mascarado ("f****@gmail.com e l***@gmail.com (loja)").
+     * O login e o proprio e-mail da conta.
+     */
     public String esqueciPin(String login) {
         String remetente = banco(() -> repository.config(CFG_REMETENTE)).map(cripto::decifrar).orElse(null);
         String senhaApp = banco(() -> repository.config(CFG_SENHA_APP)).map(cripto::decifrar).orElse(null);
         if (remetente == null || senhaApp == null) {
-            throw new DadosInvalidosException(Map.of("email", "O e-mail que envia os códigos ainda não foi configurado. Peça ao administrador."));
+            throw new DadosInvalidosException(Map.of("email", "O e-mail da loja que envia os códigos ainda não foi configurado. Peça ao administrador."));
         }
         Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(login == null ? "" : login))).filter(Linha::ativo)
-                .orElseThrow(() -> new DadosInvalidosException(Map.of("login", "Login não encontrado ou sem e-mail cadastrado.")));
-        String email = cripto.decifrar(l.emailCifrado());
-        if (email == null || email.isBlank()) {
-            throw new DadosInvalidosException(Map.of("login", "Login não encontrado ou sem e-mail cadastrado."));
+                .orElseThrow(() -> new DadosInvalidosException(Map.of("login", "E-mail não encontrado. Confira o e-mail da sua conta.")));
+        String emailConta = cripto.decifrar(l.emailCifrado());
+        Set<String> destinos = new LinkedHashSet<>();
+        if (emailConta != null && !emailConta.isBlank()) {
+            destinos.add(emailConta);
         }
+        destinos.add(remetente.toLowerCase(Locale.ROOT));
         String codigo = Cripto.codigoAleatorio();
         banco(() -> {
             repository.criarCodigo(l.id(), cripto.hashCodigo(codigo), MINUTOS_CODIGO);
             return null;
         });
-        try {
-            carteiro.enviar(remetente, senhaApp, email, "Código para criar um novo PIN — Sistema de Garantias",
-                    "Olá, " + l.nome() + ".\n\nSeu código para criar um novo PIN é: " + codigo
-                            + "\n\nEle vale por " + MINUTOS_CODIGO + " minutos. Se não foi você, ignore este e-mail.\n\nChaveiro Universal");
-        } catch (RuntimeException erro) {
-            log.warn("falha ao enviar o codigo de redefinicao: {}", erro.getClass().getSimpleName());
+        List<String> enviados = new ArrayList<>();
+        for (String destino : destinos) {
+            boolean daLoja = destino.equalsIgnoreCase(remetente) && !destino.equalsIgnoreCase(emailConta == null ? "" : emailConta);
+            String texto = (daLoja
+                    ? "Pedido de PIN novo da conta " + l.nome() + " (cópia para a loja).\n\nO código é: "
+                    : "Olá, " + l.nome() + ".\n\nSeu código para criar um novo PIN é: ")
+                    + codigo + "\n\nEle vale por " + MINUTOS_CODIGO + " minutos. Se não foi você, ignore este e-mail.\n\nChaveiro Universal";
+            try {
+                carteiro.enviar(remetente, senhaApp, destino, "Código para criar um novo PIN — Sistema de Garantias", texto);
+                enviados.add(mascarar(destino) + (daLoja ? " (loja)" : ""));
+            } catch (RuntimeException erro) {
+                log.warn("falha ao enviar o codigo de redefinicao: {}", erro.getClass().getSimpleName());
+            }
+        }
+        if (enviados.isEmpty()) {
             throw new DadosInvalidosException(Map.of("email", "Não foi possível enviar o e-mail. Confira a internet e tente de novo."));
         }
         banco(() -> {
             repository.registrarEvento(l.id(), l.nome(), "CODIGO_ENVIADO");
             return null;
         });
-        return mascarar(email);
+        return String.join(" e ", enviados);
     }
 
     public void redefinirPin(String login, String codigo, String novoPin) {
@@ -278,14 +296,16 @@ public class UsuarioService {
         Linha atual = banco(() -> repository.buscarPorId(id)).orElseThrow(() -> new RecursoNaoEncontradoException("usuario"));
         Map<String, String> erros = new LinkedHashMap<>();
         String nome = d.nome() == null ? atual.nome() : nome(d.nome(), erros);
-        String login = d.login() == null ? cripto.decifrar(atual.loginCifrado()) : login(d.login(), erros);
-        String email = d.email() == null ? cripto.decifrar(atual.emailCifrado()) : email(d.email(), erros);
+        // o e-mail e o login: trocar um troca os dois
+        boolean trocaEmail = d.email() != null || d.login() != null;
+        String login = trocaEmail ? loginEmail(d.email(), d.login(), erros) : cripto.decifrar(atual.loginCifrado());
+        String email = trocaEmail ? login : cripto.decifrar(atual.emailCifrado());
         if (!erros.isEmpty()) {
             throw new DadosInvalidosException(erros);
         }
         String indice = cripto.indice(login);
         if (banco(() -> repository.indiceEmUso(indice, id))) {
-            throw new DadosInvalidosException(Map.of("login", "Esse login já é de outra conta."));
+            throw new DadosInvalidosException(Map.of("email", "Esse e-mail já é de outra conta."));
         }
         boolean admin = d.admin() == null ? atual.admin() : d.admin();
         boolean ativo = d.ativo() == null ? atual.ativo() : d.ativo();
@@ -387,8 +407,8 @@ public class UsuarioService {
     private long inserir(Dados d, boolean admin, byte[] foto) {
         Map<String, String> erros = new LinkedHashMap<>();
         String nome = nome(d.nome(), erros);
-        String login = login(d.login(), erros);
-        String email = email(d.email(), erros);
+        String login = loginEmail(d.email(), d.login(), erros);
+        String email = login;
         String pin = null;
         try {
             pin = validarPin(d.pin());
@@ -407,7 +427,7 @@ public class UsuarioService {
         }
         String indice = cripto.indice(login);
         if (banco(() -> repository.indiceEmUso(indice, null))) {
-            throw new DadosInvalidosException(Map.of("login", "Esse login já é de outra conta."));
+            throw new DadosInvalidosException(Map.of("email", "Esse e-mail já é de outra conta."));
         }
         String hash = cripto.hashPin(pin);
         return banco(() -> repository.inserir(nome, indice, cripto.cifrar(login), email == null ? null : cripto.cifrar(email), hash, admin, foto));
@@ -421,12 +441,20 @@ public class UsuarioService {
         return n;
     }
 
-    private static String login(String login, Map<String, String> erros) {
-        String l = login == null ? "" : login.trim().toLowerCase(Locale.ROOT);
-        if (!l.matches("[a-z0-9._-]{3,40}")) {
-            erros.put("login", "Login de 3 a 40 letras sem espaço (pode usar números, ponto, traço).");
+    /** O login e o e-mail da pessoa: qualquer e-mail valido (Gmail, Hotmail, da empresa...). */
+    private static String loginEmail(String email, String login, Map<String, String> erros) {
+        String valor = email != null && !email.isBlank() ? email : login;
+        String e = valor == null ? "" : valor.trim().toLowerCase(Locale.ROOT);
+        if (e.isEmpty()) {
+            erros.put("email", "Informe o e-mail (ele é o login da conta).");
+        } else if (!emailValido(e)) {
+            erros.put("email", "E-mail inválido. Exemplo: nome@gmail.com");
         }
-        return l;
+        return e;
+    }
+
+    static boolean emailValido(String e) {
+        return e.length() <= 120 && e.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
     }
 
     private static String email(String email, Map<String, String> erros) {
@@ -434,7 +462,7 @@ public class UsuarioService {
         if (e.isEmpty()) {
             return null;
         }
-        if (e.length() > 120 || !e.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+")) {
+        if (!emailValido(e)) {
             erros.put("email", "E-mail inválido.");
         }
         return e;

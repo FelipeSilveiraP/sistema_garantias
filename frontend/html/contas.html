@@ -37,8 +37,7 @@
 <h2 class="secao-titulo" id="titulo-novo"><span class="material-symbols-outlined">person_add</span>Cadastrar usuário</h2>
 <form class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-4" id="form-usuario" novalidate>
 <div class="campo-form"><label class="rotulo-form" for="u_nome">NOME (NA BOLINHA)</label><input class="entrada-form uppercase" id="u_nome" maxlength="40" type="text" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="nome"></p></div>
-<div class="campo-form"><label class="rotulo-form" for="u_login">LOGIN</label><input class="entrada-form" id="u_login" maxlength="40" type="text" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="login"></p></div>
-<div class="campo-form"><label class="rotulo-form" for="u_email">E-MAIL</label><input class="entrada-form" id="u_email" maxlength="120" type="email" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="email"></p></div>
+<div class="campo-form md:col-span-2"><label class="rotulo-form" for="u_email"><span>E-MAIL (É O LOGIN)</span><span class="dica-form">QUALQUER E-MAIL · RECEBE O CÓDIGO SE ESQUECER O PIN</span></label><input class="entrada-form" id="u_email" maxlength="120" type="email" autocomplete="off" placeholder="nome@gmail.com"><p class="campo-erro hidden" data-erro-campo="email"></p></div>
 <div class="campo-form"><label class="rotulo-form" for="u_pin">PIN (4 A 6 NÚMEROS)</label><input class="entrada-form font-mono" id="u_pin" inputmode="numeric" maxlength="6" type="password" autocomplete="new-password"><p class="campo-erro hidden" data-erro-campo="pin"></p></div>
 <div class="campo-form"><label class="rotulo-form" for="u_foto"><span>FOTO</span><span class="dica-form">OPCIONAL</span></label><input class="entrada-form" id="u_foto" type="file" accept="image/png,image/jpeg,image/webp"><p class="campo-erro hidden" data-erro-campo="foto"></p></div>
 <div class="flex flex-col justify-end gap-3">
@@ -52,7 +51,7 @@
 <h2 class="secao-titulo" id="titulo-todos"><span class="material-symbols-outlined">groups</span>Todos os usuários</h2>
 <div class="overflow-x-auto">
 <table class="w-full text-left border-collapse">
-<thead><tr class="bg-[#1d4ed8] text-white font-mono text-xs uppercase tracking-wider"><th class="py-3 px-3 w-14"></th><th class="py-3 px-3">NOME</th><th class="py-3 px-3">LOGIN</th><th class="py-3 px-3">E-MAIL</th><th class="py-3 px-3 text-center">PERFIL</th><th class="py-3 px-3 text-center">SITUAÇÃO</th><th class="py-3 px-3 text-right">ACESSOS</th><th class="py-3 px-3 whitespace-nowrap">ÚLTIMO ACESSO</th></tr></thead>
+<thead><tr class="bg-[#1d4ed8] text-white font-mono text-xs uppercase tracking-wider"><th class="py-3 px-3 w-14"></th><th class="py-3 px-3">NOME</th><th class="py-3 px-3">E-MAIL (LOGIN)</th><th class="py-3 px-3 text-center">PERFIL</th><th class="py-3 px-3 text-center">SITUAÇÃO</th><th class="py-3 px-3 text-right">ACESSOS</th><th class="py-3 px-3 whitespace-nowrap">ÚLTIMO ACESSO</th></tr></thead>
 <tbody class="divide-y divide-[#1c1b1b] text-sm font-semibold" id="tabela-usuarios"></tbody>
 </table>
 </div>

@@ -91,7 +91,7 @@ function abrirEsqueci(): void {
   el("esqueci-etapa2").classList.remove("flex");
   el<HTMLInputElement>("esqueci-login").disabled = false;
   el("esqueci-acao").textContent = "ENVIAR CÓDIGO";
-  el("esqueci-texto").textContent = "Digite o seu login. Vamos mandar um código de 6 números para o e-mail da conta.";
+  el("esqueci-texto").textContent = "Digite o e-mail da sua conta. Vamos mandar um código de 6 números para ele e para o e-mail da loja.";
   erro("esqueci-erro");
   el<HTMLInputElement>("esqueci-login").focus();
 }
@@ -101,7 +101,7 @@ async function acaoEsqueci(): Promise<void> {
   try {
     if (etapaEsqueci === 1) {
       loginEsqueci = el<HTMLInputElement>("esqueci-login").value.trim();
-      if (!loginEsqueci) return erro("esqueci-erro", "Digite o seu login.");
+      if (!loginEsqueci) return erro("esqueci-erro", "Digite o e-mail da sua conta.");
       const r = await esqueciPin(cfg, loginEsqueci);
       etapaEsqueci = 2;
       el<HTMLInputElement>("esqueci-login").disabled = true;
@@ -143,7 +143,7 @@ async function criarAdmin(): Promise<void> {
   if (Object.keys(erros).length) return;
   try {
     const sessao = await criarPrimeiroAdmin(await window.finDesk!.config(), {
-      nome: v("adm_nome"), login: v("adm_login"), email: v("adm_email") || undefined, pin: v("adm_pin"),
+      nome: v("adm_nome"), email: v("adm_email"), pin: v("adm_pin"),
     });
     notificar(`Administrador ${sessao.nome} criado. Cadastre as outras contas em CONTAS, na barra.`);
     await entrar(sessao);

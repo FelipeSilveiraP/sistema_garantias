@@ -70,7 +70,7 @@ class UsuarioServiceTest {
         Sessao s = admin();
         assertThat(s.admin()).isTrue();
         assertThat(service.primeiroAcesso()).isFalse();
-        assertThatThrownBy(() -> service.criarPrimeiroAdmin(new Dados("Outro", "outro", null, "9999", null, null)))
+        assertThatThrownBy(() -> service.criarPrimeiroAdmin(new Dados("Outro", null, "outro@exemplo.com", "9999", null, null)))
                 .isInstanceOf(AcessoNegadoException.class);
     }
 
@@ -88,7 +88,7 @@ class UsuarioServiceTest {
     @Test
     void pinCertoEntraEContaAcessoPinErradoBloqueiaNaQuinta() {
         Sessao adm = admin();
-        service.cadastrar(adm.token(), new Dados("Renato", "renato", null, "4321", false, null), null);
+        service.cadastrar(adm.token(), new Dados("Renato", null, "renato@exemplo.com", "4321", false, null), null);
         long renato = id("RENATO");
 
         assertThat(service.entrar(renato, "4321").nome()).isEqualTo("RENATO");
@@ -114,7 +114,7 @@ class UsuarioServiceTest {
     @Test
     void soOAdminCadastraEEditaContas() {
         Sessao adm = admin();
-        service.cadastrar(adm.token(), new Dados("Jonatan", "jonatan", "jonatan@exemplo.com", "1111", false, null), null);
+        service.cadastrar(adm.token(), new Dados("Jonatan", null, "jonatan@exemplo.com", "1111", false, null), null);
         Sessao jonatan = service.entrar(id("JONATAN"), "1111");
 
         assertThatThrownBy(() -> service.listar(jonatan.token()))
@@ -124,10 +124,11 @@ class UsuarioServiceTest {
         assertThatThrownBy(() -> service.listar(null))
                 .satisfies(e -> assertThat(((AcessoNegadoException) e).getStatus()).isEqualTo(401));
 
-        var editado = service.atualizar(adm.token(), jonatan.id(), new Dados("Jonatan S.", "jonatan.s", "novo@exemplo.com", null, null, null));
+        var editado = service.atualizar(adm.token(), jonatan.id(), new Dados("Jonatan S.", null, "Novo@Hotmail.com.br", null, null, null));
         assertThat(editado.nome()).isEqualTo("JONATAN S.");
-        assertThat(editado.login()).isEqualTo("jonatan.s");
-        assertThat(editado.email()).isEqualTo("novo@exemplo.com");
+        // trocar o e-mail troca o login junto (qualquer provedor)
+        assertThat(editado.login()).isEqualTo("novo@hotmail.com.br");
+        assertThat(editado.email()).isEqualTo("novo@hotmail.com.br");
         // o proprio usuario so troca o PIN dele, sabendo o atual
         assertThatThrownBy(() -> service.trocarMeuPin(jonatan.token(), "0000", "2222")).isInstanceOf(DadosInvalidosException.class);
         service.trocarMeuPin(jonatan.token(), "1111", "2222");
@@ -142,7 +143,7 @@ class UsuarioServiceTest {
         Sessao adm = admin();
         assertThatThrownBy(() -> service.atualizar(adm.token(), adm.id(), new Dados(null, null, null, null, false, null)))
                 .isInstanceOf(ConflitoIntegridadeException.class);
-        service.cadastrar(adm.token(), new Dados("Habner", "habner", null, "7777", false, null), null);
+        service.cadastrar(adm.token(), new Dados("Habner", null, "habner@empresa.com", "7777", false, null), null);
         long habner = id("HABNER");
         service.entrar(habner, "7777");
         service.excluir(adm.token(), habner);
@@ -153,38 +154,44 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void esqueciOPinMandaCodigoPorEmailEORedefine() {
+    void esqueciOPinMandaCodigoParaOEmailDaContaEParaOEmailDaLoja() {
         Sessao adm = admin();
-        assertThatThrownBy(() -> service.esqueciPin("felipe.adm")).isInstanceOf(DadosInvalidosException.class); // sem Gmail configurado
+        assertThatThrownBy(() -> service.esqueciPin("felipe@exemplo.com")).isInstanceOf(DadosInvalidosException.class); // sem Gmail configurado
         service.gravarConfigEmail(adm.token(), "loja@gmail.com", "abcd efgh ijkl mnop");
         assertThat(service.configEmail(adm.token())).containsEntry("configurado", true);
+        assertThatThrownBy(() -> service.esqueciPin("ninguem@exemplo.com")).isInstanceOf(DadosInvalidosException.class);
 
-        String para = service.esqueciPin("FELIPE.ADM");
-        assertThat(para).isEqualTo("f*****@exemplo.com");
-        assertThat(emails).hasSize(1);
+        // o login e o e-mail (maiusculas nao importam); vai para a pessoa e para a loja
+        String para = service.esqueciPin("FELIPE@exemplo.com");
+        assertThat(para).isEqualTo("f*****@exemplo.com e l***@gmail.com (loja)");
+        assertThat(emails).hasSize(2);
+        assertThat(emails).extracting(e -> e[2]).containsExactly("felipe@exemplo.com", "loja@gmail.com");
         assertThat(emails.getFirst()[0]).isEqualTo("loja@gmail.com");
         assertThat(emails.getFirst()[1]).isEqualTo("abcdefghijklmnop");
-        assertThat(emails.getFirst()[2]).isEqualTo("felipe@exemplo.com");
         Matcher m = Pattern.compile("\\b(\\d{6})\\b").matcher(emails.getFirst()[4]);
         assertThat(m.find()).isTrue();
         String codigo = m.group(1);
+        assertThat(emails.get(1)[4]).contains(codigo).contains("FELIPE");
 
-        assertThatThrownBy(() -> service.redefinirPin("felipe.adm", "000000".equals(codigo) ? "111111" : "000000", "8888"))
+        assertThatThrownBy(() -> service.redefinirPin("felipe@exemplo.com", "000000".equals(codigo) ? "111111" : "000000", "8888"))
                 .isInstanceOf(DadosInvalidosException.class);
-        service.redefinirPin("felipe.adm", codigo, "8888");
+        service.redefinirPin("felipe@exemplo.com", codigo, "8888");
         assertThat(service.entrar(adm.id(), "8888").admin()).isTrue();
         // codigo usado nao vale de novo
-        assertThatThrownBy(() -> service.redefinirPin("felipe.adm", codigo, "9999")).isInstanceOf(DadosInvalidosException.class);
+        assertThatThrownBy(() -> service.redefinirPin("felipe@exemplo.com", codigo, "9999")).isInstanceOf(DadosInvalidosException.class);
     }
 
     @Test
     void pinFotoELoginInvalidosSaoRecusados() {
         Sessao adm = admin();
-        assertThatThrownBy(() -> service.cadastrar(adm.token(), new Dados("X", "a b", "nao-email", "12", false, null), null))
+        assertThatThrownBy(() -> service.cadastrar(adm.token(), new Dados("X", null, "nao-email", "12", false, null), null))
                 .isInstanceOf(DadosInvalidosException.class)
-                .satisfies(e -> assertThat(((DadosInvalidosException) e).getCampos()).containsKeys("nome", "login", "email", "pin"));
-        assertThatThrownBy(() -> service.cadastrar(adm.token(), new Dados("Luis", "felipe.adm", null, "1234", false, null), null))
-                .isInstanceOf(DadosInvalidosException.class); // login repetido
+                .satisfies(e -> assertThat(((DadosInvalidosException) e).getCampos()).containsKeys("nome", "email", "pin"));
+        assertThatThrownBy(() -> service.cadastrar(adm.token(), new Dados("Sem", null, null, "1234", false, null), null))
+                .isInstanceOf(DadosInvalidosException.class); // e-mail obrigatorio (e o login)
+        assertThatThrownBy(() -> service.cadastrar(adm.token(), new Dados("Luis", null, "FELIPE@exemplo.com", "1234", false, null), null))
+                .isInstanceOf(DadosInvalidosException.class)
+                .satisfies(e -> assertThat(((DadosInvalidosException) e).getCampos()).containsKey("email")); // e-mail repetido
         assertThatThrownBy(() -> service.trocarFoto(adm.token(), adm.id(), "nao e imagem".getBytes()))
                 .isInstanceOf(DadosInvalidosException.class);
         byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0};

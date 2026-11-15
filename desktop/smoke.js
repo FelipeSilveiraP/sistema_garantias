@@ -110,7 +110,8 @@ async function executar() {
   janela.setContentSize(1366, 820);
   teste("Primeira abertura pede a conta do administrador", await telaPronta("perfis") && await esperarPredicado("document.body.dataset.primeiroAcesso === 'true'", 30000));
   await capturar("primeiro-admin-1366x820");
-  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('adm_nome', 'Felipe'); v('adm_login', 'felipe');
+  teste("Primeira conta: o login é o e-mail (sem campo LOGIN)", await js("!document.getElementById('adm_login') && !!document.getElementById('adm_email')"));
+  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('adm_nome', 'Felipe');
     v('adm_email', 'felipe@exemplo.com'); v('adm_pin', '1234'); v('adm_pin2', '4321'); document.querySelector('#form-admin button[type=submit]').click(); })()`);
   teste("PINs diferentes não criam o admin", await esperarPredicado("!document.querySelector('[data-erro-campo=pin2]').classList.contains('hidden')", 3000));
   await js(`(() => { document.getElementById('adm_pin2').value = '1234'; document.querySelector('#form-admin button[type=submit]').click(); })()`);
@@ -274,7 +275,7 @@ async function executar() {
   // ---------- CONTAS (icone na barra): o admin cadastra; o usuario comum nao administra ----------
   await ir("contas");
   teste("CONTAS abre com a área do administrador", await esperarPredicado("document.body.dataset.adminCarregado === 'true' && !document.getElementById('area-admin').classList.contains('hidden')", 8000));
-  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('u_nome', 'Renato'); v('u_login', 'renato'); v('u_pin', '5678');
+  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('u_nome', 'Renato'); v('u_email', 'renato@hotmail.com'); v('u_pin', '5678');
     document.querySelector('#form-usuario button[type=submit]').click(); })()`);
   teste("Admin cadastra uma conta", await esperarPredicado("document.body.dataset.usuarioCriado === 'RENATO' && document.getElementById('tabela-usuarios').textContent.includes('renato')", 6000));
   teste("Histórico de acessos registra as entradas", (await texto("#acessos-todos")).includes("FELIPE"));

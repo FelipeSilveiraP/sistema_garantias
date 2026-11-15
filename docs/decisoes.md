@@ -43,3 +43,8 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **Tela de carregamento: chave 3D em pé girando no próprio eixo (pedido do usuário)** no lugar da chave entrando no cadeado. 9 camadas SVG da mesma forma empilhadas em profundidade (frente e verso amarelos, miolo preto = espessura), `rotateY` em CSS, sombra chapada que estreita no giro. Com "reduzir movimento", fica parada e inclinada.
 - **Teste de abertura:** a checagem da chave vem antes da captura de tela; se o sistema abrir antes da checagem, ela é pulada (não reprova), como já acontecia com a de "reduzir movimento".
 
+## Login pelo e-mail (2026-11-15, versão 1.3.1)
+
+- **O login é o e-mail da pessoa (pedido do usuário), e qualquer e-mail válido serve** (Gmail, Hotmail, da empresa...). As telas têm um campo só, "E-MAIL (É O LOGIN)", obrigatório. No banco, `login` e `email` recebem o mesmo valor (cifrados, com o índice HMAC do login); trocar o e-mail em CONTAS troca o login junto. Contas antigas com login que não é e-mail continuam entrando pelo login antigo até o admin trocar o e-mail.
+- **Esqueci o PIN: o código vai para o e-mail da conta E para o e-mail da loja** (o Gmail configurado em CONTAS, que envia). A cópia da loja diz de qual conta é o pedido. Se um dos envios falhar, vale o outro; só dá erro se nenhum sair. A tela mostra os dois destinos mascarados.
+

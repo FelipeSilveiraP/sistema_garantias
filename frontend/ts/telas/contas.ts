@@ -101,14 +101,12 @@ async function carregarMinhaConta(): Promise<void> {
   const nome = document.createElement("span");
   nome.className = "text-lg uppercase";
   nome.textContent = eu.nome;
-  const login = document.createElement("span");
-  login.textContent = `Login: ${eu.login}`;
   const email = document.createElement("span");
-  email.textContent = `E-mail: ${eu.email ?? "não cadastrado (peça ao administrador)"}`;
+  email.textContent = `E-mail (login): ${eu.email ?? eu.login}`;
   const acessos = document.createElement("span");
   acessos.className = "font-mono text-xs text-neutral-600 uppercase";
   acessos.textContent = `${eu.acessos} acesso(s) · último: ${dataBR(eu.ultimoAcesso)}`;
-  dados.append(nome, login, email, acessos);
+  dados.append(nome, email, acessos);
   el("minha-conta").replaceChildren(criarAvatar({ id: eu.id, nome: eu.nome, foto }, "grande"), dados);
 }
 
@@ -150,8 +148,7 @@ function renderTabela(): void {
     tr.append(
       celula(criarAvatar({ id: u.id, nome: u.nome, foto: fotos.get(u.id) }, "pequena")),
       celula(u.nome, "uppercase"),
-      celula(u.login, "font-mono"),
-      celula(u.email ?? "—", "text-xs"),
+      celula(u.email ?? u.login, "font-mono text-xs"),
       celula(u.admin ? selo("Admin", "bg-[#A78BFA]/30 text-[#4c1d95]") : selo("Usuário", "bg-neutral-100 text-neutral-700"), "text-center"),
       celula(u.bloqueado ? selo("Bloqueada", "bg-[#ffdad6] text-[#ba1a1a]") : u.ativo ? selo("Ativa", "bg-[#006c46]/10 text-[#006c46]")
         : selo("Desativada", "bg-neutral-200 text-neutral-700"), "text-center"),
@@ -169,7 +166,7 @@ async function selecionar(id: number): Promise<void> {
   const u = selecionado();
   if (!u) return;
   el("editorContainer").classList.remove("hidden");
-  el("editorRecordName").textContent = `${u.nome} (${u.login})`;
+  el("editorRecordName").textContent = `${u.nome} (${u.email ?? u.login})`;
   el("editor-bolinha").replaceChildren(criarAvatar({ id: u.id, nome: u.nome, foto: fotos.get(u.id) }, "pequena"));
   el("btnAdminTexto").textContent = u.admin ? "TIRAR ADMIN" : "TORNAR ADMIN";
   el("btnAtivoTexto").textContent = u.ativo ? "DESATIVAR" : "ATIVAR";
@@ -238,7 +235,7 @@ function ligarAdmin(): void {
         const arquivo = el<HTMLInputElement>("u_foto").files?.[0];
         const fotoBase64 = arquivo ? await prepararFoto(arquivo) : undefined;
         const u = await cadastrarUsuario(await window.finDesk!.config(), {
-          nome: v("u_nome"), login: v("u_login"), email: v("u_email") || undefined, pin: v("u_pin"),
+          nome: v("u_nome"), email: v("u_email"), pin: v("u_pin"),
           admin: el<HTMLInputElement>("u_admin").checked, fotoBase64,
         });
         el<HTMLFormElement>("form-usuario").reset();
@@ -254,11 +251,10 @@ function ligarAdmin(): void {
   });
   editor = criarEditorCampo([
     { valor: "nome", rotulo: "Nome" },
-    { valor: "login", rotulo: "Login" },
-    { valor: "email", rotulo: "E-mail" },
+    { valor: "email", rotulo: "E-mail (login)" },
   ], (campo) => {
     const u = selecionado();
-    return !u ? "" : campo === "nome" ? u.nome : campo === "login" ? u.login : u.email ?? "";
+    return !u ? "" : campo === "nome" ? u.nome : u.email ?? u.login;
   });
   el("btnApplyChange").addEventListener("click", () => {
     const u = selecionado();
