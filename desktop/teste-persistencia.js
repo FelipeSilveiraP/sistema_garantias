@@ -52,10 +52,13 @@ async function subirBackend() {
       const resposta = await fetch(`http://127.0.0.1:${porta}/api/status`, {
         headers: { "X-FinDesk-Token": token },
       });
-      if (resposta.ok) return { proc, porta, token, logs };
+      // igual ao Electron (main.js): so usa a API depois que o banco terminou as migracoes.
+      // O /api/status responde antes disso, com "inicializado": "false".
+      if (resposta.ok && (await resposta.json()).inicializado === "true") return { proc, porta, token, logs };
     } catch {
-      await esperar(400);
+      // backend ainda subindo
     }
+    await esperar(400);
   }
   proc.kill();
   throw new Error("backend nao respondeu em 60s");
@@ -96,7 +99,8 @@ async function main() {
   console.log("2. Cadastrando garantia e tecnico ficticios...");
   const criado = await api(primeira.porta, primeira.token, "/api/garantias", { method: "POST", body: JSON.stringify(dados) });
   const registro = await criado.json();
-  teste("Cadastro de garantia retorna 201 com id", criado.status === 201 && registro.id > 0, `id=${registro.id}`);
+  teste("Cadastro de garantia retorna 201 com id", criado.status === 201 && registro.id > 0,
+    `id=${registro.id}${criado.status === 201 ? "" : ` (HTTP ${criado.status}: ${JSON.stringify(registro)})`}`);
   const consulta1 = await (await api(primeira.porta, primeira.token, `/api/garantias/${registro.id}`)).json();
   teste("Cadastro confirmado antes de fechar", consulta1.placa === placa, consulta1.placa);
   const criadoTec = await api(primeira.porta, primeira.token, "/api/listas/tecnicos", { method: "POST", body: JSON.stringify({ nome: tecnico }) });
