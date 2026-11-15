@@ -44,7 +44,7 @@ export function criarBotaoConta(perfil: Perfil, classeBotao: string, ativo = fal
   nome.textContent = perfil.nome;
   const seta = document.createElement("span");
   seta.className = "conta-menu__seta";
-  seta.innerHTML = SETA;
+  seta.innerHTML = SETA; // nosemgrep: innerhtml-com-dados -- desenho SVG fixo do codigo
   botao.append(criarAvatar(perfil, "pequena"), nome, seta);
 
   const lista = document.createElement("div");

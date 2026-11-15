@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,12 @@ public class UsuarioService {
     static final int MAX_FALHAS = 5;
     static final int MINUTOS_BLOQUEIO = 5;
     static final int MINUTOS_CODIGO = 15;
+    /** Bloqueio progressivo: cada bloqueio nas ultimas 24 h dobra o tempo (5, 10, 20... ate 24 h). */
+    static final int MINUTOS_BLOQUEIO_MAXIMO = 24 * 60;
+    /** "Esqueci o PIN": no maximo 1 codigo por minuto e 5 por hora por conta, 20 por hora no total. */
+    static final int SEGUNDOS_ENTRE_CODIGOS = 60;
+    static final int CODIGOS_POR_HORA_CONTA = 5;
+    static final int CODIGOS_POR_HORA_TOTAL = 20;
     private static final long HORAS_SESSAO = 12;
     private static final int LIMITE_FOTO = 1024 * 1024;
     private static final String CFG_REMETENTE = "email.remetente";
@@ -108,7 +116,7 @@ public class UsuarioService {
      * Primeira conta (admin). `emailLoja` e o e-mail da loja: vira o e-mail que envia os
      * codigos de "Esqueci o PIN" e recebe uma copia deles (a senha de app vai em CONTAS).
      */
-    public Sessao criarPrimeiroAdmin(Dados d, String emailLoja) {
+    public synchronized Sessao criarPrimeiroAdmin(Dados d, String emailLoja) {
         if (!primeiroAcesso()) {
             throw new AcessoNegadoException(403, "o administrador ja foi criado");
         }
@@ -137,25 +145,44 @@ public class UsuarioService {
         return abrirSessao(l);
     }
 
-    public Sessao entrar(long id, String pin) {
+    /**
+     * synchronized: as tentativas de PIN passam uma de cada vez. Sem isso, varios pedidos
+     * ao mesmo tempo passariam pela conferencia do bloqueio antes de a 5a falha gravar.
+     */
+    public synchronized Sessao entrar(long id, String pin) {
         Linha l = banco(() -> repository.buscarPorId(id)).filter(Linha::ativo)
                 .orElseThrow(() -> new AcessoNegadoException(401, "conta inexistente ou desativada"));
         if (banco(() -> repository.bloqueada(id))) {
-            throw new AcessoNegadoException(423, "conta bloqueada por PINs errados", Map.of("minutos", MINUTOS_BLOQUEIO));
+            throw new AcessoNegadoException(423, "conta bloqueada por PINs errados",
+                    Map.of("minutos", banco(() -> repository.minutosRestantesBloqueio(id))));
         }
-        if (!cripto.conferirPin(pin == null ? "" : pin.trim(), l.pinHash())) {
-            int falhas = banco(() -> repository.registrarFalha(id, l.nome(), MAX_FALHAS, MINUTOS_BLOQUEIO));
-            if (falhas >= MAX_FALHAS) {
-                log.warn("conta id={} bloqueada por {} PINs errados", id, MAX_FALHAS);
-                throw new AcessoNegadoException(423, "conta bloqueada por PINs errados", Map.of("minutos", MINUTOS_BLOQUEIO));
-            }
-            throw new AcessoNegadoException(401, "PIN incorreto", Map.of("tentativasRestantes", MAX_FALHAS - falhas));
+        if (!cripto.conferirPin(textoPin(pin), l.pinHash())) {
+            registrarPinErrado(l);
         }
         banco(() -> {
             repository.registrarEntrada(id, l.nome());
             return null;
         });
         return abrirSessao(l);
+    }
+
+    /** PIN errado: soma a falha; na 5a bloqueia (tempo dobrando a cada bloqueio do dia). */
+    private void registrarPinErrado(Linha l) {
+        long id = l.id();
+        int bloqueiosHoje = banco(() -> repository.contarEventos(id, "BLOQUEIO", "-24 hours"));
+        int minutos = (int) Math.min(MINUTOS_BLOQUEIO_MAXIMO, (long) MINUTOS_BLOQUEIO << Math.min(bloqueiosHoje, 20));
+        int falhas = banco(() -> repository.registrarFalha(id, l.nome(), MAX_FALHAS, minutos));
+        if (falhas >= MAX_FALHAS) {
+            log.warn("conta id={} bloqueada por {} minuto(s) apos {} PINs errados", id, minutos, MAX_FALHAS);
+            throw new AcessoNegadoException(423, "conta bloqueada por PINs errados", Map.of("minutos", minutos));
+        }
+        throw new AcessoNegadoException(401, "PIN incorreto", Map.of("tentativasRestantes", MAX_FALHAS - falhas));
+    }
+
+    /** PIN como chegou: so os primeiros 20 caracteres (nao gasta o PBKDF2 com textos enormes). */
+    private static String textoPin(String pin) {
+        String p = pin == null ? "" : pin.trim();
+        return p.length() > 20 ? p.substring(0, 20) : p;
     }
 
     private Sessao abrirSessao(Linha l) {
@@ -211,14 +238,28 @@ public class UsuarioService {
      * e devolve para onde foi, mascarado ("f****@gmail.com e l***@gmail.com (loja)").
      * O login e o proprio e-mail da conta.
      */
-    public String esqueciPin(String login) {
+    public synchronized String esqueciPin(String login) {
         String remetente = banco(() -> repository.config(CFG_REMETENTE)).map(cripto::decifrar).orElse(null);
         String senhaApp = banco(() -> repository.config(CFG_SENHA_APP)).map(cripto::decifrar).orElse(null);
         if (remetente == null || senhaApp == null) {
             throw new DadosInvalidosException(Map.of("email", "O e-mail da loja que envia os códigos ainda não foi configurado. Peça ao administrador."));
         }
-        Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(login == null ? "" : login))).filter(Linha::ativo)
+        String loginLimpo = login == null ? "" : login.trim();
+        if (loginLimpo.length() > 120) {
+            throw new DadosInvalidosException(Map.of("login", "E-mail não encontrado. Confira o e-mail da sua conta."));
+        }
+        // envio em massa: o sistema inteiro manda no maximo 20 codigos por hora
+        if (banco(() -> repository.contarCodigos(null, "-1 hour")) >= CODIGOS_POR_HORA_TOTAL) {
+            throw new AcessoNegadoException(429, "muitos pedidos de codigo; tente de novo daqui a 1 hora", Map.of("minutos", 60));
+        }
+        Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(loginLimpo))).filter(Linha::ativo)
                 .orElseThrow(() -> new DadosInvalidosException(Map.of("login", "E-mail não encontrado. Confira o e-mail da sua conta.")));
+        if (banco(() -> repository.contarCodigos(l.id(), "-" + SEGUNDOS_ENTRE_CODIGOS + " seconds")) > 0) {
+            throw new AcessoNegadoException(429, "aguarde 1 minuto para pedir outro codigo", Map.of("minutos", 1));
+        }
+        if (banco(() -> repository.contarCodigos(l.id(), "-1 hour")) >= CODIGOS_POR_HORA_CONTA) {
+            throw new AcessoNegadoException(429, "muitos pedidos de codigo para esta conta; tente daqui a 1 hora", Map.of("minutos", 60));
+        }
         String emailConta = cripto.decifrar(l.emailCifrado());
         Set<String> destinos = new LinkedHashSet<>();
         if (emailConta != null && !emailConta.isBlank()) {
@@ -254,13 +295,16 @@ public class UsuarioService {
         return String.join(" e ", enviados);
     }
 
-    public void redefinirPin(String login, String codigo, String novoPin) {
+    public synchronized void redefinirPin(String login, String codigo, String novoPin) {
         String pin = validarPin(novoPin);
         Linha l = banco(() -> repository.buscarPorIndice(cripto.indice(login == null ? "" : login))).filter(Linha::ativo)
                 .orElseThrow(() -> new DadosInvalidosException(Map.of("codigo", "Código inválido ou vencido.")));
         var c = banco(() -> repository.codigoValido(l.id()))
                 .orElseThrow(() -> new DadosInvalidosException(Map.of("codigo", "Código inválido ou vencido. Peça outro.")));
-        if (!cripto.hashCodigo(codigo == null ? "" : codigo.trim()).equals(c.codigoHash())) {
+        String digitado = codigo == null ? "" : codigo.trim();
+        boolean confere = digitado.matches("\\d{6}") && MessageDigest.isEqual(
+                cripto.hashCodigo(digitado).getBytes(StandardCharsets.UTF_8), c.codigoHash().getBytes(StandardCharsets.UTF_8));
+        if (!confere) {
             banco(() -> {
                 repository.tentativaCodigo(c.id());
                 return null;
@@ -288,10 +332,23 @@ public class UsuarioService {
         return visao(banco(() -> repository.buscarPorId(sessao(token).id())).orElseThrow());
     }
 
-    public void trocarMeuPin(String token, String pinAtual, String novoPin) {
+    public synchronized void trocarMeuPin(String token, String pinAtual, String novoPin) {
         Sessao s = sessao(token);
         Linha l = banco(() -> repository.buscarPorId(s.id())).orElseThrow();
-        if (!cripto.conferirPin(pinAtual == null ? "" : pinAtual.trim(), l.pinHash())) {
+        if (banco(() -> repository.bloqueada(s.id()))) {
+            throw new AcessoNegadoException(423, "conta bloqueada por PINs errados",
+                    Map.of("minutos", banco(() -> repository.minutosRestantesBloqueio(s.id()))));
+        }
+        if (!cripto.conferirPin(textoPin(pinAtual), l.pinHash())) {
+            // conta como PIN errado: quem achar a sessao aberta nao descobre o PIN chutando
+            try {
+                registrarPinErrado(l);
+            } catch (AcessoNegadoException bloqueio) {
+                if (bloqueio.getStatus() == 423) {
+                    sessoes.values().removeIf(x -> x.id() == s.id());
+                    throw bloqueio;
+                }
+            }
             throw new DadosInvalidosException(Map.of("pinAtual", "PIN atual incorreto."));
         }
         banco(() -> repository.atualizarPin(s.id(), cripto.hashPin(validarPin(novoPin))));
@@ -394,7 +451,7 @@ public class UsuarioService {
         if (r == null) {
             erros.put("remetente", "Informe o Gmail da loja.");
         }
-        if (senha.length() != 16) {
+        if (!senha.matches("[A-Za-z]{16}")) {
             erros.put("senhaApp", "A senha de app do Google tem 16 letras.");
         }
         if (!erros.isEmpty()) {
@@ -457,7 +514,7 @@ public class UsuarioService {
     }
 
     private static String nome(String nome, Map<String, String> erros) {
-        String n = nome == null ? "" : nome.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        String n = nome == null ? "" : semControle(nome).trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
         if (n.length() < 2 || n.length() > 40) {
             erros.put("nome", "Informe o nome (de 2 a 40 letras).");
         }
@@ -476,8 +533,17 @@ public class UsuarioService {
         return e;
     }
 
+    /**
+     * E-mail simples (algo@algo.algo), ate 120 letras, sem espaco, quebra de linha ou
+     * caractere de controle (impede injecao de cabecalho no e-mail enviado).
+     */
     static boolean emailValido(String e) {
-        return e.length() <= 120 && e.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
+        return e.length() <= 120 && e.matches("[^\\s@\\p{Cntrl}<>,;\"]+@[^\\s@\\p{Cntrl}<>,;\"]+\\.[^\\s@\\p{Cntrl}<>,;\"]+");
+    }
+
+    /** Tira caracteres de controle (quebras de linha, NUL, ESC...): o texto vira uma linha so. */
+    static String semControle(String texto) {
+        return texto.replaceAll("\\p{Cntrl}", " ");
     }
 
     private static String email(String email, Map<String, String> erros) {
@@ -499,9 +565,11 @@ public class UsuarioService {
         return p;
     }
 
-    private static void validarFoto(byte[] foto) {
-        boolean png = foto.length > 8 && (foto[0] & 0xFF) == 0x89 && foto[1] == 'P' && foto[2] == 'N' && foto[3] == 'G';
-        boolean jpg = foto.length > 3 && (foto[0] & 0xFF) == 0xFF && (foto[1] & 0xFF) == 0xD8;
+    /** Tipo REAL pelo comeco do arquivo ("magic bytes"), nao pelo nome: PNG ou JPEG. */
+    static void validarFoto(byte[] foto) {
+        byte[] assinaturaPng = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+        boolean png = foto.length > 8 && java.util.Arrays.equals(foto, 0, 8, assinaturaPng, 0, 8);
+        boolean jpg = foto.length > 3 && (foto[0] & 0xFF) == 0xFF && (foto[1] & 0xFF) == 0xD8 && (foto[2] & 0xFF) == 0xFF;
         if (foto.length > LIMITE_FOTO || !(png || jpg)) {
             throw new DadosInvalidosException(Map.of("foto", "Foto inválida: use JPG ou PNG de até 1 MB."));
         }

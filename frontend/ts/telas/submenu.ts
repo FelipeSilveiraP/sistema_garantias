@@ -68,6 +68,7 @@ export function iniciarSubmenu(tela: Tela, config: ConfigSubmenu): void {
   document.body.dataset.botoes = String(config.botoes.length);
   const grade = document.querySelector(".submenu-grade");
   if (grade) {
+    // nosemgrep: innerhtml-com-dados -- cartoes fixos de submenus-config.ts (sem dado do usuario)
     grade.innerHTML = config.botoes.map((botao) => cartaoHtml(botao)).join("");
   }
   montarNavbar(tela);

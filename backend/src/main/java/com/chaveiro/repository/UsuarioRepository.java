@@ -70,7 +70,7 @@ public class UsuarioRepository {
 
     private Optional<Linha> buscar(String condicao, String valor) throws SQLException {
         try (Connection conn = conexao.getConnection();
-             PreparedStatement st = conn.prepareStatement("SELECT " + COLUNAS + " FROM usuarios WHERE " + condicao)) {
+             PreparedStatement st = conn.prepareStatement("SELECT " + COLUNAS + " FROM usuarios WHERE " + condicao)) { // nosemgrep: sql-concatenado-com-variavel -- condicao fixa (buscarPorId/buscarPorIndice)
             st.setString(1, valor);
             try (ResultSet rs = st.executeQuery()) {
                 return rs.next() ? Optional.of(mapear(rs)) : Optional.empty();
@@ -204,6 +204,51 @@ public class UsuarioRepository {
         }
     }
 
+    /** Minutos que faltam para a conta desbloquear (no minimo 1 enquanto bloqueada). */
+    public int minutosRestantesBloqueio(long id) throws SQLException {
+        try (Connection conn = conexao.getConnection();
+             PreparedStatement st = conn.prepareStatement("SELECT MAX(1, CAST(ceil((julianday(bloqueado_ate)"
+                     + " - julianday('now', 'localtime')) * 1440) AS INTEGER)) FROM usuarios WHERE id_usuario = ?")) {
+            st.setLong(1, id);
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 1;
+            }
+        }
+    }
+
+    /** Quantos eventos `tipo` a conta teve desde `desde` (modificador do SQLite, ex.: "-24 hours"). */
+    public int contarEventos(long id, String tipo, String desde) throws SQLException {
+        try (Connection conn = conexao.getConnection();
+             PreparedStatement st = conn.prepareStatement("SELECT COUNT(*) FROM acessos_usuario WHERE id_usuario = ? AND tipo = ?"
+                     + " AND momento > strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime', ?)")) {
+            st.setLong(1, id);
+            st.setString(2, tipo);
+            st.setString(3, desde);
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** Codigos de "Esqueci o PIN" criados desde `desde` (de uma conta, ou de todas com id nulo). */
+    public int contarCodigos(Long id, String desde) throws SQLException {
+        try (Connection conn = conexao.getConnection();
+             PreparedStatement st = conn.prepareStatement("SELECT COUNT(*) FROM codigos_redefinicao"
+                     + " WHERE (? IS NULL OR id_usuario = ?) AND criado_em > datetime('now', 'localtime', ?)")) {
+            if (id == null) {
+                st.setNull(1, Types.INTEGER);
+                st.setNull(2, Types.INTEGER);
+            } else {
+                st.setLong(1, id);
+                st.setLong(2, id);
+            }
+            st.setString(3, desde);
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Entrada certa: conta o acesso, guarda a data e zera as falhas, tudo junto. */
     public void registrarEntrada(long id, String nome) throws SQLException {
         conexao.emTransacao(conn -> {
@@ -307,7 +352,7 @@ public class UsuarioRepository {
 
     private boolean executar(String sql, Object... params) throws SQLException {
         return conexao.emTransacao(conn -> {
-            try (PreparedStatement st = conn.prepareStatement(sql)) {
+            try (PreparedStatement st = conn.prepareStatement(sql)) { // nosemgrep: sql-concatenado-com-variavel -- sql fixo dos metodos acima; valores por "?"
                 for (int i = 0; i < params.length; i++) {
                     st.setObject(i + 1, params[i]);
                 }

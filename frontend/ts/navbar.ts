@@ -164,6 +164,7 @@ export function montarNavbar(tela: Tela): void {
   const itens = new Map(ITENS_NAV.map((item) => [item.chave, item]));
 
   raiz.dataset.menuAberto = "false";
+  // nosemgrep: innerhtml-com-dados -- menu montado so com textos/icones fixos de ITENS_NAV (sem dado do usuario)
   raiz.innerHTML = `
 <nav class="barra-navegacao nav-barra" aria-label="Navegação principal">
 ${ITENS_NAV.map((item) => botaoBarraHtml(item, item.chave === moduloAtivo)).join("\n")}

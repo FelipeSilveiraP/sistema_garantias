@@ -120,7 +120,7 @@ public class GarantiaService {
                         break;
                     }
                 }
-                String nome = s != null ? s.nome() : e.descricao() == null ? "" : e.descricao().trim().toUpperCase(Locale.ROOT);
+                String nome = s != null ? s.nome() : e.descricao() == null ? "" : linha(e.descricao()).toUpperCase(Locale.ROOT);
                 if (nome.length() < 2 || nome.length() > 120) {
                     erros.put("servico", "Escolha o produto ou descreva o que foi feito em OUTRO.");
                     break;
@@ -259,7 +259,17 @@ public class GarantiaService {
     }
 
     private static String textoOuNulo(String texto) {
-        return texto == null || texto.isBlank() ? null : texto.trim();
+        return texto == null || texto.isBlank() ? null : semControle(texto).trim();
+    }
+
+    /** Tira caracteres de controle (NUL, ESC...), mas mantem quebra de linha e tab. */
+    static String semControle(String texto) {
+        return texto.replaceAll("[\\p{Cntrl}&&[^\\n\\r\\t]]", "");
+    }
+
+    /** Texto de uma linha so: sem controle nenhum e com os espacos juntados. */
+    static String linha(String texto) {
+        return texto.replaceAll("\\p{Cntrl}", " ").trim().replaceAll("\\s+", " ");
     }
 
     private Garantia normalizarEValidar(Garantia d) {
@@ -301,13 +311,13 @@ public class GarantiaService {
             }
         }
         String modelo = veiculo != null ? veiculo.descricao()
-                : d.modelo() == null ? "" : d.modelo().trim().toUpperCase(Locale.ROOT);
+                : d.modelo() == null ? "" : linha(d.modelo()).toUpperCase(Locale.ROOT);
         if (d.idVeiculo() != null && veiculo == null) {
             erros.put("modelo", "Veículo não encontrado. Escolha outro.");
         } else if (modelo.isEmpty() || modelo.length() > 120) {
             erros.put("modelo", "Escolha o modelo do carro.");
         }
-        String tecnico = d.tecnico() == null ? "" : d.tecnico().trim().toUpperCase(Locale.ROOT);
+        String tecnico = d.tecnico() == null ? "" : linha(d.tecnico()).toUpperCase(Locale.ROOT);
         if (tecnico.isEmpty() || tecnico.length() > 60) {
             erros.put("tecnico", "Selecione o técnico.");
         }
@@ -333,7 +343,7 @@ public class GarantiaService {
             pilha = quantidade(servico.pedePilha(), d.qtdPilha(), "qtdPilha", erros);
             itens = quantidade(servico.pedeItens(), d.qtdItens(), "qtdItens", erros);
         } else {
-            nomeServico = d.servico() == null ? "" : d.servico().trim().toUpperCase(Locale.ROOT);
+            nomeServico = d.servico() == null ? "" : linha(d.servico()).toUpperCase(Locale.ROOT);
             if (d.idServico() != null) {
                 erros.put("servico", "Serviço não encontrado. Escolha outro.");
             } else if (nomeServico.length() < 2 || nomeServico.length() > 120) {

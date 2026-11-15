@@ -69,7 +69,17 @@ function selo(texto: string, classe: string): HTMLSpanElement {
 
 /** Foto escolhida -> quadrado de 256 px em JPEG (fica pequena no banco). */
 async function prepararFoto(arquivo: File): Promise<string> {
-  const imagem = await createImageBitmap(arquivo);
+  // so imagem de verdade e de ate 15 MB (a foto e refeita em 256 px, entao o servidor
+  // recebe um JPEG pequeno e sem os dados escondidos do arquivo original)
+  if (!/^image\/(png|jpeg|webp)$/.test(arquivo.type) || arquivo.size > 15 * 1024 * 1024) {
+    throw new ErroValidacaoApi({ foto: "Foto inválida: use JPG, PNG ou WEBP de até 15 MB." });
+  }
+  let imagem: ImageBitmap;
+  try {
+    imagem = await createImageBitmap(arquivo);
+  } catch {
+    throw new ErroValidacaoApi({ foto: "Esse arquivo não é uma imagem. Escolha uma foto JPG ou PNG." });
+  }
   const lado = Math.min(imagem.width, imagem.height);
   const canvas = document.createElement("canvas");
   canvas.width = 256;

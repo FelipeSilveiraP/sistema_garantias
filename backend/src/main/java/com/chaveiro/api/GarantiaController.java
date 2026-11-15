@@ -60,12 +60,11 @@ public class GarantiaController {
             @org.springframework.web.bind.annotation.RequestHeader(value = UsuarioController.SESSAO, required = false) String sessao) {
         // "cadastrada por": o perfil da SESSAO (PIN conferido), nao o que a tela mandar
         Garantia g = requisicao.paraModelo();
+        // sem sessao valida fica em branco: o nome que a tela mandar nao vale
         String perfil = usuarios.nomeDaSessao(sessao);
-        if (perfil != null) {
-            g = new Garantia(g.id(), g.dataServico(), g.placa(), g.semPlaca(), g.cpf(), g.modelo(), g.idServico(), g.servico(),
-                    g.qtdCarcaca(), g.qtdBotao(), g.qtdPilha(), g.qtdItens(), g.valor(), g.tecnico(), g.observacao(),
-                    g.codigoCupom(), g.cupomStatus(), g.cupomLancadoEm(), g.origem(), perfil, g.idVeiculo());
-        }
+        g = new Garantia(g.id(), g.dataServico(), g.placa(), g.semPlaca(), g.cpf(), g.modelo(), g.idServico(), g.servico(),
+                g.qtdCarcaca(), g.qtdBotao(), g.qtdPilha(), g.qtdItens(), g.valor(), g.tecnico(), g.observacao(),
+                g.codigoCupom(), g.cupomStatus(), g.cupomLancadoEm(), g.origem(), perfil, g.idVeiculo());
         boolean forcar = Boolean.TRUE.equals(requisicao.forcar());
         Garantia criada = requisicao.itens() != null && !requisicao.itens().isEmpty()
                 ? service.cadastrarComItens(g, requisicao.itens(), forcar)

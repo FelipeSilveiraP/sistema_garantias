@@ -46,7 +46,7 @@ public class LegadoService {
     }
 
     public Resultado importar(String nomeArquivo, byte[] conteudo) {
-        String arquivo = nomeArquivo == null || nomeArquivo.isBlank() ? "planilha.xlsm" : nomeArquivo.trim();
+        String arquivo = nomeSeguro(nomeArquivo);
         Map<String, List<LeitorXlsx.Linha>> abas;
         try {
             abas = LeitorXlsx.ler(conteudo);
@@ -92,6 +92,19 @@ public class LegadoService {
         return new Resultado(contagem[0], contagem[1], contagem[2]);
     }
 
+    /**
+     * Nome do arquivo como vai para o banco: so o nome (sem pasta), sem caracteres de
+     * controle e com ate 120 letras. Vazio = "planilha.xlsm".
+     */
+    static String nomeSeguro(String nomeArquivo) {
+        String n = nomeArquivo == null ? "" : nomeArquivo.replaceAll("\\p{Cntrl}", "").trim();
+        n = n.substring(Math.max(n.lastIndexOf('/'), n.lastIndexOf('\\')) + 1).trim();
+        if (n.length() > 120) {
+            n = n.substring(n.length() - 120);
+        }
+        return n.isEmpty() ? "planilha.xlsm" : n;
+    }
+
     /** Linha da planilha -> garantia LEGADO (sem a data valida, fica so na tabela de legado). */
     static Optional<Garantia> converter(Map<String, String> c) {
         LocalDate data = data(c.get("A"));
@@ -102,9 +115,14 @@ public class LegadoService {
         boolean semPlaca = placaBruta == null || semAcento(placaBruta).contains("SEM PLACA");
         String placa = semPlaca ? null : GarantiaService.limparPlaca(placaBruta);
         String cpf = GarantiaService.soDigitos(c.get("E"));
-        return Optional.of(new Garantia(null, data, placa, semPlaca, cpf.isEmpty() ? null : cpf,
-                padrao(texto(c.get("C"))), null, padrao(texto(c.get("D"))), 0, 0, 0, 0, valor(c.get("F")),
-                padrao(texto(c.get("G"))), texto(c.get("H")), null, null, null, "LEGADO", null, null));
+        // os mesmos tamanhos maximos do cadastro (a linha completa fica em legado_garantias)
+        return Optional.of(new Garantia(null, data, corta(placa, 20), semPlaca, cpf.isEmpty() ? null : corta(cpf, 20),
+                corta(padrao(texto(c.get("C"))), 120), null, corta(padrao(texto(c.get("D"))), 120), 0, 0, 0, 0, valor(c.get("F")),
+                corta(padrao(texto(c.get("G"))), 60), corta(texto(c.get("H")), 500), null, null, null, "LEGADO", null, null));
+    }
+
+    private static String corta(String texto, int maximo) {
+        return texto == null || texto.length() <= maximo ? texto : texto.substring(0, maximo);
     }
 
     static LocalDate data(String bruto) {
@@ -130,16 +148,22 @@ public class LegadoService {
         if (limpo.contains(",")) {
             limpo = limpo.replace(".", "").replace(",", ".");
         }
+        // "1E999999999" travaria o servidor montando um numero de 1 bilhao de digitos
+        if (limpo.length() > 20 || limpo.toUpperCase(Locale.ROOT).contains("E")) {
+            return BigDecimal.ZERO;
+        }
         try {
             BigDecimal v = new BigDecimal(limpo).setScale(2, java.math.RoundingMode.HALF_UP);
-            return v.signum() < 0 ? BigDecimal.ZERO : v;
+            // fora da faixa do cadastro (0 a 99.999,99) vira 0; o valor original fica no legado
+            return v.signum() < 0 || v.compareTo(new BigDecimal("100000")) >= 0 ? BigDecimal.ZERO : v;
         } catch (NumberFormatException erro) {
             return BigDecimal.ZERO;
         }
     }
 
     private static String texto(String valor) {
-        return valor == null || valor.isBlank() ? null : valor.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        return valor == null || valor.isBlank() ? null
+                : valor.replaceAll("\\p{Cntrl}", " ").trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
     }
 
     private static String padrao(String valor) {

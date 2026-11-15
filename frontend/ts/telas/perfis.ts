@@ -121,6 +121,13 @@ async function acaoEsqueci(): Promise<void> {
     notificar("PIN novo criado. Clique na sua bolinha e entre com ele.");
     fecharPin();
   } catch (falha) {
+    if (falha instanceof ErroApi && falha.status === 429) {
+      // limite contra envio em massa de e-mails: 1 codigo por minuto, 5 por hora
+      const minutos = Number(falha.corpo.minutos ?? 1);
+      return erro("esqueci-erro", minutos <= 1
+        ? "Espere 1 minuto para pedir outro código."
+        : "Muitos pedidos de código. Tente de novo daqui a 1 hora (ou peça ao administrador um PIN novo).");
+    }
     erro("esqueci-erro", falha instanceof ErroValidacaoApi ? Object.values(falha.campos)[0] ?? "Dados inválidos." : "Não foi possível. Tente de novo.");
   }
 }

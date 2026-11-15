@@ -68,6 +68,29 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("erro", "dados invalidos"));
     }
 
+    /**
+     * Parametro com tipo errado ("/api/garantias/1 OR 1=1", data invalida) ou faltando:
+     * 400, nao 500 (e sem encher o log de erro com tentativa de ataque).
+     */
+    @ExceptionHandler({org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.bind.MissingRequestHeaderException.class})
+    public ResponseEntity<Map<String, String>> parametroInvalido(Exception erro) {
+        log.warn("parametro invalido recusado: {}", erro.getClass().getSimpleName());
+        return ResponseEntity.badRequest().body(Map.of("erro", "dados invalidos"));
+    }
+
+    /** Metodo/rota inexistente: 405/404 sem stack trace no log. */
+    @ExceptionHandler({org.springframework.web.HttpRequestMethodNotSupportedException.class,
+            org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.HttpMediaTypeNotSupportedException.class})
+    public ResponseEntity<Map<String, String>> rotaInvalida(Exception erro) {
+        HttpStatus status = erro instanceof org.springframework.web.HttpRequestMethodNotSupportedException ? HttpStatus.METHOD_NOT_ALLOWED
+                : erro instanceof org.springframework.web.HttpMediaTypeNotSupportedException ? HttpStatus.UNSUPPORTED_MEDIA_TYPE
+                : HttpStatus.NOT_FOUND;
+        return ResponseEntity.status(status).body(Map.of("erro", "rota invalida"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> generico(Exception erro) {
         log.error("erro nao tratado na API", erro);

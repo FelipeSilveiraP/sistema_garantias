@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsuarioController {
 
     static final String SESSAO = "X-Garantias-Sessao";
+    private static final int LIMITE_FOTO_BASE64 = 1_400_000 + 64;
 
     public record EntrarRequest(long idUsuario, String pin) {
     }
@@ -80,6 +81,10 @@ public class UsuarioController {
     private static byte[] foto(String base64) {
         if (base64 == null || base64.isBlank()) {
             return null;
+        }
+        // 1 MB de foto vira ~1,4 MB em base64: recusa antes de decodificar (nao gasta memoria)
+        if (base64.length() > LIMITE_FOTO_BASE64) {
+            throw new DadosInvalidosException(Map.of("foto", "Foto inválida: use JPG ou PNG de até 1 MB."));
         }
         try {
             return Base64.getDecoder().decode(base64.replaceFirst("^data:[^,]*,", ""));

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 6;
+    private static final int VERSAO_ATUAL = 7;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -117,6 +117,7 @@ public class DatabaseInitializer {
             case 4 -> usuarios();
             case 5 -> validacoesEAuditoriaCadastros();
             case 6 -> itensDaGarantia();
+            case 7 -> limitesEAuditoriaSeguranca();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -596,6 +597,91 @@ public class DatabaseInitializer {
                 """);
         sql.add("CREATE INDEX idx_garantia_itens_garantia ON garantia_itens(id_garantia)");
         sql.add("UPDATE servicos SET ativo = 0 WHERE nome IN ('TROCA CARCAÇA+PILHA', 'TROCA CARCAÇA+BOTÃO', 'TROCA CARCAÇA+BOTÃO+PILHA')");
+        return sql;
+    }
+
+    // ---------- v7: auditoria de seguranca (limites de tamanho e auditoria que faltava) ----------
+
+    private static String jsonItem(String r) {
+        return "json_object('id_item', " + r + ".id_item, 'id_garantia', " + r + ".id_garantia, 'ordem', " + r + ".ordem,"
+                + " 'id_servico', " + r + ".id_servico, 'descricao', " + r + ".descricao, 'quantidade', " + r + ".quantidade,"
+                + " 'preco_centavos', " + r + ".preco_centavos)";
+    }
+
+    /** Conta de usuario SEM segredos: nada de login/e-mail cifrado nem hash do PIN (so se mudou). */
+    private static String jsonUsuario(String r) {
+        return "json_object('id_usuario', " + r + ".id_usuario, 'nome', " + r + ".nome, 'admin', " + r + ".admin,"
+                + " 'ativo', " + r + ".ativo, 'tem_foto', " + r + ".foto IS NOT NULL, 'login_indice', " + r + ".login_indice)";
+    }
+
+    /**
+     * Ultima linha de defesa contra textos enormes (o servidor ja corta/valida antes) e
+     * auditoria do que ainda nao era auditado:
+     * - garantias: modelo/servico ate 120, tecnico/criado_por ate 60, observacao ate 500;
+     * - legado: cada celula ate 1000 letras e o nome do arquivo ate 120;
+     * - foto da conta ate 1 MB;
+     * - auditoria (antes/depois) dos produtos da garantia, das contas (sem PIN, login ou
+     *   e-mail: so nome, admin, ativo, foto e "PIN trocado"), das configuracoes (so a
+     *   chave, nunca a senha de app) e da inclusao/exclusao de servicos.
+     */
+    private static List<String> limitesEAuditoriaSeguranca() {
+        List<String> sql = new ArrayList<>();
+        String[][] limites = {
+            {"modelo", "120"}, {"servico", "120"}, {"tecnico", "60"}, {"observacao", "500"}, {"criado_por", "60"},
+            {"placa", "20"}, {"cpf", "20"}, {"codigo_cupom", "200"},
+        };
+        for (String[] l : limites) {
+            String ruim = "length(NEW." + l[0] + ") > " + l[1];
+            String msg = "TEXTO_LONGO: " + l[0] + " passa de " + l[1] + " caracteres";
+            sql.add("CREATE TRIGGER trg_garantia_" + l[0] + "_tamanho_insert BEFORE INSERT ON garantias WHEN " + ruim
+                    + " BEGIN SELECT RAISE(ABORT, '" + msg + "'); END");
+            sql.add("CREATE TRIGGER trg_garantia_" + l[0] + "_tamanho_update BEFORE UPDATE OF " + l[0] + " ON garantias WHEN "
+                    + ruim + " AND NEW." + l[0] + " IS NOT OLD." + l[0] + " BEGIN SELECT RAISE(ABORT, '" + msg + "'); END");
+        }
+        StringBuilder legadoRuim = new StringBuilder("length(NEW.arquivo_origem) > 120 OR length(NEW.aba_origem) > 60");
+        for (String c : new String[] {"data", "placa", "modelo", "servico", "cpf", "valor", "tecnico", "observacao"}) {
+            legadoRuim.append(" OR length(NEW.").append(c).append(") > 1000");
+        }
+        sql.add("CREATE TRIGGER trg_legado_tamanho BEFORE INSERT ON legado_garantias WHEN " + legadoRuim
+                + " BEGIN SELECT RAISE(ABORT, 'TEXTO_LONGO: celula da planilha antiga grande demais'); END");
+        for (String op : new String[] {"INSERT", "UPDATE OF foto"}) {
+            sql.add("CREATE TRIGGER trg_usuario_foto_" + (op.startsWith("I") ? "insert" : "update") + " BEFORE " + op
+                    + " ON usuarios WHEN length(NEW.foto) > 1048576"
+                    + " BEGIN SELECT RAISE(ABORT, 'FOTO_GRANDE: a foto passa de 1 MB'); END");
+        }
+        // produtos da garantia
+        sql.add("CREATE TRIGGER trg_auditoria_item_insert AFTER INSERT ON garantia_itens BEGIN "
+                + auditar("garantia_itens", "INSERT", "NEW.id_item", "NULL", jsonItem("NEW")) + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_item_update AFTER UPDATE ON garantia_itens"
+                + " WHEN " + jsonItem("OLD") + " IS NOT " + jsonItem("NEW") + " BEGIN "
+                + auditar("garantia_itens", "UPDATE", "NEW.id_item", jsonItem("OLD"), jsonItem("NEW")) + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_item_delete AFTER DELETE ON garantia_itens BEGIN "
+                + auditar("garantia_itens", "DELETE", "OLD.id_item", jsonItem("OLD"), "NULL") + " END");
+        // contas (falhas/acessos/ultimo acesso ja ficam em acessos_usuario)
+        String depoisUsuario = "json_patch(" + jsonUsuario("NEW") + ", json_object('pin_trocado', OLD.pin_hash IS NOT NEW.pin_hash))";
+        sql.add("CREATE TRIGGER trg_auditoria_usuario_insert AFTER INSERT ON usuarios BEGIN "
+                + auditar("usuarios", "INSERT", "NEW.id_usuario", "NULL", jsonUsuario("NEW")) + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_usuario_update AFTER UPDATE ON usuarios"
+                + " WHEN " + jsonUsuario("OLD") + " IS NOT " + jsonUsuario("NEW") + " OR OLD.pin_hash IS NOT NEW.pin_hash"
+                + " OR OLD.foto IS NOT NEW.foto BEGIN "
+                + auditar("usuarios", "UPDATE", "NEW.id_usuario", jsonUsuario("OLD"), depoisUsuario) + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_usuario_delete AFTER DELETE ON usuarios BEGIN "
+                + auditar("usuarios", "DELETE", "OLD.id_usuario", jsonUsuario("OLD"), "NULL") + " END");
+        // configuracoes: so a chave (o valor pode ser a senha de app cifrada)
+        sql.add("CREATE TRIGGER trg_auditoria_config_insert AFTER INSERT ON manutencao BEGIN "
+                + auditar("manutencao", "INSERT", "NEW.rowid", "NULL", "json_object('chave', NEW.chave)") + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_config_update AFTER UPDATE ON manutencao WHEN OLD.valor IS NOT NEW.valor BEGIN "
+                + auditar("manutencao", "UPDATE", "NEW.rowid", "json_object('chave', OLD.chave)",
+                        "json_object('chave', NEW.chave, 'valor_alterado', 1)") + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_config_delete AFTER DELETE ON manutencao BEGIN "
+                + auditar("manutencao", "DELETE", "OLD.rowid", "json_object('chave', OLD.chave)", "NULL") + " END");
+        // servicos: inclusao e exclusao (a alteracao ja era auditada desde a v1)
+        sql.add("CREATE TRIGGER trg_auditoria_servico_insert AFTER INSERT ON servicos BEGIN "
+                + auditar("servicos", "INSERT", "NEW.id_servico", "NULL", jsonServico("NEW")) + " END");
+        sql.add("CREATE TRIGGER trg_auditoria_servico_delete AFTER DELETE ON servicos BEGIN "
+                + auditar("servicos", "DELETE", "OLD.id_servico", jsonServico("OLD"), "NULL") + " END");
+        // contagem dos codigos de "Esqueci o PIN" por conta e hora (limite contra envio em massa)
+        sql.add("CREATE INDEX idx_codigos_usuario ON codigos_redefinicao(id_usuario, criado_em)");
         return sql;
     }
 }

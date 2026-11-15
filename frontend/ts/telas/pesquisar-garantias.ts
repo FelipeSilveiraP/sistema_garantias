@@ -372,6 +372,10 @@ async function importar(arquivo: File | undefined): Promise<void> {
     notificar("Escolha a planilha GARANTIAS-AAAA.xlsm (ou .xlsx).", "erro");
     return;
   }
+  if (arquivo.size > 30 * 1024 * 1024) {
+    notificar("Planilha grande demais (o limite é 30 MB).", "erro");
+    return;
+  }
   const ok = await confirmar({
     titulo: "IMPORTAR PLANILHA ANTIGA?",
     mensagem: `As garantias das abas de meses de "${arquivo.name}" serão copiadas para o sistema. Importar o mesmo arquivo de novo não duplica nada.`,

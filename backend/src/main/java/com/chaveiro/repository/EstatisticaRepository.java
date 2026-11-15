@@ -75,6 +75,7 @@ public class EstatisticaRepository {
     /** coluna vem SO das chamadas acima (servico/tecnico/modelo), nunca do usuario. */
     private static List<Grupo> grupo(Connection conn, String coluna, String de, String ate) throws SQLException {
         List<Grupo> lista = new ArrayList<>();
+        // nosemgrep: sql-concatenado-com-variavel -- coluna so "servico"/"tecnico"/"modelo" (resumo())
         try (PreparedStatement stmt = conn.prepareStatement(
                 "SELECT " + coluna + " AS nome, COUNT(*) AS qtd, SUM(valor_centavos) AS total FROM garantias"
                         + " WHERE data_servico BETWEEN ? AND ? GROUP BY " + coluna + " COLLATE NOCASE"
