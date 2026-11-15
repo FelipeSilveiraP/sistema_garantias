@@ -127,10 +127,12 @@ class LegadoESegurancaTest {
         assertThat(cadastros.listarServicos()).extracting(s -> s.nome()).contains("TROCA CARCAÇA", "PILHA", "BOTÃO");
         int atualizados = cadastros.reajustar(new BigDecimal("10"), true);
 
-        assertThat(atualizados).isEqualTo(11);
+        assertThat(atualizados).isEqualTo(8); // 11 da lista do VBA menos os 3 combos desativados na v6
         assertThat(cadastros.listarServicos()).filteredOn(s -> s.nome().equals("PILHA"))
                 .singleElement().satisfies(s -> assertThat(s.preco()).isEqualByComparingTo("13.20"));
-        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'servicos' AND operacao = 'UPDATE'"))
+        // so as mudancas de PRECO (a v6 tambem audita a desativacao dos combos)
+        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'servicos' AND operacao = 'UPDATE'"
+                + " AND json_extract(antes, '$.preco_centavos') <> json_extract(depois, '$.preco_centavos')"))
                 .isEqualTo(2); // so PILHA e BOTAO tinham preco > 0
         assertThatThrownBy(() -> cadastros.reajustar(new BigDecimal("500"), true)).isInstanceOf(DadosInvalidosException.class);
     }
