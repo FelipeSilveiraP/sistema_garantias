@@ -66,3 +66,16 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **Seta em todas as caixas de seleção do sistema** (regra global em `select`).
 - **Tabela da Pesquisar Garantia com o cabeçalho vermelho** (cor do módulo).
 
+
+## Auditoria de segurança (2026-11-15, versão 1.4.0, banco v7)
+
+- **Relatório completo em `docs/seguranca.md`** (campo a campo, risco, correção, teste e placar). Ferramentas: SpotBugs + Find Security Bugs (`mvn -P seguranca`), Semgrep com regras do projeto (`.semgrep/regras-projeto.yml`), OSV-Scanner (`osv-scanner.toml`), npm audit e CodeQL, todas no CI (`.github/workflows/testes.yml`, também toda segunda às 6h).
+- **PIN, código do e-mail e primeira conta conferidos um de cada vez** (`synchronized` no `UsuarioService`): em paralelo, as tentativas passavam do limite de 5. Bloqueio dobra a cada vez no mesmo dia (5 → 10 → 20... até 24 h); errar o "PIN atual" em MINHA CONTA também conta.
+- **"Esqueci o PIN" com limite**: 1 código/minuto e 5/hora por conta, 20/hora no total (HTTP 429, aviso na tela). Impede envio em massa de e-mails pelo Gmail da loja.
+- **Tamanho máximo das requisições** (`web/LimiteCorpoFilter`): 2 MB, 42 MB só na importação da planilha; sem tamanho declarado = 411. Também `nosniff` e `no-store` em toda resposta.
+- **Planilha antiga**: confere o tipo real (zip), limites contra zip bomb (80 MB total, 12 MB por parte, 5 mil partes, 200 mil linhas), célula até 1000 letras, valor fora de 0–99.999,99 vira 0 (o original fica no legado), nome do arquivo sem pasta.
+- **Banco v7 (aditiva)**: gatilhos `TEXTO_LONGO` e `FOTO_GRANDE`; auditoria de `garantia_itens`, contas (sem PIN/login/e-mail), configurações (só a chave) e inclusão/exclusão de serviços.
+- **"Cadastrada por" só vem da sessão** (sem sessão fica em branco).
+- **Dependências**: Spring Boot 3.3.5 → 3.5.16 (com Tomcat 10.1.59, Jackson 2.21.7, Log4j 2.25.5), sqlite-jdbc 3.54.1.0, Electron 33 → 44.10.1, esbuild 0.28.2. electron-builder 25 fica (só build; ver `docs/seguranca.md` §6).
+- **REGRA do backup no Google Drive (pedido do usuário): nunca apaga nem sobrescreve arquivo que o sistema não criou.** Só apaga arquivo comum com o nome exato `Garantias - dados AAAA-MM-DD.xlsx` direto na subpasta `Chaveiro Universal - Backup` (compartilhada com o Contas a Pagar); nunca pasta, atalho ou recursivo; não sobrescreve pasta/atalho com o nome do dia. `instalador/publicar.js` segue a mesma regra na pasta de atualizações. Teste: `BackupDriveProtecaoTest`.
+- **Pendente (risco médio)**: assinar o `versao.json` das atualizações pelo Drive (hoje o SHA-256 só prova que o arquivo está completo, não quem publicou). Até lá: não compartilhar a pasta de atualizações.

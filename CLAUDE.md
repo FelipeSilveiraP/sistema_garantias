@@ -26,6 +26,7 @@ npx electron desktop/smoke.js            # todas as telas com banco/Downloads te
 npx electron desktop/smoke-boot.js       # tempos de boot + clique/digitacao reais (nao usar a maquina enquanto roda)
 node desktop/teste-persistencia.js       # cold start: dados sobrevivem ao reinicio do backend
 npm run test:frontend                    # mascaras + filtros + automacoes (sem Electron)
+mvn -f backend/pom.xml -P seguranca -DskipTests package spotbugs:check   # SpotBugs + Find Security Bugs (ver docs/seguranca.md)
 npm run instalador                       # instalador Windows com Java embutido (ver docs/instalacao.md)
 npm run publicar -- "novidades"          # poe o instalador na pasta de atualizacoes do Google Drive
 python instalador/gerar-icone.py         # regera o emblema (chave amarela)
@@ -37,7 +38,7 @@ Igual à do Contas a Pagar (detalhes no `CLAUDE.md` de lá):
 - **Electron (`desktop/main.js`)**: porta livre + token por execução, `spawn` do jar, tela de carregamento até o backend ficar pronto, instância única. Navegação validada contra o `Map TELAS` — **tela nova precisa ser registrada em `TELAS`** e ganhar um `case` em `frontend/ts/main.ts`.
 - **Frontend (`frontend/`)**: multi-página, `html/<tela>.html` + `ts/telas/<tela>.ts`. Telas: `menu` (3 botões), `cadastrar-garantia`, `pesquisar-garantias`, `estatisticas` (submenu gerado por `submenus-config.ts`), `graficos`, `atualizar-precos`. Diálogos só por `dialogos.ts` (nunca `alert/confirm`; `avisar()` = pop-up de um botão nos tons sucesso/erro/atenção); DOM só por `createElement`/`textContent`.
 - **Backend (`backend/`, pacote `com.chaveiro`)**: `api/*Controller` → `service/*Service` → `repository/*Repository` (JDBC puro) → SQLite. Rotas: `/api/garantias` (+ `/{id}/cupom`), `/api/servicos` (+ `/reajuste`), `/api/listas/{tecnicos|modelos}`, `/api/estatisticas`, `/api/legado/importar`, `/api/status`, `/api/backup-drive`.
-- **Banco**: `%LOCALAPPDATA%\ChaveiroUniversal\Garantias\garantias.db` (ou `FINDESK_DB_PATH`). Migrações em `database/DatabaseInitializer` (v1 = esquema + listas iniciais do VBA + gatilhos + auditoria; v5 = gatilhos de placa/CPF/data futura + auditoria de técnicos e veículos). `ConnectionFactory.emTransacao` para gravações de várias etapas; transações `IMMEDIATE`.
+- **Banco**: `%LOCALAPPDATA%\ChaveiroUniversal\Garantias\garantias.db` (ou `FINDESK_DB_PATH`). Migrações em `database/DatabaseInitializer` (v1 = esquema + listas iniciais do VBA + gatilhos + auditoria; v5 = gatilhos de placa/CPF/data futura + auditoria de técnicos e veículos; v7 = limites de tamanho + auditoria de itens, contas e configurações). `ConnectionFactory.emTransacao` para gravações de várias etapas; transações `IMMEDIATE`.
 
 ## Regras de domínio (do VBA `frmControleGarantias` V17.1)
 
