@@ -87,11 +87,10 @@
 <!-- observacao: linha abaixo de todos os campos, com uma seta que expande o cadastro para baixo -->
 <div class="observacao-linha" id="bloco-observacao">
 <div class="observacao-linha__barra" aria-hidden="true"></div>
-<button class="observacao-linha__seta" id="btn-observacao" type="button" aria-expanded="false" aria-controls="observacao-corpo" title="Observação (opcional)"><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></button>
+<button class="observacao-linha__seta" id="btn-observacao" type="button" aria-expanded="false" aria-controls="observacao-corpo" title="Observação (opcional)" aria-label="Observação (opcional)"><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span></button>
 <div class="observacao-linha__corpo" id="observacao-corpo">
 <div class="campo-form">
-<label class="rotulo-form" for="observacao"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></label>
-<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off">
+<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Observação" type="text" autocomplete="off" aria-label="Observação">
 <p class="campo-erro hidden" data-erro-campo="observacao"></p>
 </div>
 </div>
