@@ -1,0 +1,12 @@
+# Alertas do OSV-Scanner revisados e aceitos (auditoria de 2026-11-15, docs/seguranca.md).
+# Cada um tem prazo: depois da data o CI volta a falhar e o alerta precisa ser revisto.
+
+[[IgnoredVulns]]
+id = "GHSA-pc63-qcmh-9cmg"
+ignoreUntil = 2027-03-01
+reason = "CVE-2026-47884 no XsltView do Spring MVC: o sistema nao usa XsltView (so JSON). Correcao so no Spring 7 (Spring Boot 4)."
+
+[[IgnoredVulns]]
+id = "GHSA-j9f9-w8pj-32f8"
+ignoreUntil = 2027-03-01
+reason = "CVE-2026-47890 em Server-Sent Events com fragmentos de view: o sistema nao usa SSE nem views. Correcao so no Spring 7 (Spring Boot 4)."
