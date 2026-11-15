@@ -1,12 +1,13 @@
 // Menu Principal do Sistema de Garantias: 3 botoes (CADASTRAR GARANTIA,
-// PESQUISAR GARANTIA, ESTATISTICA E ATUALIZACOES), resumo do dia, aviso do
+// PESQUISAR GARANTIA, CONTROLE), resumo do dia, aviso do
 // backup no Google Drive e a oferta de atualizacao (mesma estrutura do Contas a Pagar).
 import { buscarBackupDrive, buscarStatus, listarGarantias, SituacaoBackupDrive } from "../api";
 import { notificar } from "../notificacoes";
 import { formatarMoedaBR } from "../mascaras";
 import { hojeIso } from "../filtros";
 import { Tela, irPara } from "../navegacao";
-import { criarAvatar, perfilAtual } from "../perfil";
+import { perfilAtual } from "../perfil";
+import { criarBotaoConta } from "../conta-menu";
 
 const DESTINOS: Record<string, Tela> = {
   "cadastrar-garantia": "cadastrar-garantia",
@@ -111,10 +112,8 @@ function mostrarPerfil(): boolean {
     void window.finDesk?.navegar("perfis");
     return false;
   }
-  document.getElementById("perfil-bolinha")!.replaceChildren(criarAvatar(perfil, "pequena"));
-  document.getElementById("perfil-nome")!.textContent = perfil.nome;
-  document.getElementById("btn-perfil")!.addEventListener("click", () => void window.finDesk!.navegar("perfis"));
-  document.getElementById("btn-contas")!.addEventListener("click", () => void irPara("contas"));
+  // um botao so para a conta: MINHA CONTA ou SAIR E TROCAR DE CONTA
+  document.getElementById("menu-conta")!.replaceChildren(criarBotaoConta(perfil, "menu-perfil"));
   document.body.dataset.perfil = perfil.nome;
   return true;
 }

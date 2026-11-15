@@ -25,7 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class CadastrosController {
 
-    public record ReajusteRequest(BigDecimal percentual, boolean incluirPecas) {
+    /** Reajuste em % (percentual) ou somando um valor em R$ (valor); um dos dois. */
+    public record ReajusteRequest(BigDecimal percentual, BigDecimal valor, boolean incluirPecas) {
     }
 
     public record ItemRequest(String nome, Boolean ativo) {
@@ -60,7 +61,10 @@ public class CadastrosController {
 
     @PostMapping("/servicos/reajuste")
     public Map<String, Integer> reajustar(@RequestBody ReajusteRequest requisicao) {
-        return Map.of("atualizados", service.reajustar(requisicao.percentual(), requisicao.incluirPecas()));
+        int atualizados = requisicao.valor() != null
+                ? service.reajustarValor(requisicao.valor(), requisicao.incluirPecas())
+                : service.reajustar(requisicao.percentual(), requisicao.incluirPecas());
+        return Map.of("atualizados", atualizados);
     }
 
     @GetMapping("/listas/{lista}")

@@ -14,7 +14,6 @@
 <span class="material-symbols-outlined text-2xl text-[#1c1b1b]">post_add</span>
 </div>
 <h1 class="text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1c1b1b]">Cadastrar Garantia</h1>
-<span class="ml-auto font-mono text-xs font-bold uppercase text-neutral-600" id="cadastrando-como"></span>
 </div>
 <form class="flex flex-col gap-4" id="form-garantia" novalidate>
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
@@ -47,6 +46,11 @@
 <div class="campo-form">
 <label class="rotulo-form" for="modelo"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">POR MARCA</span></label>
 <select class="entrada-form" id="modelo"><option value="">Selecione o modelo...</option></select>
+<!-- OUTRO: o campo de texto entra no lugar da caixa; o botao volta a lista de modelos -->
+<div class="servico-outro hidden" id="bloco-modelo-outro">
+<input class="entrada-form uppercase" id="modelo_outro" maxlength="60" placeholder="Escreva o modelo do carro" type="text" autocomplete="off" aria-label="Descreva o modelo do carro">
+<button class="servico-outro__voltar" id="btn-voltar-modelos" type="button" title="Voltar à lista de modelos" aria-label="Voltar à lista de modelos"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span></button>
+</div>
 <p class="campo-erro hidden" data-erro-campo="modelo"></p>
 </div>
 
@@ -78,17 +82,22 @@
 <p class="campo-erro hidden" data-erro-campo="valor"></p>
 </div>
 
-<!-- observacao escondida atras da seta: abre ao passar o mouse (e ao clicar, para ficar aberta) -->
-<div class="campo-form observacao-recolhivel" id="bloco-observacao">
-<button class="observacao-recolhivel__abrir" id="btn-observacao" type="button" aria-expanded="false" aria-controls="observacao-corpo"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span><span class="material-symbols-outlined observacao-recolhivel__seta" aria-hidden="true">expand_more</span></button>
-<div class="observacao-recolhivel__corpo" id="observacao-corpo">
-<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off" aria-label="Observação">
 </div>
+
+<!-- observacao: linha abaixo de todos os campos, com uma seta que expande o cadastro para baixo -->
+<div class="observacao-linha" id="bloco-observacao">
+<div class="observacao-linha__barra" aria-hidden="true"></div>
+<button class="observacao-linha__seta" id="btn-observacao" type="button" aria-expanded="false" aria-controls="observacao-corpo" title="Observação (opcional)"><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></button>
+<div class="observacao-linha__corpo" id="observacao-corpo">
+<div class="campo-form">
+<label class="rotulo-form" for="observacao"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></label>
+<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off">
 <p class="campo-erro hidden" data-erro-campo="observacao"></p>
 </div>
 </div>
+</div>
 
-<div class="flex flex-wrap items-center justify-center gap-4 pt-4 border-t-2 border-[#1c1b1b]">
+<div class="flex flex-wrap items-center justify-center gap-4 pt-2">
 <button class="btn-secundario-form" id="btn-limpar" type="button"><span class="material-symbols-outlined text-lg">ink_eraser</span>LIMPAR</button>
 <button class="btn-principal-form" id="btn-salvar" type="submit"><span class="material-symbols-outlined text-xl">save</span>SALVAR GARANTIA</button>
 </div>

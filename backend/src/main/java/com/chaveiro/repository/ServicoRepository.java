@@ -110,6 +110,23 @@ public class ServicoRepository {
         });
     }
 
+    /**
+     * Reajuste de todos os precos (ou so dos servicos) somando um valor fixo em centavos
+     * (negativo baixa; o preco nunca fica abaixo de zero), numa unica transacao.
+     */
+    public int reajustarValor(long centavos, boolean incluirPecas) throws SQLException {
+        String sql = "UPDATE servicos SET preco_centavos = MAX(0, preco_centavos + ?)"
+                + " WHERE ativo = 1" + (incluirPecas ? "" : " AND peca = 0");
+        return conexao.emTransacao(conn -> {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, centavos);
+                int linhas = stmt.executeUpdate();
+                log.info("reajuste de precos: {} centavos em {} item(ns)", centavos, linhas);
+                return linhas;
+            }
+        });
+    }
+
     /** Produto em uso por alguma garantia: o gatilho SERVICO_EM_USO recusa (desative em vez de excluir). */
     public boolean excluir(long id) throws SQLException {
         return conexao.emTransacao(conn -> {

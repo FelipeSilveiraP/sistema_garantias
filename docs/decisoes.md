@@ -49,3 +49,12 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **Esqueci o PIN: o código vai para o e-mail da conta E para o e-mail da loja** (o Gmail configurado em CONTAS, que envia). A cópia da loja diz de qual conta é o pedido. Se um dos envios falhar, vale o outro; só dá erro se nenhum sair. A tela mostra os dois destinos mascarados.
 - **E-mail da loja já na criação do administrador (pedido do usuário):** a primeira conta tem dois campos, SEU E-MAIL (login do admin) e E-MAIL DA LOJA. O da loja vira o e-mail que envia os códigos e recebe a cópia; a senha de app do Google continua sendo gravada em CONTAS (o e-mail já aparece preenchido lá).
 
+## Ajustes de uso (2026-11-15, versão 1.3.2)
+
+- **Testes só quando o usuário mandar:** ele usa a mesma máquina enquanto o agente trabalha (os smokes movem mouse e teclado). Esta versão foi só compilada (typecheck + `mvn compile`).
+- **Cadastrar Garantia:** sem "Cadastrando como"; caixas de seleção com seta para baixo (todas as `select.entrada-form`); modelo com OUTRO (DESCREVER), que troca a caixa por um campo de texto com botão de volta à lista (a garantia vai sem `id_veiculo`, só com o texto); observação numa linha grossa abaixo de todos os campos, com uma seta que expande o cadastro para baixo (clique).
+- **Barra:** as cores e o hover estavam ligados aos botões do Contas a Pagar (`inserir`, `cadastros`...), por isso não animavam. Agora: casinha azul que fica vermelha no hover, Cadastrar amarelo, Pesquisar vermelho, Controle verde; o botão da tela atual tem a faixa inferior na cor do módulo.
+- **Um botão só para a conta** (bolinha + nome + seta), na barra e no topo do Menu: MINHA CONTA (tela CONTAS) e SAIR E TROCAR DE CONTA. Encurta a barra, que cortava em algumas telas.
+- **ATUALIZAÇÃO E ESTATÍSTICA virou CONTROLE**, com GRÁFICOS, TÉCNICOS, VEÍCULOS e TABELA DE VALORES num lugar só (o submenu intermediário CONTROLE saiu do caminho). ATUALIZAR PREÇOS ficou ao lado de CADASTRAR PRODUTO, na Tabela de valores.
+- **Reajuste também em R$:** ao lado do número, escolhe-se % ou R$. Em R$ soma o valor a todos os preços ativos (negativo baixa, nenhum fica abaixo de R$ 0,00), numa transação, com auditoria.
+

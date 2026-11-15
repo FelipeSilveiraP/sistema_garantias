@@ -241,8 +241,11 @@ export function excluirVeiculo(cfg: FinDeskConfig, id: number): Promise<void> {
   return enviar<void>(cfg, "DELETE", `/api/veiculos/${id}`);
 }
 
-export function reajustarPrecos(cfg: FinDeskConfig, percentual: string, incluirPecas: boolean): Promise<{ atualizados: number }> {
-  return enviar<{ atualizados: number }>(cfg, "POST", "/api/servicos/reajuste", { percentual, incluirPecas });
+/** Reajuste em % ("percentual") ou somando um valor em R$ ("valor", em reais: "5.50"). */
+export function reajustarPrecos(
+  cfg: FinDeskConfig, quantidade: string, incluirPecas: boolean, tipo: "percentual" | "valor" = "percentual",
+): Promise<{ atualizados: number }> {
+  return enviar<{ atualizados: number }>(cfg, "POST", "/api/servicos/reajuste", { [tipo]: quantidade, incluirPecas });
 }
 
 export function listarLista(cfg: FinDeskConfig, lista: NomeLista): Promise<ItemListaDados[]> {

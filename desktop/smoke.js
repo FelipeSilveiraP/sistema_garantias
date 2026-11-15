@@ -127,7 +127,7 @@ async function executar() {
   await js("(() => { document.getElementById('pin-campo').value = '1234'; document.getElementById('pin-entrar').click(); })()");
   teste("PIN certo entra no Menu com o perfil", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
   teste("Menu tem exatamente 3 botões quadrados", await js("[...document.querySelectorAll('a[data-path]')].every(a => Math.abs(a.offsetWidth - a.offsetHeight) <= 2)") && (await js("document.querySelectorAll('a[data-path]').length")) === 3);
-  teste("Terceiro botão: Atualização e estatística", (await texto("a[data-path=estatisticas]")).toUpperCase().includes("ATUALIZAÇÃO E ESTATÍSTICA"));
+  teste("Terceiro botão: Controle", (await texto("a[data-path=estatisticas]")).toUpperCase().includes("CONTROLE"));
   teste("Pesquisar é vermelho", (await js("getComputedStyle(document.querySelector('a[data-path=pesquisar-garantias]')).backgroundColor")) === "rgb(255, 59, 48)");
   await capturar("menu-1366x820");
 
@@ -239,11 +239,9 @@ async function executar() {
 
   // ---------- ESTATISTICA E ATUALIZACOES ----------
   await ir("estatisticas");
-  teste("ATUALIZAÇÃO E ESTATÍSTICA tem 3 botões (com CONTROLE)", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 3", 5000));
-  await ir("controle");
-  teste("CONTROLE leva a TÉCNICOS, VEÍCULOS e TABELA DE VALORES", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 3 && document.querySelector('.submenu-grade').textContent.includes('TABELA DE VALORES')", 5000));
+  teste("CONTROLE tem GRÁFICOS, TÉCNICOS, VEÍCULOS e TABELA DE VALORES", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 4 && document.querySelector('.submenu-grade').textContent.includes('TABELA DE VALORES')", 5000));
   for (const [sub, form, todos] of [["tecnicos", "form-tecnico", "todos-tecnicos"], ["veiculos", "form-veiculo", "todos-veiculos"], ["produtos", "form-produto", "todos-produtos"]]) {
-    teste(`${sub}: submenu com cadastrar e todos`, await ir(sub) && await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 2", 5000));
+    teste(`${sub}: submenu com cadastrar e todos`, await ir(sub) && await esperarPredicado(`document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === ${sub === "produtos" ? 3 : 2}`, 5000));
     teste(`${form} abre`, await ir(form));
     teste(`${todos} lista a tabela`, await ir(todos) && await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000));
   }
@@ -280,7 +278,7 @@ async function executar() {
   teste("Admin cadastra uma conta", await esperarPredicado("document.body.dataset.usuarioCriado === 'RENATO' && document.getElementById('tabela-usuarios').textContent.includes('renato')", 6000));
   teste("Histórico de acessos registra as entradas", (await texto("#acessos-todos")).includes("FELIPE"));
   await capturar("contas-1366x820");
-  teste("Barra tem o ícone CONTAS", await js("!!document.querySelector('#nav-global .nav-contas')"));
+  teste("Barra tem um botão só para a conta", await js("document.querySelectorAll('#nav-global .nav-barra .conta-menu').length === 1"));
   await ir("perfis");
   await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 2");
   await js("document.querySelector('.perfil-cartao[data-perfil=\"RENATO\"]').click()");

@@ -83,6 +83,20 @@ public class CadastrosService {
         }
     }
 
+    /** Soma um valor em R$ a todos os precos ativos (de -R$ 1.000 a +R$ 10.000), numa unica transacao. */
+    public int reajustarValor(BigDecimal valor, boolean incluirPecas) {
+        if (valor == null || valor.signum() == 0 || valor.compareTo(new BigDecimal("-1000")) < 0
+                || valor.compareTo(new BigDecimal("10000")) > 0 || valor.scale() > 2 && valor.stripTrailingZeros().scale() > 2) {
+            throw new DadosInvalidosException(Map.of("valor", "Informe um valor em R$ diferente de zero (ex.: 5,00 ou -2,50)."));
+        }
+        long centavos = valor.movePointRight(2).longValueExact();
+        try {
+            return servicos.reajustarValor(centavos, incluirPecas);
+        } catch (SQLException erro) {
+            throw new IllegalStateException("falha ao reajustar os preços", erro);
+        }
+    }
+
     /** Reajusta todos os precos ativos em % (de -50% a +200%), numa unica transacao. */
     public int reajustar(BigDecimal percentual, boolean incluirPecas) {
         if (percentual == null || percentual.compareTo(new BigDecimal("-50")) < 0

@@ -155,8 +155,11 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
   const erroDoCampo = semPlaca ? erroCpf(cpf, true) : erroPlaca(placa, true);
   if (erroDoCampo) erros[semPlaca ? "cpf" : "placa"] = erroDoCampo;
 
-  const idVeiculo = Number(el<HTMLSelectElement>("modelo").value) || null;
-  if (!idVeiculo) erros.modelo = "Escolha o modelo do carro.";
+  const modeloOutro = el<HTMLSelectElement>("modelo").value === OUTRO;
+  const idVeiculo = modeloOutro ? null : Number(el<HTMLSelectElement>("modelo").value) || null;
+  const modeloTexto = el<HTMLInputElement>("modelo_outro").value.trim().toUpperCase();
+  if (modeloOutro && modeloTexto.length < 2) erros.modelo = "Escreva o modelo do carro.";
+  else if (!modeloOutro && !idVeiculo) erros.modelo = "Escolha o modelo do carro.";
   const tecnico = el<HTMLSelectElement>("tecnico").value;
   if (!tecnico) erros.tecnico = "Selecione o técnico.";
 
@@ -176,7 +179,7 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
       placa: semPlaca ? undefined : placa,
       semPlaca,
       cpf: semPlaca ? cpf : undefined,
-      modelo: "",
+      modelo: modeloOutro ? modeloTexto : "",
       idVeiculo,
       idServico: s ? s.id : null,
       servico: s ? s.nome : outro,
@@ -214,6 +217,7 @@ function limpar(): void {
   valorDigitado = false;
   sujo = false;
   abrirObservacao(false);
+  trocarModeloOutro(false);
   tecnicoDoPerfil();
   atualizarSemPlaca();
   atualizarServico();
@@ -276,7 +280,17 @@ async function salvar(): Promise<void> {
   }
 }
 
-/** Observacao recolhida atras da seta: o mouse por cima mostra; o clique deixa aberta. */
+/** Modelo OUTRO: o campo de texto toma o lugar da caixa de modelos (e o botao volta). */
+function trocarModeloOutro(outro: boolean): void {
+  el("bloco-modelo-outro").classList.toggle("hidden", !outro);
+  el("modelo").classList.toggle("hidden", outro);
+  if (!outro) {
+    el<HTMLInputElement>("modelo_outro").value = "";
+    if (el<HTMLSelectElement>("modelo").value === OUTRO) el<HTMLSelectElement>("modelo").value = "";
+  }
+}
+
+/** Observacao: a seta sobre a linha expande o cadastro para baixo com o campo. */
 function abrirObservacao(aberta: boolean): void {
   el("bloco-observacao").classList.toggle("aberta", aberta);
   el("btn-observacao").setAttribute("aria-expanded", String(aberta));
@@ -319,6 +333,7 @@ async function carregarListas(): Promise<void> {
       }
       grupo.appendChild(opcao(String(v.id), `${v.modelo} (${v.marca})`));
     }
+    selModelo.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
     const selServico = el<HTMLSelectElement>("servico");
     for (const s of servicos.filter((s) => s.ativo && !s.peca)) selServico.appendChild(opcao(String(s.id), s.nome));
     selServico.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
@@ -346,7 +361,6 @@ function iniciar(): void {
     return;
   }
   montarNavbar("cadastrar-garantia");
-  el("cadastrando-como").textContent = `Cadastrando como ${perfil.nome}`;
   mascaraData(el<HTMLInputElement>("data_servico"));
   mascaraCPF(el<HTMLInputElement>("cpf"));
   mascaraMoeda(el<HTMLInputElement>("valor"));
@@ -370,6 +384,15 @@ function iniciar(): void {
     const aberta = !el("bloco-observacao").classList.contains("aberta");
     abrirObservacao(aberta);
     if (aberta) el<HTMLInputElement>("observacao").focus();
+  });
+  el("modelo").addEventListener("change", () => {
+    if (el<HTMLSelectElement>("modelo").value !== OUTRO) return;
+    trocarModeloOutro(true);
+    el<HTMLInputElement>("modelo_outro").focus();
+  });
+  el("btn-voltar-modelos").addEventListener("click", () => {
+    trocarModeloOutro(false);
+    el<HTMLSelectElement>("modelo").focus();
   });
   validarAoDigitar();
   el("sem_placa").addEventListener("change", () => atualizarSemPlaca());

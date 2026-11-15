@@ -11,7 +11,7 @@ import {
 import { confirmar } from "../componentes";
 import { notificar } from "../notificacoes";
 import { montarNavbar } from "../navbar";
-import { formatarMoedaCampo, mascaraMoeda } from "../mascaras";
+import { formatarMoedaBR, formatarMoedaCampo, mascaraMoeda } from "../mascaras";
 
 
 function el<T extends HTMLElement>(id: string): T {
@@ -113,22 +113,26 @@ async function carregarPrecos(): Promise<void> {
 }
 
 async function reajustar(): Promise<void> {
-  const texto = el<HTMLInputElement>("reajuste").value.trim().replace(",", ".");
+  const tipo = el<HTMLSelectElement>("reajuste_tipo").value === "valor" ? "valor" : "percentual";
+  const emReais = tipo === "valor";
+  const texto = el<HTMLInputElement>("reajuste").value.trim().replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
   const percentual = Number(texto);
-  if (!texto || !Number.isFinite(percentual) || percentual === 0) {
-    notificar("Informe o reajuste em %, por exemplo 10 (ou -5 para baixar).", "erro");
+  if (!texto || !Number.isFinite(percentual) || percentual === 0 || (emReais && !/^-?\d+(\.\d{1,2})?$/.test(texto))) {
+    notificar(emReais ? "Informe o valor em R$, por exemplo 5,00 (ou -2,50 para baixar)." : "Informe o reajuste em %, por exemplo 10 (ou -5 para baixar).", "erro");
     return;
   }
   const pecas = el<HTMLInputElement>("reajuste_pecas").checked;
   const ok = await confirmar({
     titulo: "REAJUSTAR PREÇOS?",
-    mensagem: `Todos os preços ativos${pecas ? "" : " (menos as peças)"} vão ${percentual > 0 ? "subir" : "baixar"} ${Math.abs(percentual)}%. A mudança fica registrada na auditoria.`,
+    mensagem: `Todos os preços ativos${pecas ? "" : " (menos as peças)"} vão ${percentual > 0 ? "subir" : "baixar"} `
+      + `${emReais ? formatarMoedaBR(Math.round(Math.abs(percentual) * 100)) : `${Math.abs(percentual)}%`}`
+      + `${emReais && percentual < 0 ? " (nenhum fica abaixo de R$ 0,00)" : ""}. A mudança fica registrada na auditoria.`,
     textoConfirmar: "REAJUSTAR",
     tom: "atencao",
   });
   if (!ok) return;
   try {
-    const r = await reajustarPrecos(await window.finDesk!.config(), percentual.toString(), pecas);
+    const r = await reajustarPrecos(await window.finDesk!.config(), emReais ? percentual.toFixed(2) : percentual.toString(), pecas, tipo);
     el<HTMLInputElement>("reajuste").value = "";
     notificar(`${r.atualizados} preço(s) reajustado(s).`);
     await carregarPrecos();
