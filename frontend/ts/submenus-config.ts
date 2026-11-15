@@ -52,7 +52,7 @@ const SVG = {
 };
 
 export const SUBMENUS: Record<TelaSubmenu, ConfigSubmenu> = {
-  // botao 3 do Menu (CONTROLE): graficos e os cadastros num lugar so
+  // botao 3 do Menu (CONTROLE): GRAFICOS e o botao CONTROLE (tecnicos, veiculos e tabela)
   estatisticas: {
     titulo: "Controle",
     botoes: [
@@ -66,31 +66,13 @@ export const SUBMENUS: Record<TelaSubmenu, ConfigSubmenu> = {
         destino: "graficos",
       },
       {
-        chave: "tecnicos",
-        rotulo: "TÉCNICOS",
-        cor: "bg-[#FFE600]",
-        selo: "engineering",
+        chave: "controle",
+        rotulo: "CONTROLE",
+        cor: "bg-[#FF8C00]",
+        selo: "tune",
         seloTexto: "text-[#1c1b1b]",
-        icone: SVG.tecnico,
-        destino: "tecnicos",
-      },
-      {
-        chave: "veiculos",
-        rotulo: "VEÍCULOS",
-        cor: "bg-[#FF5E89]",
-        selo: "directions_car",
-        seloTexto: "text-[#1c1b1b]",
-        icone: SVG.carro,
-        destino: "veiculos",
-      },
-      {
-        chave: "produtos",
-        rotulo: "TABELA DE VALORES",
-        cor: "bg-[#00FF66]",
-        selo: "request_quote",
-        seloTexto: "text-[#1c1b1b]",
-        icone: SVG.etiqueta,
-        destino: "produtos",
+        icone: SVG.controle,
+        destino: "controle",
       },
     ],
   },

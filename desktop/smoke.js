@@ -239,7 +239,9 @@ async function executar() {
 
   // ---------- ESTATISTICA E ATUALIZACOES ----------
   await ir("estatisticas");
-  teste("CONTROLE tem GRÁFICOS, TÉCNICOS, VEÍCULOS e TABELA DE VALORES", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 4 && document.querySelector('.submenu-grade').textContent.includes('TABELA DE VALORES')", 5000));
+  teste("CONTROLE tem GRÁFICOS e o botão CONTROLE", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 2", 5000));
+  await ir("controle");
+  teste("Botão CONTROLE leva a TÉCNICOS, VEÍCULOS e TABELA DE VALORES", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 3 && document.querySelector('.submenu-grade').textContent.includes('TABELA DE VALORES')", 5000));
   for (const [sub, form, todos] of [["tecnicos", "form-tecnico", "todos-tecnicos"], ["veiculos", "form-veiculo", "todos-veiculos"], ["produtos", "form-produto", "todos-produtos"]]) {
     teste(`${sub}: submenu com cadastrar e todos`, await ir(sub) && await esperarPredicado(`document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === ${sub === "produtos" ? 3 : 2}`, 5000));
     teste(`${form} abre`, await ir(form));
