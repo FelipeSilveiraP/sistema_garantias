@@ -42,6 +42,17 @@ igual("CPF colado com pontuacao", m.reformatar(MASCARAS.cpf, "529.982.247-25", 1
 igual("cpfValido: CPF valido", m.cpfValido("529.982.247-25"), true);
 igual("cpfValido: digito errado", m.cpfValido("529.982.247-24"), false);
 igual("cpfValido: todos iguais", m.cpfValido("111.111.111-11"), false);
+igual("cpfValido: incompleto", m.cpfValido("529.982.247"), false);
+
+console.log("\n=== PLACA ===");
+igual("placaValida: antiga ABC1234", m.placaValida("ABC1234"), true);
+igual("placaValida: antiga com traco abc-1234", m.placaValida("abc-1234"), true);
+igual("placaValida: Mercosul ABC1D23", m.placaValida("ABC1D23"), true);
+igual("placaValida: numeros no lugar das letras", m.placaValida("1234ABC"), false);
+igual("placaValida: letra no fim", m.placaValida("ABC12D3"), false);
+igual("placaValida: curta", m.placaValida("ABC123"), false);
+igual("placaValida: longa", m.placaValida("ABC12345"), false);
+igual("limparPlaca: tira traco/espaco e poe maiuscula", m.limparPlaca(" abc-1d23 "), "ABC1D23");
 igual("formatarCPF para exibir dado da API", m.formatarCPF("52998224725"), "529.982.247-25");
 
 console.log("\n=== CNPJ (numerico e alfanumerico) ===");

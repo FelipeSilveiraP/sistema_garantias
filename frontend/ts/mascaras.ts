@@ -291,6 +291,16 @@ export function cpfValido(entrada: string): boolean {
   return dig2 === d[10];
 }
 
+/** Placa so com letras e numeros, em maiusculas (tira traco, espaco e ponto). */
+export function limparPlaca(entrada: string): string {
+  return entrada.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+/** Placa brasileira, sem consulta externa: antiga (ABC1234) ou Mercosul (ABC1D23). Mesma regra do servidor e do banco. */
+export function placaValida(entrada: string): boolean {
+  return /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(limparPlaca(entrada));
+}
+
 /** CNPJ numerico ou alfanumerico: modulo 11 com valor = codigo ASCII - 48. */
 export function cnpjValido(entrada: string): boolean {
   const cnpj = entrada.toUpperCase().replace(/[^0-9A-Z]/g, "");

@@ -99,7 +99,7 @@ class BackupServiceTest {
     void backupGeraPlanilhaExcelComAsGarantiasNaPastaDoDrive() throws Exception {
         try (Connection conn = conexao.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("INSERT INTO garantias (data_servico, placa, modelo, servico, valor_centavos, tecnico)"
-                    + " VALUES ('2026-11-20', 'ABC1D23', 'ONIX', 'TROCA <CARCAÇA> & PILHA', 13000, 'FELIPE')");
+                    + " VALUES ('2026-11-10', 'ABC1D23', 'ONIX', 'TROCA <CARCAÇA> & PILHA', 13000, 'FELIPE')");
         }
         Path drive = pastaTemporaria.resolve("Meu Drive");
         BackupDriveService backup = new BackupDriveService(conexao, drive.toString(), "banco-de-teste.db");
@@ -118,7 +118,7 @@ class BackupServiceTest {
         }
         assertThat(partes.get("xl/workbook.xml")).contains("Garantias", "Serviços e preços", "Técnicos", "Modelos");
         assertThat(partes.get("xl/worksheets/sheet1.xml"))
-                .contains("TROCA &lt;CARCAÇA&gt; &amp; PILHA", "20/11/2026", "ABC1D23", "<v>130.00</v>");
+                .contains("TROCA &lt;CARCAÇA&gt; &amp; PILHA", "10/11/2026", "ABC1D23", "<v>130.00</v>");
     }
 
     @Test

@@ -139,9 +139,39 @@ async function executar() {
   teste("Serviço com pilha mostra carcaça e pilha (e esconde botão)",
     await js("!document.getElementById('q-carcaca').classList.contains('hidden') && !document.getElementById('q-pilha').classList.contains('hidden') && document.getElementById('q-botao').classList.contains('hidden')"));
   teste("Valor sugerido pela tabela (pilha R$ 12,00)", (await js("document.getElementById('valor').value")) === "12,00", await js("document.getElementById('valor').value"));
+  // OUTRO: o campo de texto entra no lugar da caixa; o botao volta para a lista
+  await js(`(() => { const s = document.getElementById('servico'); s.value = 'OUTRO'; s.dispatchEvent(new Event('change')); })()`);
+  teste("Serviço OUTRO troca a caixa pelo campo de texto",
+    await js("document.getElementById('servico').classList.contains('hidden') && !document.getElementById('bloco-outro').classList.contains('hidden') && document.activeElement.id === 'servico_outro'"));
+  await capturar("cadastrar-garantia-outro-1366x820");
+  await js("document.getElementById('btn-voltar-lista').click()");
+  teste("Botão da lista volta para a caixa de serviços",
+    await js("!document.getElementById('servico').classList.contains('hidden') && document.getElementById('bloco-outro').classList.contains('hidden') && document.getElementById('servico').value === ''"));
+  await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change')); })()`);
+  // observacao escondida atras da seta; o clique deixa aberta
+  teste("Observação começa escondida atrás da seta", await js("document.getElementById('observacao').offsetParent === null && !!document.getElementById('btn-observacao')"));
+  await js("document.getElementById('btn-observacao').click()");
+  teste("Clique na seta abre a observação", await js("document.getElementById('observacao').offsetParent !== null && document.getElementById('btn-observacao').getAttribute('aria-expanded') === 'true'"));
+  // placa e CPF conferidos enquanto digita (regra propria, sem consulta externa)
+  await js("(() => { const p = document.getElementById('placa'); p.value = '1AB'; p.dispatchEvent(new Event('input')); })()");
+  teste("Placa começando com número avisa na hora", await js("!document.querySelector('[data-erro-campo=placa]').classList.contains('hidden') && document.getElementById('placa').classList.contains('entrada-form--erro')"));
+  await js("(() => { const p = document.getElementById('placa'); p.value = 'ABC1D23'; p.dispatchEvent(new Event('input')); })()");
+  teste("Placa Mercosul certa limpa o aviso", await js("document.querySelector('[data-erro-campo=placa]').classList.contains('hidden')"));
+  await js("(() => { const p = document.getElementById('placa'); p.value = ''; p.dispatchEvent(new Event('input')); })()");
+  await js("document.getElementById('sem_placa').click()");
+  await js("(() => { const c = document.getElementById('cpf'); c.value = '529.982.247-24'; c.dispatchEvent(new Event('input')); })()");
+  teste("CPF com dígito errado avisa na hora", (await texto("[data-erro-campo=cpf]")).includes("CPF inválido"));
+  await js("(() => { const c = document.getElementById('cpf'); c.value = '529.982.247-25'; c.dispatchEvent(new Event('input')); })()");
+  teste("CPF certo limpa o aviso", await js("document.querySelector('[data-erro-campo=cpf]').classList.contains('hidden')"));
+  await js("document.getElementById('sem_placa').click()");
+
   await js("document.getElementById('btn-salvar').click()");
-  teste("Sem placa, modelo e técnico: erros aparecem e nada é salvo",
-    await esperarPredicado("!document.querySelector('[data-erro-campo=placa]').classList.contains('hidden') && !document.body.dataset.garantiaSalva", 3000));
+  teste("Sem placa e modelo: pop-up CONFIRA OS DADOS com a lista",
+    await esperarPredicado("document.querySelector('[data-dialogo=atencao] [data-dialogo-titulo]')?.textContent === 'CONFIRA OS DADOS' && document.querySelectorAll('[data-dialogo-lista] li').length >= 2 && !document.body.dataset.garantiaSalva", 3000));
+  await capturar("cadastrar-garantia-confira-1366x820");
+  await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
+  teste("Ao fechar o pop-up, os erros ficam nos campos",
+    await esperarPredicado("!document.querySelector('[data-dialogo]') && !document.querySelector('[data-erro-campo=placa]').classList.contains('hidden')", 3000));
   teste("Técnico já vem com o perfil", (await js("document.getElementById('tecnico').value")) === "FELIPE");
   teste("CPF travado até marcar carro sem placa", await js("document.getElementById('cpf').disabled"));
   await js("document.getElementById('sem_placa').click()");
@@ -153,7 +183,11 @@ async function executar() {
   await capturar("cadastrar-garantia-1366x820");
   await js("document.getElementById('btn-salvar').click()");
   teste("SALVAR GARANTIA grava", await esperarPredicado("!!document.body.dataset.garantiaSalva", 6000));
-  teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === ''", 3000));
+  teste("Pop-up GARANTIA SALVA (verde) aparece",
+    await esperarPredicado("document.querySelector('[data-dialogo=sucesso] [data-dialogo-titulo]')?.textContent === 'GARANTIA SALVA'", 3000));
+  await capturar("cadastrar-garantia-salva-1366x820");
+  await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
+  teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
   await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change'));
     document.getElementById('placa').value = 'SMK1A23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })(); document.getElementById('tecnico').value = 'FELIPE';

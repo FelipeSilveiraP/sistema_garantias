@@ -11,7 +11,8 @@
 // foco devolvido ao fechar, fila serial (um dialogo por vez).
 // Testes: data-dialogo (tom), data-dialogo-titulo, data-dialogo-mensagem, data-dialogo-acao.
 
-export type TomConfirmacao = "normal" | "atencao" | "perigo";
+/** sucesso/erro: usados pelos avisos de um botao so (avisar). */
+export type TomConfirmacao = "normal" | "atencao" | "perigo" | "sucesso" | "erro";
 
 export interface OpcoesConfirmacao {
   titulo: string;
@@ -24,6 +25,10 @@ export interface OpcoesConfirmacao {
   /** terceiro botao (ex.: "SALVAR NO COMPUTADOR"), entre cancelar e confirmar */
   textoAlternativa?: string;
   icone?: string;
+  /** lista de itens (ex.: o que esta errado no formulario) */
+  itens?: string[];
+  /** aviso: so o botao de confirmar (OK) */
+  semCancelar?: boolean;
 }
 
 export type RespostaDialogo = "confirmar" | "alternativa" | "cancelar";
@@ -33,7 +38,9 @@ interface Pedido {
   resolver: (resposta: RespostaDialogo) => void;
 }
 
-const ICONES: Record<TomConfirmacao, string> = { normal: "help", atencao: "warning", perigo: "delete_forever" };
+const ICONES: Record<TomConfirmacao, string> = {
+  normal: "help", atencao: "warning", perigo: "delete_forever", sucesso: "check_circle", erro: "error",
+};
 
 const fila: Pedido[] = [];
 let processando = false;
@@ -115,13 +122,25 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
       detalhes.textContent = opcoes.detalhes;
       corpo.appendChild(detalhes);
     }
+    if (opcoes.itens?.length) {
+      const lista = document.createElement("ul");
+      lista.className = "dialogo__lista";
+      lista.dataset.dialogoLista = "";
+      for (const item of opcoes.itens) {
+        const li = document.createElement("li");
+        li.textContent = item;
+        lista.appendChild(li);
+      }
+      corpo.appendChild(lista);
+    }
 
     const acoes = document.createElement("div");
     acoes.className = "dialogo__acoes";
     const cancelar = botao("cancelar", opcoes.textoCancelar ?? "CANCELAR");
     const confirmar = botao("confirmar", opcoes.textoConfirmar);
     const alternativa = opcoes.textoAlternativa ? botao("alternativa", opcoes.textoAlternativa) : null;
-    if (alternativa) acoes.append(cancelar, alternativa, confirmar);
+    if (opcoes.semCancelar) acoes.append(confirmar);
+    else if (alternativa) acoes.append(cancelar, alternativa, confirmar);
     else acoes.append(cancelar, confirmar);
 
     caixa.append(cabecalho, corpo, acoes);
@@ -149,6 +168,11 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
         fechar("cancelar");
         return;
       }
+      if (evento.key === "Tab" && opcoes.semCancelar) {
+        evento.preventDefault();
+        confirmar.focus();
+        return;
+      }
       if (evento.key === "Tab") {
         const atual = document.activeElement;
         if (evento.shiftKey && atual === cancelar) {
@@ -168,7 +192,8 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
       if (evento.target === veu) evento.preventDefault();
     });
     document.addEventListener("keydown", aoTeclar, true);
-    cancelar.focus();
+    // aviso: foco no OK (Enter fecha); decisao: foco na acao segura
+    (opcoes.semCancelar ? confirmar : cancelar).focus();
   });
 }
 
@@ -225,4 +250,27 @@ export function confirmarDuplicidade(detalhes: string): Promise<boolean> {
     textoConfirmar: "CADASTRAR MESMO ASSIM",
     tom: "atencao",
   });
+}
+
+/**
+ * Aviso neobrutalista de um botao so (OK): resultado importante que a pessoa
+ * precisa ver ("Garantia salva"), lista do que conferir no formulario ou falha.
+ */
+export function avisar(opcoes: {
+  titulo: string;
+  mensagem: string;
+  tom: "sucesso" | "erro" | "atencao";
+  itens?: string[];
+  detalhes?: string;
+  textoOk?: string;
+}): Promise<void> {
+  return escolher({
+    titulo: opcoes.titulo,
+    mensagem: opcoes.mensagem,
+    detalhes: opcoes.detalhes,
+    itens: opcoes.itens,
+    tom: opcoes.tom,
+    textoConfirmar: opcoes.textoOk ?? "OK",
+    semCancelar: true,
+  }).then(() => undefined);
 }

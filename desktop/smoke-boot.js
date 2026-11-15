@@ -136,32 +136,41 @@ async function ciclo() {
   if (viuCarregando) {
     tempos.carregando_exibida = Date.now() - t0;
     teste("Tela de carregamento exibida no inicio", true, `+${tempos.carregando_exibida}ms`);
+    // chave 3D em pe girando no proprio eixo (rotateY) + prefers-reduced-motion
+    const chave = JSON.parse(await js(`(() => {
+      const wrap = document.querySelector('.chave-3d');
+      const giro = document.querySelector('.chave-3d__giro');
+      const cs = giro ? getComputedStyle(giro) : null;
+      const camadas = document.querySelectorAll('.chave-3d__camada');
+      const msg = document.getElementById('iniciando');
+      const r = giro ? giro.getBoundingClientRect() : null;
+      return JSON.stringify({
+        existe: Boolean(wrap && giro),
+        animacao: cs ? cs.animationName : null,
+        duracao: cs ? cs.animationDuration : null,
+        preserva3d: cs ? cs.transformStyle : null,
+        perspectiva: wrap ? getComputedStyle(wrap).perspective : null,
+        camadas: camadas.length,
+        emPe: r ? r.height > r.width * 1.5 : false,
+        mensagem: msg ? msg.textContent : null,
+      });
+    })()`));
+    // a consulta vem ANTES da captura (capturePage demora): a tela pode trocar no meio
+    const passou = !chave.existe && !(await js("document.body.dataset.tela === 'carregando'"));
+    if (passou) {
+      console.log("[PULADO] chave 3D: o sistema abriu antes da checagem (tela de carregamento ja passou)");
+    } else {
+      teste("Chave 3D presente na tela de carregamento", chave.existe === true && chave.camadas >= 5, JSON.stringify(chave));
+      teste("Chave gira no proprio eixo vertical (CSS, sem timers)", chave.animacao === "chave-girar" && parseFloat(chave.duracao) > 0, JSON.stringify(chave));
+      teste("Chave em 3D (perspectiva + preserve-3d) e em pe", chave.preserva3d === "preserve-3d" && chave.perspectiva !== "none" && chave.emPe === true, JSON.stringify(chave));
+      teste("Mensagem INICIANDO O SISTEMA preservada", String(chave.mensagem).toUpperCase().includes("INICIANDO O SISTEMA"), String(chave.mensagem));
+    }
     // captura da tela de carregamento
     const imagem = await janela.webContents.capturePage();
     const destino = path.join(__dirname, "..", "docs", "responsivo", `carregando-${cicloAtual}.png`);
     fs.writeFileSync(destino, imagem.toPNG());
     teste("Captura da tela de carregamento gerada", fs.existsSync(destino), destino);
 
-    // chave neobrutalista 2D entrando no cadeado + prefers-reduced-motion
-    const chave = JSON.parse(await js(`(() => {
-      const wrap = document.querySelector('.chave-carregando');
-      const svg = document.querySelector('.chave-carregando__svg');
-      const chaveEl = document.querySelector('.chave-carregando__chave');
-      const cs = svg ? getComputedStyle(svg) : null;
-      const msg = document.getElementById('iniciando');
-      return JSON.stringify({
-        existe: Boolean(wrap && svg),
-        animacao: cs ? cs.animationName : null,
-        duracao: cs ? cs.animationDuration : null,
-        entrar: chaveEl ? getComputedStyle(chaveEl).animationName : null,
-        sem3d: wrap ? getComputedStyle(wrap).perspective === 'none' : false,
-        mensagem: msg ? msg.textContent : null,
-      });
-    })()`));
-    teste("Chave neobrutalista presente na tela de carregamento", chave.existe === true, JSON.stringify(chave));
-    teste("Chave anima entrando no cadeado (CSS, sem timers)", chave.animacao === "chave-ciclo" && chave.entrar === "chave-entrar" && parseFloat(chave.duracao) > 0, JSON.stringify(chave));
-    teste("Chave chapada 2D (sem perspectiva 3D)", chave.sem3d === true, JSON.stringify(chave));
-    teste("Mensagem INICIANDO O SISTEMA preservada", String(chave.mensagem).toUpperCase().includes("INICIANDO O SISTEMA"), String(chave.mensagem));
     let animacaoReduzida = null;
     try {
       janela.webContents.debugger.attach("1.3");
@@ -169,7 +178,7 @@ async function ciclo() {
         features: [{ name: "prefers-reduced-motion", value: "reduce" }],
       });
       await esperar(300);
-      animacaoReduzida = await js(`(() => { const svg = document.querySelector('.chave-carregando__svg'); return svg ? getComputedStyle(svg).animationName : null; })()`);
+      animacaoReduzida = await js(`(() => { const giro = document.querySelector('.chave-3d__giro'); return giro ? getComputedStyle(giro).animationName : null; })()`);
       await janela.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [] });
       janela.webContents.debugger.detach();
     } catch (erro) {
@@ -182,7 +191,7 @@ async function ciclo() {
             const midia = r.conditionText || (r.media && r.media.mediaText) || '';
             if (r.type !== 4 || !String(midia).includes('prefers-reduced-motion')) continue;
             for (const rr of r.cssRules) {
-              if (rr.selectorText && rr.selectorText.includes('chave-carregando') && /animation:\s*none/.test(rr.style.cssText)) return 'none';
+              if (rr.selectorText && rr.selectorText.includes('chave-3d') && /animation:\s*none/.test(rr.style.cssText)) return 'none';
             }
           }
         }
@@ -266,6 +275,8 @@ async function ciclo() {
   await digitarReal("BOT1A23");
   const placaDigitada = await js(`document.getElementById("placa").value`);
   teste("Digitacao real entra na placa", placaDigitada === "BOT1A23", placaDigitada);
+  teste("Seta da observacao abre o campo (clique real)",
+    await clicarReal("#btn-observacao") && await esperarPredicado(`document.getElementById("observacao").offsetParent !== null`));
   teste("Clique real + digitacao na observacao",
     await clicarReal("#observacao") && await esperarPredicado(`document.activeElement && document.activeElement.id === 'observacao'`));
   await digitarReal("canivete");

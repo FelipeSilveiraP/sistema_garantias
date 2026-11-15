@@ -51,70 +51,78 @@
   }
 }
 
-/* ===== Tela de carregamento — chave neobrutalista entrando no cadeado =====
-   2D chapado: chave laranja com contorno preto grosso e sombra dura, desenhada
-   NA FRENTE do cadeado. Ela vem de frente ate o buraco da fechadura e a lamina
-   e cortada (clip-path) na borda do buraco: parece entrar pela fechadura, nao
-   passar por tras do cadeado. Depois o cadeado "estala" e abre (haste sobe +
-   riscos de impacto) e tudo volta. Movimento em degraus curtos. */
+/* Tela de carregamento: chave 3D EM PE girando no proprio eixo (vertical).
+   Neobrutalista: chave amarela (cor do emblema) com contorno preto grosso; a
+   espessura sao 9 camadas da mesma forma empilhadas em profundidade (translateZ):
+   frente e verso amarelos, miolo preto — de lado ela vira uma faixa preta grossa,
+   como a sombra dura do estilo. Sombra chapada no chao que estreita no giro.
+   So CSS (sem timers); prefers-reduced-motion deixa a chave parada, inclinada. */
 
-.chave-carregando {
-  width: 13rem;
-  max-width: 70vw;
+.chave-3d {
+  width: 7rem;
+  max-width: 40vw;
+  perspective: 700px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.chave-carregando__svg {
-  display: block;
+.chave-3d__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.chave-3d__giro {
+  position: relative;
   width: 100%;
-  height: auto;
+  aspect-ratio: 64 / 150;
+  transform-style: preserve-3d;
+  animation: chave-girar 2.4s linear infinite;
+}
+
+.chave-3d__camada {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
-  animation: chave-ciclo 2.6s steps(1, end) infinite;
+  fill: #1c1b1b;
+  stroke: #1c1b1b;
+  stroke-width: 4;
+  stroke-linejoin: miter;
+}
+.chave-3d__camada:nth-child(1) { transform: translateZ(-8px); fill: #FFE600; }
+.chave-3d__camada:nth-child(2) { transform: translateZ(-6px); }
+.chave-3d__camada:nth-child(3) { transform: translateZ(-4px); }
+.chave-3d__camada:nth-child(4) { transform: translateZ(-2px); }
+.chave-3d__camada:nth-child(5) { transform: translateZ(0); }
+.chave-3d__camada:nth-child(6) { transform: translateZ(2px); }
+.chave-3d__camada:nth-child(7) { transform: translateZ(4px); }
+.chave-3d__camada:nth-child(8) { transform: translateZ(6px); }
+.chave-3d__camada:nth-child(9) { transform: translateZ(8px); fill: #FFE600; }
+
+.chave-3d__sombra {
+  width: 70%;
+  height: 0.6rem;
+  background: #1c1b1b;
+  animation: chave-sombra 1.2s ease-in-out infinite alternate;
 }
 
-.chave-carregando__chave {
-  animation: chave-entrar 2.6s cubic-bezier(0.7, 0, 0.3, 1) infinite;
+@keyframes chave-girar {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
 }
 
-.chave-carregando__haste {
-  animation: cadeado-abrir 2.6s cubic-bezier(0.2, 1.6, 0.4, 1) infinite;
-}
-
-.chave-carregando__estalo {
-  opacity: 0;
-  animation: cadeado-estalo 2.6s steps(1, end) infinite;
-}
-
-/* marcador para os testes: a animacao principal existe e roda sem timers */
-@keyframes chave-ciclo {
-  from { opacity: 1; }
-  to { opacity: 1; }
-}
-
-@keyframes chave-entrar {
-  0%, 8% { transform: translateX(-44px); }
-  32%, 78% { transform: translateX(0); }
-  92%, 100% { transform: translateX(-44px); }
-}
-
-@keyframes cadeado-abrir {
-  0%, 36% { transform: translateY(0); }
-  44%, 76% { transform: translateY(-14px); }
-  84%, 100% { transform: translateY(0); }
-}
-
-@keyframes cadeado-estalo {
-  0%, 40% { opacity: 0; }
-  42%, 62% { opacity: 1; }
-  64%, 100% { opacity: 0; }
+/* a cada meia volta a chave fica de lado: a sombra estreita junto */
+@keyframes chave-sombra {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0.35); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chave-carregando__svg,
-  .chave-carregando__chave,
-  .chave-carregando__haste,
-  .chave-carregando__estalo {
+  .chave-3d__giro {
     animation: none;
+    transform: rotateY(-28deg);
   }
+  .chave-3d__sombra { animation: none; }
 }
 
 /* ===== Menu Principal — layout responsivo (Grid/Flexbox + media queries) ===== */
@@ -735,6 +743,22 @@
 
 [data-dialogo="atencao"] .dialogo-botao--acao { background: #ffe600; color: #1c1b1b; }
 [data-dialogo="perigo"] .dialogo-botao--acao { background: #dc2626; color: #ffffff; }
+/* avisos de um botao so (avisar): sucesso verde, erro vermelho */
+[data-dialogo="sucesso"] .dialogo__cabecalho { background: #16a34a; color: #ffffff; }
+[data-dialogo="erro"] .dialogo__cabecalho { background: #ba1a1a; color: #ffffff; }
+[data-dialogo="sucesso"] .dialogo-botao--acao { background: #16a34a; color: #ffffff; }
+[data-dialogo="erro"] .dialogo-botao--acao { background: #ba1a1a; color: #ffffff; }
+.dialogo__lista {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.9rem 0.6rem 1.9rem;
+  border: 2px solid #1c1b1b;
+  background: #fff8d6;
+  list-style: square;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1c1b1b;
+}
+.dialogo__lista li + li { margin-top: 0.3rem; }
 
 /* ===== Notificacoes (toasts) — canto inferior direito, abaixo do veu do dialogo ===== */
 
@@ -1338,3 +1362,59 @@ select.entrada-form { cursor: pointer; }
 .lista-acessos li { display: flex; gap: 0.75rem; padding: 0.25rem 0.5rem; border-bottom: 1px solid #e5e5e5; }
 .lista-acessos li.alerta { color: #ba1a1a; }
 .nav-contas svg { width: 1.375rem; height: 1.375rem; fill: none; stroke: currentColor; stroke-width: 2.2; }
+
+/* ===== Cadastrar Garantia: servico OUTRO no lugar da caixa e observacao recolhivel ===== */
+.servico-outro { display: flex; align-items: stretch; gap: 0.5rem; }
+.servico-outro.hidden { display: none; }
+.servico-outro .entrada-form { flex: 1 1 auto; min-width: 0; }
+.servico-outro__voltar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  background: #FFE600;
+  color: #1c1b1b;
+  border: 2px solid #1c1b1b;
+  box-shadow: 2px 2px 0 0 #1c1b1b;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.servico-outro__voltar:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 #1c1b1b; }
+.servico-outro__voltar:active { transform: translate(2px, 2px); box-shadow: 0 0 0 0 #1c1b1b; }
+.servico-outro__voltar:focus-visible { outline: 3px solid #1c1b1b; outline-offset: 2px; }
+
+.observacao-recolhivel__abrir {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: #ffffff;
+  color: #1c1b1b;
+  border: 2px solid #1c1b1b;
+  box-shadow: 2px 2px 0 0 #1c1b1b;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.05em;
+  text-align: left;
+  cursor: pointer;
+}
+.observacao-recolhivel__abrir .dica-form { margin-left: 0.25rem; }
+.observacao-recolhivel__seta { margin-left: auto; font-size: 1.5rem; transition: transform 0.15s; }
+.observacao-recolhivel__abrir:focus-visible { outline: 3px solid #1c1b1b; outline-offset: 2px; }
+.observacao-recolhivel__corpo { display: none; }
+.observacao-recolhivel:hover .observacao-recolhivel__corpo,
+.observacao-recolhivel:focus-within .observacao-recolhivel__corpo,
+.observacao-recolhivel.aberta .observacao-recolhivel__corpo { display: block; }
+.observacao-recolhivel:hover .observacao-recolhivel__abrir,
+.observacao-recolhivel:focus-within .observacao-recolhivel__abrir,
+.observacao-recolhivel.aberta .observacao-recolhivel__abrir { background: #FFE600; }
+.observacao-recolhivel:hover .observacao-recolhivel__seta,
+.observacao-recolhivel:focus-within .observacao-recolhivel__seta,
+.observacao-recolhivel.aberta .observacao-recolhivel__seta { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .observacao-recolhivel__seta, .servico-outro__voltar { transition: none; }
+}
+/* campo com erro (placa/CPF conferidos enquanto digita) */
+.entrada-form--erro { border-color: #ba1a1a; box-shadow: 3px 3px 0 0 #ba1a1a; }

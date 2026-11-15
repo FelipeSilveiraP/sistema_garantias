@@ -14,11 +14,14 @@ import {
   GarantiaEntrada,
   ServicoDados,
 } from "../api";
-import { confirmarDuplicidade, confirmarSaida, dialogoEstaAberto, menuLateralAberto } from "../componentes";
+import { avisar, confirmarDuplicidade, confirmarSaida, dialogoEstaAberto, menuLateralAberto } from "../componentes";
 import { notificar } from "../notificacoes";
 import { montarNavbar } from "../navbar";
 import { voltar } from "../navegacao";
-import { formatarDataBR, formatarMoedaBR, formatarMoedaCampo, mascaraCPF, mascaraData, mascaraMoeda, parseDataBR } from "../mascaras";
+import {
+  cpfValido, formatarDataBR, formatarMoedaBR, formatarMoedaCampo, limparPlaca, mascaraCPF, mascaraData, mascaraMoeda,
+  parseDataBR, placaValida,
+} from "../mascaras";
 import { hojeIso } from "../filtros";
 import { perfilAtual } from "../perfil";
 
@@ -60,7 +63,10 @@ function precoSugerido(s: ServicoDados): number {
 function atualizarServico(): void {
   const valor = el<HTMLSelectElement>("servico").value;
   const s = servicoEscolhido();
-  el("bloco-outro").classList.toggle("hidden", valor !== OUTRO);
+  // OUTRO: o campo de texto toma o lugar da caixa de selecao
+  const outro = valor === OUTRO;
+  el("bloco-outro").classList.toggle("hidden", !outro);
+  el("servico").classList.toggle("hidden", outro);
   el("bloco-quantidades").classList.toggle("hidden", !s);
   el("q-carcaca").classList.toggle("hidden", !s?.pedeCarcaca);
   el("q-botao").classList.toggle("hidden", !s?.pedeBotao);
@@ -96,6 +102,46 @@ function atualizarSemPlaca(focar = true): void {
   if (focar) (sem ? cpf : placa).focus();
 }
 
+/** Regra propria (sem consulta externa), igual a do servidor e do banco. `completo` = cobrar tambem o tamanho. */
+function erroPlaca(placa: string, completo: boolean): string | null {
+  if (!placa) return completo ? "Informe a placa (ou marque CARRO SEM PLACA)." : null;
+  if (placa.length > 7) return "A placa tem só 7 letras e números.";
+  if (!/^[A-Z]*$/.test(placa.slice(0, 3))) return "A placa começa com 3 letras (ex.: ABC1234 ou ABC1D23).";
+  if (placa.length > 3 && !/[0-9]/.test(placa[3])) return "O 4º caractere da placa é um número (ex.: ABC1234).";
+  if (placa.length > 5 && !/^[0-9]+$/.test(placa.slice(5))) return "A placa termina com 2 números (ex.: ABC1D23).";
+  if (placa.length < 7) return completo ? "Placa incompleta: são 7 letras e números (ex.: ABC1D23)." : null;
+  return placaValida(placa) ? null : "Placa inválida: use ABC1234 (antiga) ou ABC1D23 (Mercosul).";
+}
+
+function erroCpf(cpf: string, completo: boolean): string | null {
+  if (cpf.length < 11) return completo ? "Sem placa: informe o CPF do cliente (11 números)." : null;
+  return cpfValido(cpf) ? null : "CPF inválido: confira os números (os 2 últimos não batem).";
+}
+
+function marcarErro(campo: string, mensagem: string | null): void {
+  const p = document.querySelector<HTMLElement>(`.campo-erro[data-erro-campo="${campo}"]`);
+  if (p) {
+    p.textContent = mensagem ?? "";
+    p.classList.toggle("hidden", !mensagem);
+  }
+  el(campo).classList.toggle("entrada-form--erro", Boolean(mensagem));
+}
+
+/** Avisa enquanto digita: placa e CPF conferidos a cada tecla; ao sair do campo, cobra o que falta. */
+function validarAoDigitar(): void {
+  const placa = el<HTMLInputElement>("placa");
+  const cpf = el<HTMLInputElement>("cpf");
+  const digitosCpf = (): string => cpf.value.replace(/\D/g, "");
+  placa.addEventListener("input", () => marcarErro("placa", erroPlaca(limparPlaca(placa.value), false)));
+  placa.addEventListener("blur", () => {
+    if (!placa.disabled && placa.value.trim()) marcarErro("placa", erroPlaca(limparPlaca(placa.value), true));
+  });
+  cpf.addEventListener("input", () => marcarErro("cpf", erroCpf(digitosCpf(), false)));
+  cpf.addEventListener("blur", () => {
+    if (!cpf.disabled && cpf.value.trim()) marcarErro("cpf", erroCpf(digitosCpf(), true));
+  });
+}
+
 function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
   const erros: Record<string, string> = {};
   const dataTexto = el<HTMLInputElement>("data_servico").value;
@@ -104,10 +150,10 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
   else if (data > hojeIso()) erros.dataServico = "A data do serviço não pode ser no futuro.";
 
   const semPlaca = el<HTMLInputElement>("sem_placa").checked;
-  const placa = el<HTMLInputElement>("placa").value.replace(/[-\s]/g, "").toUpperCase();
+  const placa = limparPlaca(el<HTMLInputElement>("placa").value);
   const cpf = el<HTMLInputElement>("cpf").value.replace(/\D/g, "");
-  if (!semPlaca && !/^[A-Z0-9]{7}$/.test(placa)) erros.placa = "Placa inválida: use 7 letras e números (ex.: ABC1D23).";
-  if (semPlaca && cpf.length !== 11) erros.cpf = "Sem placa: informe o CPF do cliente (11 números).";
+  const erroDoCampo = semPlaca ? erroCpf(cpf, true) : erroPlaca(placa, true);
+  if (erroDoCampo) erros[semPlaca ? "cpf" : "placa"] = erroDoCampo;
 
   const idVeiculo = Number(el<HTMLSelectElement>("modelo").value) || null;
   if (!idVeiculo) erros.modelo = "Escolha o modelo do carro.";
@@ -155,6 +201,8 @@ function mostrarErros(erros: Record<string, string>): void {
     p.textContent = msg ?? "";
     p.classList.toggle("hidden", !msg);
   });
+  for (const campo of ["placa", "cpf"]) el(campo).classList.toggle("entrada-form--erro", Boolean(mapa[campo]));
+  if (mapa.observacao) abrirObservacao(true);
   const primeiro = document.querySelector<HTMLElement>(".campo-erro:not(.hidden)");
   primeiro?.closest(".campo-form")?.querySelector<HTMLElement>("input:not([type=checkbox]),select")?.focus();
 }
@@ -165,6 +213,7 @@ function limpar(): void {
   el<HTMLInputElement>("valor").value = "";
   valorDigitado = false;
   sujo = false;
+  abrirObservacao(false);
   tecnicoDoPerfil();
   atualizarSemPlaca();
   atualizarServico();
@@ -172,10 +221,19 @@ function limpar(): void {
   el<HTMLInputElement>("placa").focus();
 }
 
+/** Pop-up "CONFIRA OS DADOS" com a lista do que esta errado; ao fechar, marca os campos e foca o primeiro. */
+async function avisarConfira(mensagem: string, erros: Record<string, string>): Promise<void> {
+  await avisar({ titulo: "CONFIRA OS DADOS", mensagem, itens: Object.values(erros), tom: "atencao", textoOk: "CORRIGIR" });
+  mostrarErros(erros);
+}
+
 async function salvar(): Promise<void> {
   const { dados, erros } = lerDados();
-  mostrarErros(erros);
-  if (Object.keys(erros).length) return;
+  mostrarErros({});
+  if (Object.keys(erros).length) {
+    await avisarConfira("A garantia ainda não foi salva. Corrija o que está abaixo:", erros);
+    return;
+  }
   const botao = el<HTMLButtonElement>("btn-salvar");
   botao.disabled = true;
   try {
@@ -193,18 +251,35 @@ async function salvar(): Promise<void> {
       salva = await cadastrarGarantia(cfg, { ...dados, forcar: true });
     }
     document.body.dataset.garantiaSalva = String(salva.id);
-    notificar(`Garantia de ${salva.placa ?? "cliente sem placa"} (${salva.modelo}) salva.`, "sucesso");
     limpar();
+    await avisar({
+      titulo: "GARANTIA SALVA",
+      mensagem: `A garantia de ${salva.placa ?? "cliente sem placa"} foi salva.`,
+      detalhes: `${formatarDataBR(salva.dataServico)} · ${salva.modelo} · ${salva.servico} · `
+        + `${formatarMoedaBR(Math.round(salva.valor * 100))} · ${salva.tecnico}`,
+      tom: "sucesso",
+    });
+    el<HTMLInputElement>("placa").focus();
   } catch (erro) {
     if (erro instanceof ErroValidacaoApi) {
-      mostrarErros(erro.campos);
+      await avisarConfira("O sistema recusou a garantia. Corrija o que está abaixo:", erro.campos);
     } else {
-      notificar("Não foi possível salvar a garantia. Verifique se o sistema está aberto e tente de novo.", "erro");
+      await avisar({
+        titulo: "NÃO FOI POSSÍVEL SALVAR",
+        mensagem: "A garantia não foi salva. Verifique se o sistema está aberto e tente de novo. O que você digitou continua na tela.",
+        tom: "erro",
+      });
       console.error("[Garantias] falha ao salvar garantia:", erro);
     }
   } finally {
     botao.disabled = false;
   }
+}
+
+/** Observacao recolhida atras da seta: o mouse por cima mostra; o clique deixa aberta. */
+function abrirObservacao(aberta: boolean): void {
+  el("bloco-observacao").classList.toggle("aberta", aberta);
+  el("btn-observacao").setAttribute("aria-expanded", String(aberta));
 }
 
 function opcao(valor: string, rotulo: string): HTMLOptionElement {
@@ -280,7 +355,23 @@ function iniciar(): void {
     for (let i = 1; i <= 5; i++) sel.appendChild(opcao(String(i), String(i)));
     sel.addEventListener("change", sugerirValor);
   });
-  el("servico").addEventListener("change", atualizarServico);
+  el("servico").addEventListener("change", () => {
+    atualizarServico();
+    if (el<HTMLSelectElement>("servico").value === OUTRO) el<HTMLInputElement>("servico_outro").focus();
+  });
+  el("btn-voltar-lista").addEventListener("click", () => {
+    const sel = el<HTMLSelectElement>("servico");
+    sel.value = "";
+    el<HTMLInputElement>("servico_outro").value = "";
+    atualizarServico();
+    sel.focus();
+  });
+  el("btn-observacao").addEventListener("click", () => {
+    const aberta = !el("bloco-observacao").classList.contains("aberta");
+    abrirObservacao(aberta);
+    if (aberta) el<HTMLInputElement>("observacao").focus();
+  });
+  validarAoDigitar();
   el("sem_placa").addEventListener("change", () => atualizarSemPlaca());
   atualizarSemPlaca(false);
   el("valor").addEventListener("input", () => {

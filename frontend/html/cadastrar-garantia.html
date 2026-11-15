@@ -53,12 +53,12 @@
 <div class="campo-form">
 <label class="rotulo-form" for="servico"><span>SERVIÇO <strong class="text-[#ba1a1a]">*</strong></span></label>
 <select class="entrada-form" id="servico"><option value="">Selecione o serviço...</option></select>
-<p class="campo-erro hidden" data-erro-campo="servico"></p>
+<!-- OUTRO: o campo de texto entra no lugar da caixa de selecao; o botao volta a lista -->
+<div class="servico-outro hidden" id="bloco-outro">
+<input class="entrada-form uppercase" id="servico_outro" maxlength="120" placeholder="Escreva o que foi feito" type="text" autocomplete="off" aria-label="Descreva o serviço feito">
+<button class="servico-outro__voltar" id="btn-voltar-lista" type="button" title="Voltar à lista de serviços" aria-label="Voltar à lista de serviços"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span></button>
 </div>
-
-<div class="campo-form lg:col-span-2 hidden" id="bloco-outro">
-<label class="rotulo-form" for="servico_outro"><span>DESCREVA O SERVIÇO <strong class="text-[#ba1a1a]">*</strong></span></label>
-<input class="entrada-form uppercase" id="servico_outro" maxlength="120" placeholder="Ex.: CÓPIA DE CHAVE CODIFICADA" type="text" autocomplete="off">
+<p class="campo-erro hidden" data-erro-campo="servico"></p>
 </div>
 
 <div class="campo-form lg:col-span-2 hidden" id="bloco-quantidades">
@@ -78,9 +78,12 @@
 <p class="campo-erro hidden" data-erro-campo="valor"></p>
 </div>
 
-<div class="campo-form">
-<label class="rotulo-form" for="observacao"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span></label>
-<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off">
+<!-- observacao escondida atras da seta: abre ao passar o mouse (e ao clicar, para ficar aberta) -->
+<div class="campo-form observacao-recolhivel" id="bloco-observacao">
+<button class="observacao-recolhivel__abrir" id="btn-observacao" type="button" aria-expanded="false" aria-controls="observacao-corpo"><span>OBSERVAÇÃO</span><span class="dica-form">OPCIONAL</span><span class="material-symbols-outlined observacao-recolhivel__seta" aria-hidden="true">expand_more</span></button>
+<div class="observacao-recolhivel__corpo" id="observacao-corpo">
+<input class="entrada-form uppercase" id="observacao" maxlength="500" placeholder="Ex.: chave canivete" type="text" autocomplete="off" aria-label="Observação">
+</div>
 <p class="campo-erro hidden" data-erro-campo="observacao"></p>
 </div>
 </div>

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 4;
+    private static final int VERSAO_ATUAL = 5;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -115,6 +115,7 @@ public class DatabaseInitializer {
             case 2 -> List.of("ALTER TABLE garantias ADD COLUMN criado_por TEXT");
             case 3 -> veiculos();
             case 4 -> usuarios();
+            case 5 -> validacoesEAuditoriaCadastros();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -486,6 +487,87 @@ public class DatabaseInitializer {
                     SELECT RAISE(ABORT, 'ACESSOS_SOMENTE_LEITURA: o historico de acessos nao pode ser apagado');
                 END
                 """);
+        return sql;
+    }
+
+    // ---------- v5: validacao de placa/CPF/data no proprio banco + auditoria de tecnicos e veiculos ----------
+
+    /** Digito do CPF na posicao 1..11 (o texto ja passou pelo GLOB de 11 numeros). */
+    private static String digitoCpf(String r, int posicao) {
+        return "CAST(substr(" + r + ".cpf, " + posicao + ", 1) AS INTEGER)";
+    }
+
+    /** Digito verificador (modulo 11) calculado sobre os `quantos` primeiros digitos. */
+    private static String verificadorCpf(String r, int quantos) {
+        List<String> parcelas = new ArrayList<>();
+        for (int i = 1; i <= quantos; i++) {
+            parcelas.add(digitoCpf(r, i) + " * " + (quantos + 2 - i));
+        }
+        String soma = "(" + String.join(" + ", parcelas) + ")";
+        return "(CASE WHEN " + soma + " % 11 < 2 THEN 0 ELSE 11 - " + soma + " % 11 END)";
+    }
+
+    /** Mesma regra do GarantiaService.cpfValido: 11 numeros, nao todos iguais, 2 verificadores certos. */
+    static String cpfValidoSql(String r) {
+        return "(" + r + ".cpf GLOB '" + "[0-9]".repeat(11) + "'"
+                + " AND replace(" + r + ".cpf, substr(" + r + ".cpf, 1, 1), '') <> ''"
+                + " AND " + digitoCpf(r, 10) + " = " + verificadorCpf(r, 9)
+                + " AND " + digitoCpf(r, 11) + " = " + verificadorCpf(r, 10) + ")";
+    }
+
+    /** Placa antiga (ABC1234) ou Mercosul (ABC1D23). */
+    static final String PLACA_GLOB = "'[A-Z][A-Z][A-Z][0-9][A-Z0-9][0-9][0-9]'";
+
+    private static String jsonTecnico(String r) {
+        return "json_object('id_tecnico', " + r + ".id_tecnico, 'nome', " + r + ".nome, 'ativo', " + r + ".ativo)";
+    }
+
+    private static String jsonVeiculo(String r) {
+        return "json_object('id_veiculo', " + r + ".id_veiculo, 'id_marca', " + r + ".id_marca,"
+                + " 'modelo', " + r + ".modelo, 'ativo', " + r + ".ativo)";
+    }
+
+    /**
+     * Ultima linha de defesa (o servidor ja valida antes): garantia nova ou alterada pelo
+     * sistema nao entra com placa fora do padrao, CPF com digito errado ou data no futuro.
+     * Linhas da planilha antiga (origem LEGADO) ficam como vieram. Tecnicos e veiculos
+     * passam a ser auditados (antes/depois), como as garantias e os precos.
+     */
+    private static List<String> validacoesEAuditoriaCadastros() {
+        List<String> sql = new ArrayList<>();
+        String placaRuim = "NEW.sem_placa = 0 AND NOT (coalesce(NEW.placa, '') GLOB " + PLACA_GLOB + ")";
+        String cpfRuim = "NEW.cpf IS NOT NULL AND NOT " + cpfValidoSql("NEW");
+        // mesma folga de 1 dia do servidor (fuso/relogio da maquina)
+        String futuro = "NEW.data_servico > date('now', 'localtime', '+1 day')";
+        String[][] regras = {
+            {"placa", placaRuim, "PLACA_INVALIDA: use ABC1234 (antiga) ou ABC1D23 (Mercosul)"},
+            {"cpf", cpfRuim, "CPF_INVALIDO: os digitos verificadores do CPF nao conferem"},
+            {"data_servico", futuro, "DATA_FUTURA: a data do servico nao pode ser no futuro"},
+        };
+        for (String[] r : regras) {
+            String coluna = r[0];
+            sql.add("CREATE TRIGGER trg_garantia_" + coluna + "_insert BEFORE INSERT ON garantias"
+                    + " WHEN NEW.origem <> 'LEGADO' AND " + r[1]
+                    + " BEGIN SELECT RAISE(ABORT, '" + r[2] + "'); END");
+            // so quando o campo muda: editar outra coisa numa garantia antiga nao trava
+            sql.add("CREATE TRIGGER trg_garantia_" + coluna + "_update BEFORE UPDATE OF " + coluna + " ON garantias"
+                    + " WHEN NEW.origem <> 'LEGADO' AND NEW." + coluna + " IS NOT OLD." + coluna + " AND " + r[1]
+                    + " BEGIN SELECT RAISE(ABORT, '" + r[2] + "'); END");
+        }
+        for (String[] t : new String[][] {{"tecnicos", "id_tecnico"}, {"veiculos", "id_veiculo"}}) {
+            String tabela = t[0];
+            String id = t[1];
+            java.util.function.Function<String, String> json = tabela.equals("tecnicos")
+                    ? DatabaseInitializer::jsonTecnico : DatabaseInitializer::jsonVeiculo;
+            String prefixo = "trg_auditoria_" + tabela.substring(0, tabela.length() - 1);
+            sql.add("CREATE TRIGGER " + prefixo + "_insert AFTER INSERT ON " + tabela + " BEGIN "
+                    + auditar(tabela, "INSERT", "NEW." + id, "NULL", json.apply("NEW")) + " END");
+            sql.add("CREATE TRIGGER " + prefixo + "_update AFTER UPDATE ON " + tabela
+                    + " WHEN " + json.apply("OLD") + " IS NOT " + json.apply("NEW") + " BEGIN "
+                    + auditar(tabela, "UPDATE", "NEW." + id, json.apply("OLD"), json.apply("NEW")) + " END");
+            sql.add("CREATE TRIGGER " + prefixo + "_delete AFTER DELETE ON " + tabela + " BEGIN "
+                    + auditar(tabela, "DELETE", "OLD." + id, json.apply("OLD"), "NULL") + " END");
+        }
         return sql;
     }
 }

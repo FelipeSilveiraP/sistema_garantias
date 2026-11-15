@@ -2,7 +2,7 @@
 
 Aplicativo desktop para Windows que substitui a planilha Excel/VBA `GARANTIAS-AAAA.xlsm`, usada no Chaveiro Universal para registrar as garantias dos serviços (troca de carcaça, pilha, botão, gaiola, cilindro e outros). Funciona **100% sem internet**, com a mesma interface neobrutalista de alto contraste do **Sistema de Contas a Pagar**, do qual é projeto irmão: mesma arquitetura, mesmo banco SQLite, mesmo backup no Google Drive e mesma atualização pelo Drive.
 
-> **Status (novembro/2026):** versão **1.0.0**. Primeira entrega: cadastro, pesquisa e edição de garantias, gráficos, tabela de preços, listas editáveis, importação da planilha antiga e instalador próprio. A automação do cupom fiscal (SAT web) vem depois; a estrutura já está pronta.
+> **Status (novembro/2026):** versão **1.3.0**. Cadastro, pesquisa e edição de garantias, perfis com PIN, gráficos, tabela de preços, listas editáveis, importação da planilha antiga e instalador próprio. Placa e CPF validados pelo próprio sistema (tela, servidor e banco), sem consulta externa. A automação do cupom fiscal (SAT web) vem depois; a estrutura já está pronta.
 
 ---
 

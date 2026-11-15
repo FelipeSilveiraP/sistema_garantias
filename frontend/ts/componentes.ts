@@ -6,6 +6,7 @@ import { dialogoEstaAberto } from "./dialogos";
 import { notificar } from "./notificacoes";
 
 export {
+  avisar,
   confirmar,
   confirmarSaida,
   confirmarExclusao,

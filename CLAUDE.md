@@ -35,13 +35,13 @@ python instalador/gerar-icone.py         # regera o emblema (chave amarela)
 
 Igual à do Contas a Pagar (detalhes no `CLAUDE.md` de lá):
 - **Electron (`desktop/main.js`)**: porta livre + token por execução, `spawn` do jar, tela de carregamento até o backend ficar pronto, instância única. Navegação validada contra o `Map TELAS` — **tela nova precisa ser registrada em `TELAS`** e ganhar um `case` em `frontend/ts/main.ts`.
-- **Frontend (`frontend/`)**: multi-página, `html/<tela>.html` + `ts/telas/<tela>.ts`. Telas: `menu` (3 botões), `cadastrar-garantia`, `pesquisar-garantias`, `estatisticas` (submenu gerado por `submenus-config.ts`), `graficos`, `atualizar-precos`. Diálogos só por `dialogos.ts` (nunca `alert/confirm`); DOM só por `createElement`/`textContent`.
+- **Frontend (`frontend/`)**: multi-página, `html/<tela>.html` + `ts/telas/<tela>.ts`. Telas: `menu` (3 botões), `cadastrar-garantia`, `pesquisar-garantias`, `estatisticas` (submenu gerado por `submenus-config.ts`), `graficos`, `atualizar-precos`. Diálogos só por `dialogos.ts` (nunca `alert/confirm`; `avisar()` = pop-up de um botão nos tons sucesso/erro/atenção); DOM só por `createElement`/`textContent`.
 - **Backend (`backend/`, pacote `com.chaveiro`)**: `api/*Controller` → `service/*Service` → `repository/*Repository` (JDBC puro) → SQLite. Rotas: `/api/garantias` (+ `/{id}/cupom`), `/api/servicos` (+ `/reajuste`), `/api/listas/{tecnicos|modelos}`, `/api/estatisticas`, `/api/legado/importar`, `/api/status`, `/api/backup-drive`.
-- **Banco**: `%LOCALAPPDATA%\ChaveiroUniversal\Garantias\garantias.db` (ou `FINDESK_DB_PATH`). Migrações em `database/DatabaseInitializer` (v1 = esquema + listas iniciais do VBA + gatilhos + auditoria). `ConnectionFactory.emTransacao` para gravações de várias etapas; transações `IMMEDIATE`.
+- **Banco**: `%LOCALAPPDATA%\ChaveiroUniversal\Garantias\garantias.db` (ou `FINDESK_DB_PATH`). Migrações em `database/DatabaseInitializer` (v1 = esquema + listas iniciais do VBA + gatilhos + auditoria; v5 = gatilhos de placa/CPF/data futura + auditoria de técnicos e veículos). `ConnectionFactory.emTransacao` para gravações de várias etapas; transações `IMMEDIATE`.
 
 ## Regras de domínio (do VBA `frmControleGarantias` V17.1)
 
-- Placa: 7 letras/números, sem traço/espaço. **Sem placa** exige CPF de 11 dígitos (a placa fica nula).
+- Placa: antiga (ABC1234) ou Mercosul (ABC1D23), sem traço/espaço. **Sem placa** exige CPF válido (11 dígitos + 2 verificadores; a placa fica nula). Regra própria, sem consulta externa, em 3 camadas: tela (`mascaras.ts` `placaValida`/`cpfValido`, avisa enquanto digita), servidor (`GarantiaService`) e banco (gatilhos v5; linhas `LEGADO` ficam como vieram).
 - Serviço vem da tabela de preços (`servicos`) e define quais quantidades pedir (carcaça, botão, pilha ou itens, de 1 a 5); "OUTRO" exige descrição. PILHA (R$ 12) e BOTÃO (R$ 15) são **peças**: o preço delas soma ao serviço e divide o valor no cupom fiscal (regra do SAT do VBA).
 - Mesma placa (ou CPF) + mesmo dia + mesmo serviço = possível duplicidade: pede confirmação (`forcar`).
 - Técnicos, modelos e serviços são editáveis (no VBA eram fixos no código); excluir da lista não altera garantias antigas (o nome fica gravado como texto).

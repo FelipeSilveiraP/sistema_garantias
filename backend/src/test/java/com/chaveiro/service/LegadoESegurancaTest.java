@@ -167,4 +167,37 @@ class LegadoESegurancaTest {
         assertThatThrownBy(() -> sql("DELETE FROM servicos WHERE id_servico = " + outra.idServico()))
                 .hasMessageContaining("SERVICO_EM_USO");
     }
+
+    @Test
+    void gatilhosV5RecusamPlacaCpfEDataFuturaEAuditamCadastros() throws SQLException {
+        String colunas = "INSERT INTO garantias (data_servico, placa, sem_placa, cpf, modelo, servico, tecnico, origem) VALUES ";
+        // placa de 7 caracteres fora do padrao (passa no CHECK antigo, cai no gatilho)
+        assertThatThrownBy(() -> sql(colunas + "('2026-01-01', '1234ABC', 0, NULL, 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')"))
+                .hasMessageContaining("PLACA_INVALIDA");
+        // CPF com digito verificador errado e CPF repetido
+        assertThatThrownBy(() -> sql(colunas + "('2026-01-01', NULL, 1, '12345678900', 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')"))
+                .hasMessageContaining("CPF_INVALIDO");
+        assertThatThrownBy(() -> sql(colunas + "('2026-01-01', NULL, 1, '11111111111', 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')"))
+                .hasMessageContaining("CPF_INVALIDO");
+        // data muito no futuro
+        assertThatThrownBy(() -> sql(colunas + "('2999-01-01', 'ABC1D23', 0, NULL, 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')"))
+                .hasMessageContaining("DATA_FUTURA");
+        // validos: placa antiga, Mercosul e CPF certo
+        sql(colunas + "('2026-01-01', 'ABC1234', 0, NULL, 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')");
+        sql(colunas + "('2026-01-01', NULL, 1, '12345678909', 'ONIX', 'CHAVE', 'FELIPE', 'SISTEMA')");
+        // planilha antiga entra como veio
+        sql(colunas + "('2020-01-01', 'XX', 0, '123', 'ONIX', 'CHAVE', 'FELIPE', 'LEGADO')");
+        // trocar a placa de uma garantia do sistema para uma invalida tambem e recusado
+        assertThatThrownBy(() -> sql("UPDATE garantias SET placa = '9999999' WHERE placa = 'ABC1234'"))
+                .hasMessageContaining("PLACA_INVALIDA");
+
+        // tecnicos e veiculos auditados
+        sql("INSERT INTO tecnicos (nome) VALUES ('AUDITADO')");
+        sql("UPDATE tecnicos SET ativo = 0 WHERE nome = 'AUDITADO'");
+        sql("DELETE FROM tecnicos WHERE nome = 'AUDITADO'");
+        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'tecnicos'")).isEqualTo(3);
+        sql("UPDATE veiculos SET ativo = 0 WHERE id_veiculo = (SELECT MIN(id_veiculo) FROM veiculos)");
+        assertThat(contar("SELECT COUNT(*) FROM auditoria_operacoes WHERE tabela = 'veiculos' AND operacao = 'UPDATE'"))
+                .isEqualTo(1);
+    }
 }
