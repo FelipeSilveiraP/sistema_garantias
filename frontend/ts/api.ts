@@ -53,6 +53,8 @@ export interface GarantiaEntrada {
   criadoPor?: string;
   /** veiculo do catalogo (o modelo e gravado como "MARCA MODELO") */
   idVeiculo?: number | null;
+  /** varios produtos (botao +): da tabela (idServico) ou OUTRO (descricao) */
+  itens?: { idServico: number | null; descricao?: string; quantidade: number }[];
 }
 
 export interface ServicoDados {

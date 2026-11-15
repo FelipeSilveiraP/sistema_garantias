@@ -103,6 +103,33 @@ public class GarantiaRepository {
         }
     }
 
+    /** Garantia e os produtos dela numa transacao so: ou entra tudo, ou nada. */
+    public Garantia inserirComItens(Garantia g, java.util.List<com.chaveiro.model.ItemGarantia> itens) throws SQLException {
+        return conexao.emTransacao(conn -> {
+            Garantia criada = inserir(conn, g);
+            String sql = "INSERT INTO garantia_itens (id_garantia, ordem, id_servico, descricao, quantidade, preco_centavos)"
+                    + " VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                int ordem = 1;
+                for (var item : itens) {
+                    stmt.setLong(1, criada.id());
+                    stmt.setInt(2, ordem++);
+                    if (item.idServico() == null) {
+                        stmt.setNull(3, java.sql.Types.INTEGER);
+                    } else {
+                        stmt.setLong(3, item.idServico());
+                    }
+                    stmt.setString(4, item.descricao());
+                    stmt.setInt(5, item.quantidade());
+                    stmt.setLong(6, item.precoCentavos());
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+            }
+            return criada;
+        });
+    }
+
     /** Atualiza os dados da garantia (o status do cupom tem rota propria). */
     public boolean atualizar(long id, Garantia g) throws SQLException {
         String sql = "UPDATE garantias SET data_servico = ?, placa = ?, sem_placa = ?, cpf = ?, modelo = ?,"

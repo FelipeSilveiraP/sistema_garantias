@@ -77,6 +77,111 @@ public class GarantiaService {
         }
     }
 
+    /** Produto escrito na tela: da tabela (idServico) ou OUTRO (descricao). */
+    public record ItemEntrada(Long idServico, String descricao, Integer quantidade) {
+    }
+
+    /**
+     * Cadastro com varios produtos (botao + na tela). Monta o resumo em texto
+     * ("TROCA CARCACA + 2x PILHA"), as quantidades de carcaca/botao/pilha/itens e o
+     * codigo do cupom (codigos unidos por "_", como os combos do VBA) e grava a
+     * garantia com os itens numa transacao so.
+     */
+    public Garantia cadastrarComItens(Garantia dados, List<ItemEntrada> entrada, boolean forcar) {
+        Map<String, String> erros = new LinkedHashMap<>();
+        List<com.chaveiro.model.ItemGarantia> itens = new java.util.ArrayList<>();
+        List<String> partes = new java.util.ArrayList<>();
+        List<String> codigos = new java.util.ArrayList<>();
+        int carcaca = 0;
+        int botao = 0;
+        int pilha = 0;
+        int outros = 0;
+        Long primeiro = null;
+        if (entrada == null || entrada.isEmpty()) {
+            erros.put("servico", "Escolha pelo menos um produto.");
+        } else if (entrada.size() > 10) {
+            erros.put("servico", "No máximo 10 produtos por garantia.");
+        } else {
+            for (ItemEntrada e : entrada) {
+                int q = e.quantidade() == null ? 1 : e.quantidade();
+                if (q < 1 || q > 5) {
+                    erros.put("servico", "Quantidade de 1 a 5 em cada produto.");
+                    break;
+                }
+                Servico s = null;
+                if (e.idServico() != null) {
+                    try {
+                        s = servicos.buscarPorId(e.idServico()).orElse(null);
+                    } catch (SQLException erro) {
+                        throw new IllegalStateException("falha ao consultar o produto", erro);
+                    }
+                    if (s == null) {
+                        erros.put("servico", "Produto não encontrado. Escolha outro.");
+                        break;
+                    }
+                }
+                String nome = s != null ? s.nome() : e.descricao() == null ? "" : e.descricao().trim().toUpperCase(Locale.ROOT);
+                if (nome.length() < 2 || nome.length() > 120) {
+                    erros.put("servico", "Escolha o produto ou descreva o que foi feito em OUTRO.");
+                    break;
+                }
+                long preco = s == null ? 0 : s.preco().movePointRight(2).longValue();
+                itens.add(new com.chaveiro.model.ItemGarantia(s == null ? null : s.id(), nome, q, preco));
+                partes.add(q > 1 ? q + "x " + nome : nome);
+                if (s != null && s.codigoCupom() != null && !s.codigoCupom().isBlank()) {
+                    codigos.add(s.codigoCupom());
+                }
+                if (primeiro == null && s != null) {
+                    primeiro = s.id();
+                }
+                String n = nome.toUpperCase(Locale.ROOT);
+                if (s != null && s.peca() && n.contains("PILHA")) {
+                    pilha += q;
+                } else if (s != null && s.peca() && n.contains("BOT")) {
+                    botao += q;
+                } else if (s != null && s.pedeCarcaca()) {
+                    carcaca += q;
+                } else {
+                    outros += q;
+                }
+            }
+        }
+        String resumo = String.join(" + ", partes);
+        if (erros.isEmpty() && resumo.length() > 120) {
+            erros.put("servico", "Produtos demais para uma garantia: o resumo passa de 120 letras.");
+        }
+        // o resto (data, placa, CPF, modelo, tecnico, valor...) passa pela validacao de sempre
+        Garantia base = new Garantia(dados.id(), dados.dataServico(), dados.placa(), dados.semPlaca(), dados.cpf(),
+                dados.modelo(), null, resumo.isEmpty() ? "XX" : resumo, 0, 0, 0, 0, dados.valor(), dados.tecnico(),
+                dados.observacao(), null, null, null, "SISTEMA", dados.criadoPor(), dados.idVeiculo());
+        Garantia g;
+        try {
+            g = normalizarEValidar(base);
+        } catch (DadosInvalidosException e) {
+            erros.putAll(e.getCampos());
+            throw new DadosInvalidosException(erros);
+        }
+        if (!erros.isEmpty()) {
+            throw new DadosInvalidosException(erros);
+        }
+        Garantia completa = new Garantia(g.id(), g.dataServico(), g.placa(), g.semPlaca(), g.cpf(), g.modelo(), primeiro,
+                resumo, Math.min(carcaca, 99), Math.min(botao, 99), Math.min(pilha, 99), Math.min(outros, 99), g.valor(),
+                g.tecnico(), g.observacao(), codigos.isEmpty() ? null : String.join("_", codigos), null, null, "SISTEMA",
+                g.criadoPor(), g.idVeiculo());
+        try {
+            if (!forcar) {
+                var parecida = repository.buscarParecida(completa);
+                if (parecida.isPresent()) {
+                    throw new PossivelDuplicataException(parecida.get());
+                }
+            }
+            return repository.inserirComItens(completa, itens);
+        } catch (SQLException erro) {
+            log.error("falha ao cadastrar garantia com itens", erro);
+            throw new IllegalStateException("falha ao salvar a garantia", erro);
+        }
+    }
+
     public Garantia atualizar(long id, Garantia dados) {
         Garantia g = normalizarEValidar(dados);
         try {

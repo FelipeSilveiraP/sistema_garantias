@@ -133,4 +133,23 @@ class GarantiaServiceTest {
                 0, 0, 0, 0, BigDecimal.TEN, "RENATO", null, null, null, null, null, null, null));
         assertThat(service.buscarPorId(g.id()).criadoPor()).isEqualTo("FELIPE");
     }
+
+    @Test
+    void cadastraVariosProdutosComOBotaoMais() throws Exception {
+        var itens = java.util.List.of(
+                new GarantiaService.ItemEntrada(servico("TROCA CARCAÇA"), null, 1),
+                new GarantiaService.ItemEntrada(servico("PILHA"), null, 2),
+                new GarantiaService.ItemEntrada(null, "cópia codificada", 1));
+        Garantia g = service.cadastrarComItens(garantia("abc1d23", false, null, null, null, 0, 0, 0, 0), itens, false);
+
+        assertThat(g.servico()).isEqualTo("TROCA CARCAÇA + 2x PILHA + CÓPIA CODIFICADA");
+        assertThat(g).extracting(Garantia::qtdCarcaca, Garantia::qtdBotao, Garantia::qtdPilha, Garantia::qtdItens)
+                .containsExactly(1, 0, 2, 1);
+        assertThat(g.codigoCupom()).isEqualTo("19_10");
+        // sem produto ou com OUTRO vazio: recusado
+        assertThatThrownBy(() -> service.cadastrarComItens(garantia("abc1d24", false, null, null, null, 0, 0, 0, 0),
+                java.util.List.of(), false)).isInstanceOf(DadosInvalidosException.class);
+        assertThatThrownBy(() -> service.cadastrarComItens(garantia("abc1d24", false, null, null, null, 0, 0, 0, 0),
+                java.util.List.of(new GarantiaService.ItemEntrada(null, " ", 1)), false)).isInstanceOf(DadosInvalidosException.class);
+    }
 }

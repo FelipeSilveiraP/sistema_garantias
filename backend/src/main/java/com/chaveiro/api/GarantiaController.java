@@ -25,7 +25,9 @@ public class GarantiaController {
     public record GarantiaRequest(LocalDate dataServico, String placa, boolean semPlaca, String cpf, String modelo,
                                   Long idServico, String servico, int qtdCarcaca, int qtdBotao, int qtdPilha,
                                   int qtdItens, BigDecimal valor, String tecnico, String observacao, Boolean forcar,
-                                  String criadoPor, Long idVeiculo) {
+                                  String criadoPor, Long idVeiculo,
+                                  /** varios produtos (botao + no cadastro); quando vem, substitui idServico/servico */
+                                  List<GarantiaService.ItemEntrada> itens) {
         Garantia paraModelo() {
             return new Garantia(null, dataServico, placa, semPlaca, cpf, modelo, idServico, servico, qtdCarcaca,
                     qtdBotao, qtdPilha, qtdItens, valor, tecnico, observacao, null, null, null, "SISTEMA", criadoPor, idVeiculo);
@@ -64,7 +66,10 @@ public class GarantiaController {
                     g.qtdCarcaca(), g.qtdBotao(), g.qtdPilha(), g.qtdItens(), g.valor(), g.tecnico(), g.observacao(),
                     g.codigoCupom(), g.cupomStatus(), g.cupomLancadoEm(), g.origem(), perfil, g.idVeiculo());
         }
-        Garantia criada = service.cadastrar(g, Boolean.TRUE.equals(requisicao.forcar()));
+        boolean forcar = Boolean.TRUE.equals(requisicao.forcar());
+        Garantia criada = requisicao.itens() != null && !requisicao.itens().isEmpty()
+                ? service.cadastrarComItens(g, requisicao.itens(), forcar)
+                : service.cadastrar(g, forcar);
         return ResponseEntity.status(HttpStatus.CREATED).body(criada);
     }
 

@@ -42,7 +42,7 @@ Igual à do Contas a Pagar (detalhes no `CLAUDE.md` de lá):
 ## Regras de domínio (do VBA `frmControleGarantias` V17.1)
 
 - Placa: antiga (ABC1234) ou Mercosul (ABC1D23), sem traço/espaço. **Sem placa** exige CPF válido (11 dígitos + 2 verificadores; a placa fica nula). Regra própria, sem consulta externa, em 3 camadas: tela (`mascaras.ts` `placaValida`/`cpfValido`, avisa enquanto digita), servidor (`GarantiaService`) e banco (gatilhos v5; linhas `LEGADO` ficam como vieram).
-- Serviço vem da tabela de preços (`servicos`) e define quais quantidades pedir (carcaça, botão, pilha ou itens, de 1 a 5); "OUTRO" exige descrição. PILHA (R$ 12) e BOTÃO (R$ 15) são **peças**: o preço delas soma ao serviço e divide o valor no cupom fiscal (regra do SAT do VBA).
+- Produtos em linhas (botão +, até 10): cada um da tabela de preços (`servicos`) ou "OUTRO" (descrição), com quantidade de 1 a 5; ficam em `garantia_itens` e a garantia guarda o resumo em texto, as quantidades e o código do cupom unido por "_" (`GarantiaService.cadastrarComItens`). PILHA (R$ 12) e BOTÃO (R$ 15) são **peças**: o preço delas soma ao serviço e divide o valor no cupom fiscal (regra do SAT do VBA).
 - Mesma placa (ou CPF) + mesmo dia + mesmo serviço = possível duplicidade: pede confirmação (`forcar`).
 - Técnicos, modelos e serviços são editáveis (no VBA eram fixos no código); excluir da lista não altera garantias antigas (o nome fica gravado como texto).
 - Cupom fiscal: o SAT agora é o sistema web da RM Software (`app.rmsoftware.dev.br`). A automação virá depois; a estrutura está pronta (`codigo_cupom`, `cupom_status` NAO_LANCADO/LANCADO/DISPENSADO, `cupom_lancado_em`).

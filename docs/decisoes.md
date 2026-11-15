@@ -58,3 +58,11 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **ATUALIZAÇÃO E ESTATÍSTICA virou CONTROLE**, com GRÁFICOS (azul) e um botão CONTROLE laranja (nem verde nem azul, pedido do usuário) que leva a TÉCNICOS, VEÍCULOS e TABELA DE VALORES. ATUALIZAR PREÇOS ficou ao lado de CADASTRAR PRODUTO, na Tabela de valores.
 - **Reajuste também em R$:** ao lado do número, escolhe-se % ou R$. Em R$ soma o valor a todos os preços ativos (negativo baixa, nenhum fica abaixo de R$ 0,00), numa transação, com auditoria.
 
+## Vários produtos por garantia (2026-11-15, versão 1.3.3)
+
+- **Produtos em linhas com o botão + (pedido do usuário)**, no lugar das combinações prontas do VBA (CARCAÇA+PILHA, CARCAÇA+BOTÃO, CARCAÇA+BOTÃO+PILHA, que foram desativadas na migração v6). Cada linha tem a caixa do produto (com OUTRO, que vira campo de texto), a quantidade (1x a 5x), o + (acrescenta outra linha logo abaixo) e o X (tira a linha). Até 10 produtos. PILHA e BOTÃO agora aparecem na lista.
+- **Banco v6: `garantia_itens`** (produto, descrição, quantidade e preço de cada linha, `ON DELETE CASCADE`), gravada na mesma transação da garantia. A garantia continua com o resumo em texto ("TROCA CARCAÇA + 2x PILHA"), as quantidades de carcaça/botão/pilha/itens e o código do cupom com os códigos unidos por "_" (como os combos do VBA: "19_10"). Assim, pesquisa, gráficos, cupom, edição e backup não mudaram.
+- **Cadastro na vertical:** um campo embaixo do outro, numa coluna estreita; a tela rola.
+- **Seta em todas as caixas de seleção do sistema** (regra global em `select`).
+- **Tabela da Pesquisar Garantia com o cabeçalho vermelho** (cor do módulo).
+

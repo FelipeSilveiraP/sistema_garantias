@@ -1209,6 +1209,9 @@
 .entrada-form--desligada, .entrada-form:disabled { background: #e8e5e4; color: #7c775f; box-shadow: none; cursor: not-allowed; }
 select.entrada-form { cursor: pointer; }
 /* seta para baixo: deixa claro que e uma caixa de selecao (tambem com foco e desligada) */
+select,
+select:focus,
+select:disabled,
 select.entrada-form,
 select.entrada-form:focus,
 select.entrada-form:disabled {
@@ -1466,3 +1469,30 @@ select.entrada-form:disabled {
 @media (prefers-reduced-motion: reduce) {
   .conta-menu__seta svg { transition: none; }
 }
+
+/* ===== Cadastrar Garantia: produtos em linhas (caixa + quantidade + "+" + "x") ===== */
+.produtos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.produto-linha { display: flex; align-items: stretch; gap: 0.5rem; }
+.produto-linha .produto-caixa, .produto-linha .produto-outro { flex: 1 1 auto; min-width: 0; }
+.produto-linha .produto-qtd { flex: 0 0 5.5rem; width: 5.5rem; }
+.produto-mais, .produto-tirar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.9rem;
+  border: 2px solid #1c1b1b;
+  box-shadow: 2px 2px 0 0 #1c1b1b;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.produto-mais { background: #00FF66; }
+.produto-tirar { background: #ffffff; }
+.produto-mais .material-symbols-outlined, .produto-tirar .material-symbols-outlined { font-size: 1.6rem; font-weight: 700; }
+.produto-mais:hover, .produto-tirar:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 #1c1b1b; }
+.produto-tirar:hover { background: #ffdad6; }
+.produto-mais:active, .produto-tirar:active { transform: translate(2px, 2px); box-shadow: none; }
+.produto-mais:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.produto-mais:focus-visible, .produto-tirar:focus-visible { outline: 3px solid #1c1b1b; outline-offset: 2px; }
+.produto-tirar.invisible { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .produto-mais, .produto-tirar { transition: none; } }

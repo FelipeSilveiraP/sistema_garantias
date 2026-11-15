@@ -1,7 +1,7 @@
 // CADASTRAR GARANTIA — formulario simples e claro, com as regras do VBA
 // (frmControleGarantias V17.1): placa de 7 letras/numeros OU "sem placa" com
-// CPF; servico da tabela de precos mostra so as quantidades que ele pede
-// (carcaca, botao, pilha ou itens, de 1 a 5); "OUTRO" pede a descricao.
+// CPF; produtos em linhas (caixa + quantidade de 1 a 5 + botao + para acrescentar
+// outro abaixo); "OUTRO" troca a caixa por um campo de texto.
 // O valor e sugerido pela tabela de precos e pode ser alterado.
 import {
   buscarStatus,
@@ -34,15 +34,6 @@ function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
 
-function servicoEscolhido(): ServicoDados | null {
-  const v = el<HTMLSelectElement>("servico").value;
-  return servicos.find((s) => String(s.id) === v) ?? null;
-}
-
-function qtd(campo: string): number {
-  return Number(document.querySelector<HTMLSelectElement>(`select[data-qtd="${campo}"]`)?.value ?? "1");
-}
-
 function centavosDoCampo(): number | null {
   const texto = el<HTMLInputElement>("valor").value.trim();
   if (!texto || /^0+(,0{1,2})?$/.test(texto)) return 0;
@@ -51,36 +42,138 @@ function centavosDoCampo(): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-/** Preco sugerido: servico x quantidade principal + botoes + pilhas (pecas da tabela). */
-function precoSugerido(s: ServicoDados): number {
-  const peca = (nome: string): number => Math.round((servicos.find((p) => p.peca && p.nome === nome)?.preco ?? 0) * 100);
-  const principal = s.pedeCarcaca ? qtd("qtdCarcaca") : s.pedeItens ? qtd("qtdItens") : 1;
-  return Math.round(s.preco * 100) * principal
-    + (s.pedeBotao ? peca("BOTÃO") * qtd("qtdBotao") : 0)
-    + (s.pedePilha ? peca("PILHA") * qtd("qtdPilha") : 0);
+// ---------- produtos: uma linha por produto, com + para acrescentar ----------
+
+const MAX_PRODUTOS = 10;
+
+interface LinhaProduto {
+  idServico: number | null;
+  descricao: string;
+  quantidade: number;
+  outro: boolean;
 }
 
-function atualizarServico(): void {
-  const valor = el<HTMLSelectElement>("servico").value;
-  const s = servicoEscolhido();
-  // OUTRO: o campo de texto toma o lugar da caixa de selecao
+function linhasProduto(): HTMLLIElement[] {
+  return [...document.querySelectorAll<HTMLLIElement>("#produtos > li")];
+}
+
+function lerLinha(li: HTMLLIElement): LinhaProduto {
+  const valor = li.querySelector<HTMLSelectElement>(".produto-caixa")!.value;
   const outro = valor === OUTRO;
-  el("bloco-outro").classList.toggle("hidden", !outro);
-  el("servico").classList.toggle("hidden", outro);
-  el("bloco-quantidades").classList.toggle("hidden", !s);
-  el("q-carcaca").classList.toggle("hidden", !s?.pedeCarcaca);
-  el("q-botao").classList.toggle("hidden", !s?.pedeBotao);
-  el("q-pilha").classList.toggle("hidden", !s?.pedePilha);
-  el("q-itens").classList.toggle("hidden", !s?.pedeItens);
-  // sem nenhuma quantidade pedida (servico novo sem marcacao): esconde o bloco
-  if (s && !s.pedeCarcaca && !s.pedeBotao && !s.pedePilha && !s.pedeItens) el("bloco-quantidades").classList.add("hidden");
-  if (s?.pedeItens) el("q-itens-rotulo").textContent = s.nome.replace(/^TROCA (DE |DA |DO )?/, "");
-  sugerirValor();
+  return {
+    idServico: !outro && valor ? Number(valor) : null,
+    descricao: outro ? li.querySelector<HTMLInputElement>(".produto-outro input")!.value.trim().toUpperCase() : "",
+    quantidade: Number(li.querySelector<HTMLSelectElement>(".produto-qtd")!.value) || 1,
+    outro,
+  };
 }
 
+function botaoIcone(classe: string, icone: string, rotulo: string): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = classe;
+  b.title = rotulo;
+  b.setAttribute("aria-label", rotulo);
+  const i = document.createElement("span");
+  i.className = "material-symbols-outlined";
+  i.setAttribute("aria-hidden", "true");
+  i.textContent = icone;
+  b.appendChild(i);
+  return b;
+}
+
+function atualizarBotoesLinhas(): void {
+  const linhas = linhasProduto();
+  linhas.forEach((li, n) => {
+    li.querySelector<HTMLButtonElement>(".produto-tirar")!.classList.toggle("invisible", linhas.length === 1);
+    li.querySelector<HTMLButtonElement>(".produto-mais")!.disabled = linhas.length >= MAX_PRODUTOS;
+    li.querySelector<HTMLSelectElement>(".produto-caixa")!.setAttribute("aria-label", `Produto ${n + 1}`);
+  });
+}
+
+/** Nova linha de produto (logo abaixo de `depois`, ou no fim). */
+function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
+  const li = document.createElement("li");
+  li.className = "produto-linha";
+  const caixa = document.createElement("select");
+  caixa.className = "entrada-form produto-caixa";
+  caixa.appendChild(opcao("", "Selecione o produto..."));
+  for (const s of servicos.filter((s) => s.ativo)) caixa.appendChild(opcao(String(s.id), s.nome));
+  caixa.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
+
+  // OUTRO: campo de texto no lugar da caixa, com botao de volta a lista
+  const outro = document.createElement("div");
+  outro.className = "servico-outro produto-outro hidden";
+  const texto = document.createElement("input");
+  texto.className = "entrada-form uppercase";
+  texto.type = "text";
+  texto.maxLength = 120;
+  texto.autocomplete = "off";
+  texto.placeholder = "Escreva o que foi feito";
+  texto.setAttribute("aria-label", "Descreva o produto ou serviço");
+  const voltar = botaoIcone("servico-outro__voltar", "format_list_bulleted", "Voltar à lista de produtos");
+  outro.append(texto, voltar);
+
+  const qtd = document.createElement("select");
+  qtd.className = "entrada-form produto-qtd";
+  qtd.setAttribute("aria-label", "Quantidade");
+  for (let n = 1; n <= 5; n++) qtd.appendChild(opcao(String(n), `${n}x`));
+
+  const mais = botaoIcone("produto-mais", "add", "Acrescentar outro produto");
+  const tirar = botaoIcone("produto-tirar", "close", "Tirar este produto");
+  li.append(caixa, outro, qtd, mais, tirar);
+
+  caixa.addEventListener("change", () => {
+    if (caixa.value === OUTRO) {
+      caixa.classList.add("hidden");
+      outro.classList.remove("hidden");
+      texto.focus();
+    }
+    sugerirValor();
+  });
+  voltar.addEventListener("click", () => {
+    texto.value = "";
+    caixa.value = "";
+    outro.classList.add("hidden");
+    caixa.classList.remove("hidden");
+    caixa.focus();
+    sugerirValor();
+  });
+  qtd.addEventListener("change", sugerirValor);
+  mais.addEventListener("click", () => {
+    if (linhasProduto().length >= MAX_PRODUTOS) return;
+    const nova = novaLinha(li);
+    nova.querySelector<HTMLSelectElement>(".produto-caixa")!.focus();
+  });
+  tirar.addEventListener("click", () => {
+    if (linhasProduto().length === 1) return;
+    const vizinha = (li.previousElementSibling ?? li.nextElementSibling) as HTMLLIElement | null;
+    li.remove();
+    atualizarBotoesLinhas();
+    sugerirValor();
+    vizinha?.querySelector<HTMLSelectElement>(".produto-caixa")?.focus();
+  });
+
+  const lista = el("produtos");
+  if (depois) depois.after(li);
+  else lista.appendChild(li);
+  atualizarBotoesLinhas();
+  return li;
+}
+
+function reiniciarProdutos(): void {
+  el("produtos").replaceChildren();
+  novaLinha();
+}
+
+/** Preco sugerido: soma de preco x quantidade de cada produto da tabela. */
 function sugerirValor(): void {
-  const s = servicoEscolhido();
-  const sugerido = s ? precoSugerido(s) : 0;
+  let sugerido = 0;
+  for (const li of linhasProduto()) {
+    const l = lerLinha(li);
+    const s = servicos.find((x) => x.id === l.idServico);
+    if (s) sugerido += Math.round(s.preco * 100) * l.quantidade;
+  }
   el("valor-dica").textContent = sugerido > 0 ? `TABELA: ${formatarMoedaBR(sugerido)}` : "";
   if (!valorDigitado) el<HTMLInputElement>("valor").value = sugerido > 0 ? formatarMoedaCampo(sugerido) : "";
 }
@@ -163,11 +256,9 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
   const tecnico = el<HTMLSelectElement>("tecnico").value;
   if (!tecnico) erros.tecnico = "Selecione o técnico.";
 
-  const valorServico = el<HTMLSelectElement>("servico").value;
-  const s = servicoEscolhido();
-  const outro = el<HTMLInputElement>("servico_outro").value.trim().toUpperCase();
-  if (!valorServico) erros.servico = "Selecione o serviço.";
-  else if (valorServico === OUTRO && outro.length < 2) erros.servico = "Descreva o serviço feito.";
+  const produtos = linhasProduto().map(lerLinha).filter((l) => l.outro || l.idServico !== null);
+  if (!produtos.length) erros.servico = "Escolha pelo menos um produto.";
+  else if (produtos.some((l) => l.outro && l.descricao.length < 2)) erros.servico = "Descreva o produto em OUTRO.";
 
   const centavos = centavosDoCampo();
   if (centavos === null) erros.valor = "Valor inválido. Exemplo: 150,00.";
@@ -181,12 +272,12 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
       cpf: semPlaca ? cpf : undefined,
       modelo: modeloOutro ? modeloTexto : "",
       idVeiculo,
-      idServico: s ? s.id : null,
-      servico: s ? s.nome : outro,
-      qtdCarcaca: s?.pedeCarcaca ? qtd("qtdCarcaca") : 0,
-      qtdBotao: s?.pedeBotao ? qtd("qtdBotao") : 0,
-      qtdPilha: s?.pedePilha ? qtd("qtdPilha") : 0,
-      qtdItens: s?.pedeItens ? qtd("qtdItens") : 0,
+      idServico: null,
+      qtdCarcaca: 0,
+      qtdBotao: 0,
+      qtdPilha: 0,
+      qtdItens: 0,
+      itens: produtos.map((l) => ({ idServico: l.idServico, descricao: l.outro ? l.descricao : undefined, quantidade: l.quantidade })),
       valor: ((centavos ?? 0) / 100).toFixed(2),
       tecnico,
       observacao: el<HTMLInputElement>("observacao").value.trim() || undefined,
@@ -196,9 +287,9 @@ function lerDados(): { dados: GarantiaEntrada; erros: Record<string, string> } {
 }
 
 function mostrarErros(erros: Record<string, string>): void {
-  // erros de quantidade da API (qtdCarcaca...) aparecem no bloco de quantidades
+  // erros de quantidade da API (qtdCarcaca...) aparecem nos produtos
   const mapa: Record<string, string> = { ...erros };
-  for (const c of ["qtdCarcaca", "qtdBotao", "qtdPilha", "qtdItens"]) if (erros[c]) mapa.quantidade = erros[c];
+  for (const c of ["qtdCarcaca", "qtdBotao", "qtdPilha", "qtdItens"]) if (erros[c]) mapa.servico = erros[c];
   document.querySelectorAll<HTMLElement>(".campo-erro").forEach((p) => {
     const msg = mapa[p.dataset.erroCampo ?? ""];
     p.textContent = msg ?? "";
@@ -220,7 +311,7 @@ function limpar(): void {
   trocarModeloOutro(false);
   tecnicoDoPerfil();
   atualizarSemPlaca();
-  atualizarServico();
+  reiniciarProdutos();
   mostrarErros({});
   el<HTMLInputElement>("placa").focus();
 }
@@ -334,9 +425,7 @@ async function carregarListas(): Promise<void> {
       grupo.appendChild(opcao(String(v.id), `${v.modelo} (${v.marca})`));
     }
     selModelo.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
-    const selServico = el<HTMLSelectElement>("servico");
-    for (const s of servicos.filter((s) => s.ativo && !s.peca)) selServico.appendChild(opcao(String(s.id), s.nome));
-    selServico.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
+    reiniciarProdutos();
     document.body.dataset.listasCarregadas = "true";
   } catch (erro) {
     document.body.dataset.listasCarregadas = "erro";
@@ -365,21 +454,6 @@ function iniciar(): void {
   mascaraCPF(el<HTMLInputElement>("cpf"));
   mascaraMoeda(el<HTMLInputElement>("valor"));
   el<HTMLInputElement>("data_servico").value = formatarDataBR(hojeIso());
-  document.querySelectorAll<HTMLSelectElement>("select[data-qtd]").forEach((sel) => {
-    for (let i = 1; i <= 5; i++) sel.appendChild(opcao(String(i), String(i)));
-    sel.addEventListener("change", sugerirValor);
-  });
-  el("servico").addEventListener("change", () => {
-    atualizarServico();
-    if (el<HTMLSelectElement>("servico").value === OUTRO) el<HTMLInputElement>("servico_outro").focus();
-  });
-  el("btn-voltar-lista").addEventListener("click", () => {
-    const sel = el<HTMLSelectElement>("servico");
-    sel.value = "";
-    el<HTMLInputElement>("servico_outro").value = "";
-    atualizarServico();
-    sel.focus();
-  });
   el("btn-observacao").addEventListener("click", () => {
     const aberta = !el("bloco-observacao").classList.contains("aberta");
     abrirObservacao(aberta);

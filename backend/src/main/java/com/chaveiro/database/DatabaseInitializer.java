@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 5;
+    private static final int VERSAO_ATUAL = 6;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -116,6 +116,7 @@ public class DatabaseInitializer {
             case 3 -> veiculos();
             case 4 -> usuarios();
             case 5 -> validacoesEAuditoriaCadastros();
+            case 6 -> itensDaGarantia();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -568,6 +569,33 @@ public class DatabaseInitializer {
             sql.add("CREATE TRIGGER " + prefixo + "_delete AFTER DELETE ON " + tabela + " BEGIN "
                     + auditar(tabela, "DELETE", "OLD." + id, json.apply("OLD"), "NULL") + " END");
         }
+        return sql;
+    }
+
+    // ---------- v6: varios produtos por garantia (botao + no cadastro) ----------
+
+    /**
+     * Cada garantia pode ter varios produtos (linhas do cadastro). A garantia continua
+     * guardando o resumo em texto ("TROCA CARCACA + PILHA"), as quantidades e o valor,
+     * entao pesquisa, graficos, cupom e backup nao mudam. As combinacoes prontas do VBA
+     * (CARCACA+PILHA...) saem da lista: agora se escolhe produto por produto.
+     */
+    private static List<String> itensDaGarantia() {
+        List<String> sql = new ArrayList<>();
+        sql.add("""
+                CREATE TABLE garantia_itens (
+                    id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_garantia INTEGER NOT NULL REFERENCES garantias(id_garantia) ON DELETE CASCADE,
+                    ordem INTEGER NOT NULL CHECK (ordem >= 1),
+                    id_servico INTEGER REFERENCES servicos(id_servico) ON DELETE SET NULL,
+                    descricao TEXT NOT NULL CHECK (length(trim(descricao)) BETWEEN 2 AND 120),
+                    quantidade INTEGER NOT NULL CHECK (quantidade BETWEEN 1 AND 5),
+                    preco_centavos INTEGER NOT NULL DEFAULT 0 CHECK (preco_centavos >= 0),
+                    UNIQUE (id_garantia, ordem)
+                )
+                """);
+        sql.add("CREATE INDEX idx_garantia_itens_garantia ON garantia_itens(id_garantia)");
+        sql.add("UPDATE servicos SET ativo = 0 WHERE nome IN ('TROCA CARCAÇA+PILHA', 'TROCA CARCAÇA+BOTÃO', 'TROCA CARCAÇA+BOTÃO+PILHA')");
         return sql;
     }
 }

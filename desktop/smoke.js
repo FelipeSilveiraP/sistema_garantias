@@ -136,19 +136,21 @@ async function executar() {
   teste("CADASTRAR GARANTIA abre o formulário", await telaPronta("cadastrar-garantia"));
   teste("Técnicos, modelos e serviços carregados", await esperarPredicado("document.body.dataset.listasCarregadas === 'true'"));
   teste("Técnicos iniciais do VBA", (await js("[...document.querySelectorAll('#tecnico option')].map(o => o.value).join(',')")).includes("RENATO"));
-  await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change')); })()`);
-  teste("Serviço com pilha mostra carcaça e pilha (e esconde botão)",
-    await js("!document.getElementById('q-carcaca').classList.contains('hidden') && !document.getElementById('q-pilha').classList.contains('hidden') && document.getElementById('q-botao').classList.contains('hidden')"));
-  teste("Valor sugerido pela tabela (pilha R$ 12,00)", (await js("document.getElementById('valor').value")) === "12,00", await js("document.getElementById('valor').value"));
-  // OUTRO: o campo de texto entra no lugar da caixa; o botao volta para a lista
-  await js(`(() => { const s = document.getElementById('servico'); s.value = 'OUTRO'; s.dispatchEvent(new Event('change')); })()`);
-  teste("Serviço OUTRO troca a caixa pelo campo de texto",
-    await js("document.getElementById('servico').classList.contains('hidden') && !document.getElementById('bloco-outro').classList.contains('hidden') && document.activeElement.id === 'servico_outro'"));
+  // produtos em linhas: + acrescenta outra linha abaixo (combos do VBA saíram da lista)
+  teste("Combos CARCAÇA+PILHA saíram da lista", await js("![...document.querySelectorAll('#produtos .produto-caixa option')].some(o => o.textContent.includes('+'))"));
+  await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
+  await js("document.querySelector('#produtos .produto-mais').click()");
+  teste("Botão + acrescenta uma linha de produto", (await js("document.querySelectorAll('#produtos > li').length")) === 2);
+  await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'PILHA').value; s.dispatchEvent(new Event('change')); })()`);
+  teste("Valor sugerido soma os produtos (pilha R$ 12,00)", (await js("document.getElementById('valor').value")) === "12,00", await js("document.getElementById('valor').value"));
+  // OUTRO numa linha: o campo de texto entra no lugar da caixa; o botao volta para a lista
+  await js("document.querySelectorAll('#produtos .produto-mais')[1].click()");
+  await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'OUTRO (DESCREVER)').value; s.dispatchEvent(new Event('change')); })()`);
+  teste("Produto OUTRO troca a caixa pelo campo de texto",
+    await js("(() => { const li = document.querySelectorAll('#produtos > li')[2]; return li.querySelector('.produto-caixa').classList.contains('hidden') && !li.querySelector('.produto-outro').classList.contains('hidden'); })()"));
   await capturar("cadastrar-garantia-outro-1366x820");
-  await js("document.getElementById('btn-voltar-lista').click()");
-  teste("Botão da lista volta para a caixa de serviços",
-    await js("!document.getElementById('servico').classList.contains('hidden') && document.getElementById('bloco-outro').classList.contains('hidden') && document.getElementById('servico').value === ''"));
-  await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change')); })()`);
+  await js("document.querySelectorAll('#produtos > li')[2].querySelector('.produto-tirar').click()");
+  teste("X tira a linha", (await js("document.querySelectorAll('#produtos > li').length")) === 2);
   // observacao escondida atras da seta; o clique deixa aberta
   teste("Observação começa escondida atrás da seta", await js("document.getElementById('observacao').offsetParent === null && !!document.getElementById('btn-observacao')"));
   await js("document.getElementById('btn-observacao').click()");
@@ -190,7 +192,10 @@ async function executar() {
   await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
-  await js(`(() => { const s = document.getElementById('servico'); s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA+PILHA').value; s.dispatchEvent(new Event('change'));
+  await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
+  await js("document.querySelector('#produtos .produto-mais').click()");
+  await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'PILHA').value; s.dispatchEvent(new Event('change')); })()`);
+  await js(`(() => {
     document.getElementById('placa').value = 'SMK1A23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })(); document.getElementById('tecnico').value = 'FELIPE';
     document.getElementById('btn-salvar').click(); })()`);
   teste("Garantia repetida pede confirmação", await esperarPredicado("!!document.querySelector('[data-dialogo]') && document.querySelector('[data-dialogo-titulo]').textContent.includes('GARANTIA PARECIDA')", 4000));
