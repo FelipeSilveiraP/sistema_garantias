@@ -1,0 +1,78 @@
+# Regras de seguranca proprias do Sistema de Garantias (rodam no CI junto das regras
+# OWASP do registro do Semgrep). Cada regra transforma uma regra do AGENTS.md em teste.
+rules:
+  - id: sql-concatenado-com-variavel
+    message: >-
+      SQL montado com um texto recebido pelo metodo. Use PreparedStatement com "?"
+      (AGENTS.md 2.2). Nomes de tabela/coluna so de constantes do codigo.
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern-inside: |
+          $RET $METODO(..., String $X, ...) { ... }
+      - pattern-either:
+          - pattern: $CONN.prepareStatement(<... $X ...>)
+          - pattern: $CONN.prepareStatement(<... $X ...>, ...)
+          - pattern: $ST.execute(<... $X ...>)
+          - pattern: $ST.executeQuery(<... $X ...>)
+          - pattern: $ST.executeUpdate(<... $X ...>)
+          - pattern: $ST.addBatch(<... $X ...>)
+
+  - id: innerhtml-com-dados
+    message: >-
+      innerHTML/outerHTML/insertAdjacentHTML com valor que nao e texto fixo. Use
+      createElement + textContent (AGENTS.md 2.2, prevencao de XSS).
+    severity: ERROR
+    languages: [typescript, javascript]
+    patterns:
+      - pattern-either:
+          - pattern: $E.innerHTML = $V
+          - pattern: $E.outerHTML = $V
+          - pattern: $E.insertAdjacentHTML($P, $V)
+      - pattern-not: $E.innerHTML = "..."
+
+  - id: dialogo-nativo-proibido
+    message: "alert/confirm/prompt nativos sao proibidos: use dialogos.ts (CLAUDE.md)."
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: alert(...)
+      - pattern: window.alert(...)
+      - pattern: confirm(...)
+      - pattern: window.confirm(...)
+      - pattern: prompt(...)
+      - pattern: window.prompt(...)
+
+  - id: eval-proibido
+    message: "eval/new Function executam texto como codigo."
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      exclude:
+        # os testes de mascaras/filtros carregam o proprio codigo do projeto compilado pelo esbuild
+        - desktop/teste-*.js
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: comparacao-de-segredo-nao-constante
+    message: >-
+      Comparar hash/token/codigo com equals vaza tempo; use MessageDigest.isEqual.
+    severity: WARNING
+    languages: [java]
+    patterns:
+      - pattern: $A.equals($B)
+      - metavariable-regex:
+          metavariable: $B
+          regex: (?i).*(hash|token|codigo).*
+      - pattern-inside: |
+          class $C { ... }
+
+  - id: electron-sem-isolamento
+    message: "Janela Electron precisa de contextIsolation: true e nodeIntegration: false."
+    severity: ERROR
+    languages: [javascript]
+    pattern-either:
+      - pattern: "{..., nodeIntegration: true, ...}"
+      - pattern: "{..., contextIsolation: false, ...}"
+      - pattern: "{..., webSecurity: false, ...}"

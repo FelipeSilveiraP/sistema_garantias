@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Achados do SpotBugs + Find Security Bugs revisados um a um na auditoria de 2026-11-15
+  (detalhes em docs/seguranca.md). Tudo o que NAO esta aqui faz o CI falhar.
+-->
+<FindBugsFilter>
+  <!-- Estilo/robustez sem relacao com seguranca (records e excecoes que guardam listas/mapas). -->
+  <Match><Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,CT_CONSTRUCTOR_THROW,ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD,DCN_NULLPOINTER_EXCEPTION,NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/></Match>
+
+  <!-- SQL montado so com NOMES fixos do codigo (tabela/coluna de um enum, lista de colunas
+       constante, numero da versao); todo VALOR vem por "?" (PreparedStatement). -->
+  <Match>
+    <Bug pattern="SQL_INJECTION_JDBC"/>
+    <Or>
+      <Class name="com.chaveiro.database.DatabaseInitializer"/>
+      <Class name="com.chaveiro.repository.EstatisticaRepository"/>
+      <Class name="com.chaveiro.repository.GarantiaRepository"/>
+      <Class name="com.chaveiro.repository.ListaRepository"/>
+      <Class name="com.chaveiro.repository.ServicoRepository"/>
+      <Class name="com.chaveiro.repository.UsuarioRepository"/>
+    </Or>
+  </Match>
+  <!-- VACUUM INTO nao aceita "?": o caminho e montado pelo proprio backup (pasta de dados
+       + data/hora + motivo fixo do codigo) e as aspas sao duplicadas. -->
+  <Match>
+    <Class name="com.chaveiro.service.BackupService"/>
+    <Bug pattern="SQL_INJECTION_JDBC,SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
+  </Match>
+  <!-- "pbkdf2".equals(...) compara o NOME do algoritmo, nao o hash (o hash usa MessageDigest.isEqual). -->
+  <Match><Class name="com.chaveiro.service.Cripto"/><Bug pattern="UNSAFE_HASH_EQUALS"/></Match>
+  <!-- variavel "senha" e a senha de app digitada pelo admin (validada), nao uma senha fixa no codigo. -->
+  <Match><Class name="com.chaveiro.service.UsuarioService"/><Bug pattern="HARD_CODE_PASSWORD"/></Match>
+  <!-- a resposta 413/411 so escreve textos fixos do codigo. -->
+  <Match><Class name="com.chaveiro.web.LimiteCorpoFilter"/><Bug pattern="XSS_SERVLET"/></Match>
+</FindBugsFilter>
