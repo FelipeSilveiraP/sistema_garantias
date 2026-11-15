@@ -325,10 +325,10 @@
 
 /* COR DO MODULO + CONTRASTE DE TEXTO POR BOTAO */
 
-/* casinha azul; no hover o botao inteiro fica vermelho (pedido do usuario) */
+/* MENU PRINCIPAL: tudo azul, na cor da casinha (nunca vermelho: e a cor de Pesquisar) */
 .barra-navegacao .nav-item[data-nav="menu"] {
-  --cor-modulo: #ff3b30;
-  --cor-texto-forte: #1c1b1b;
+  --cor-modulo: #2563eb;
+  --cor-texto-forte: #ffffff;
 }
 
 .barra-navegacao .nav-item[data-nav="cadastrar"] {
