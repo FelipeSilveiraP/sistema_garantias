@@ -2,7 +2,7 @@
 
 > Máximo 30 linhas. **Reescreva** este arquivo a cada entrega (sem histórico — decisões vão em `decisoes.md`).
 
-**Atualizado em:** 2026-11-15 — versão **1.4.0** (auditoria de segurança) na branch `claude/jolly-planck-aqp3wl`, em Pull Request para a `main` (aguardando aprovação do usuário; ainda não instalada)
+**Atualizado em:** 2026-11-15 — versão **1.4.0** (auditoria de segurança) na `main` (PR #1; ainda não instalada na loja)
 
 ## Situação
 - Projeto irmão do Sistema de Contas a Pagar (Electron + TS puro + Spring Boot 3.5/Java 21 + SQLite WAL), substitui a planilha `GARANTIAS-AAAA.xlsm`.
@@ -10,10 +10,10 @@
 - Dependências atualizadas: Spring Boot 3.5.16 (Tomcat 10.1.59, Jackson 2.21.7), sqlite-jdbc 3.54.1.0, Electron 44.10.1, esbuild 0.28.2.
 - **CI no GitHub** (`.github/workflows/testes.yml`): testes no Windows + segurança (npm audit, OSV-Scanner, SpotBugs/FindSecBugs, Semgrep) + CodeQL; a cada envio e toda segunda.
 - Versão 1.3.3 (instalada na loja): vários produtos por garantia (banco v6 `garantia_itens`), cadastro na vertical. Versões anteriores: ver `decisoes.md`.
-- **Testes na nuvem (2026-11-15):** JUnit 68 (67 ok, 1 pulado: planilha real só existe no PC) · máscaras 74 · filtros 22 · automações 26 · persistência 11/11 · smoke 83/86 no Linux (as 3 falhas de layout são iguais na versão antiga) · smoke-boot só no Windows (CI).
+- **Testes na nuvem (2026-11-15):** JUnit 68 (67 ok, 1 pulado: planilha real só existe no PC) · máscaras 74 · filtros 22 · automações 26 · persistência 11/11 · smoke 83/86 no Linux (as 3 falhas de layout são iguais na versão antiga) · smoke-boot só no Windows. **CI no GitHub (Windows): tudo verde** — JUnit, máscaras, smoke, persistência, smoke-boot, segurança e CodeQL.
 
 ## Próximos passos
-- Conferir o resultado do CI no Windows (smoke e smoke-boot) no PR; instalar a 1.4.0 depois da aprovação.
+- Gerar e instalar a 1.4.0 na loja (`npm run instalador`; o banco passa sozinho para a v7, com backup antes).
 - Assinar o `versao.json` das atualizações pelo Drive (risco médio, `docs/seguranca.md` §6).
 - electron-builder 25 → 26 (só ferramentas de build) com teste do instalador no Windows.
 - Automação do cupom fiscal no SAT web da RM Software (estrutura pronta: `codigo_cupom`, `cupom_status`, `PUT /api/garantias/{id}/cupom`).
