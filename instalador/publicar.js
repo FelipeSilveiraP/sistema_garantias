@@ -41,9 +41,13 @@ if (!pasta) {
 }
 fs.mkdirSync(pasta, { recursive: true });
 
-// remove instaladores antigos da pasta (so os deste sistema)
-for (const arq of fs.readdirSync(pasta)) {
-  if (/^Garantias - Chaveiro Universal - Instalador [\d.]+\.exe$/.test(arq) && arq !== nome) {
+// REGRA: nunca apaga arquivo do usuario no Google Drive. Remove SO instaladores
+// antigos deste sistema: arquivo comum (nao pasta, nao atalho) com o nome exato
+// "Garantias - Chaveiro Universal - Instalador X.Y.Z.exe", direto nesta pasta.
+for (const item of fs.readdirSync(pasta, { withFileTypes: true })) {
+  const arq = item.name;
+  if (item.isFile() && !item.isSymbolicLink() && arq !== nome
+      && /^Garantias - Chaveiro Universal - Instalador \d+\.\d+\.\d+\.exe$/.test(arq)) {
     fs.unlinkSync(path.join(pasta, arq));
   }
 }
