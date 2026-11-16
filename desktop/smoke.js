@@ -25,6 +25,14 @@ const errosConsole = [];
 let janela = null;
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const js = (codigo) => janela.webContents.executeJavaScript(codigo);
+// Enter DE VERDADE (tecla enviada pela janela) num campo: tem de fazer o mesmo que o
+// botao de enviar/concluir do formulario (frontend/ts/enter-envia.ts)
+async function enter(seletor) {
+  await js(`document.querySelector(${JSON.stringify(seletor)}).focus()`);
+  janela.webContents.sendInputEvent({ type: "keyDown", keyCode: "Enter" });
+  janela.webContents.sendInputEvent({ type: "char", keyCode: "\r" });
+  janela.webContents.sendInputEvent({ type: "keyUp", keyCode: "Enter" });
+}
 
 function teste(nome, ok, detalhe = "") {
   resultados.push({ nome, ok: Boolean(ok) });
@@ -184,8 +192,8 @@ async function executar() {
     document.getElementById('tecnico').value = 'FELIPE'; document.getElementById('observacao').value = 'chave canivete';
     const v = document.getElementById('valor'); v.value = '130,00'; v.dispatchEvent(new Event('input')); })()`);
   await capturar("cadastrar-garantia-1366x820");
-  await js("document.getElementById('btn-salvar').click()");
-  teste("SALVAR GARANTIA grava", await esperarPredicado("!!document.body.dataset.garantiaSalva", 6000));
+  await enter("#valor");
+  teste("Enter no último campo = SALVAR GARANTIA (grava)", await esperarPredicado("!!document.body.dataset.garantiaSalva", 6000));
   teste("Pop-up GARANTIA SALVA (verde) aparece",
     await esperarPredicado("document.querySelector('[data-dialogo=sucesso] [data-dialogo-titulo]')?.textContent === 'GARANTIA SALVA'", 3000));
   await capturar("cadastrar-garantia-salva-1366x820");
@@ -214,8 +222,9 @@ async function executar() {
   teste("Garantia mostra marca e modelo", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CHEVROLET ONIX')", 5000));
   await js(`(() => { const s = document.getElementById('fieldSelect'); s.value = 'veiculo'; s.dispatchEvent(new Event('change'));
     const v = document.getElementById('newValueSelect'); v.value = [...v.options].find(o => o.textContent === 'CHEVROLET CRUZE').value;
-    v.dispatchEvent(new Event('change')); document.getElementById('btnApplyChange').click(); })()`);
-  teste("Alterar um campo salva (modelo pela lista)", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CHEVROLET CRUZE')", 5000));
+    v.dispatchEvent(new Event('change')); })()`);
+  await enter("#newValueSelect");
+  teste("Enter na caixa de seleção = APLICAR (modelo pela lista salvo)", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('CHEVROLET CRUZE')", 5000));
   teste("Cadastrada por FELIPE", (await texto("#tableBody tr.linha-garantia")).includes("FELIPE"));
   await js("document.getElementById('btnCupomLancado').click()");
   teste("CUPOM LANÇADO marca o selo", await esperarPredicado("document.querySelector('#tableBody tr.linha-garantia').textContent.includes('Lançado')", 5000));
@@ -254,16 +263,18 @@ async function executar() {
   }
   await ir("form-veiculo");
   await esperarPredicado("document.getElementById('marca').options.length > 20", 5000);
-  await js("(() => { const m = document.getElementById('marca'); m.value = 'FIAT'; m.dispatchEvent(new Event('change')); document.getElementById('modelo').value = 'Uno Smoke'; document.getElementById('btn-salvar').click(); })()");
-  teste("Cadastrar veículo grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
+  await js("(() => { const m = document.getElementById('marca'); m.value = 'FIAT'; m.dispatchEvent(new Event('change')); document.getElementById('modelo').value = 'Uno Smoke'; })()");
+  await enter("#modelo");
+  teste("Enter = SALVAR: cadastrar veículo grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
   await ir("todos-veiculos");
   await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
   await js("(() => { const i = document.getElementById('searchInput'); i.value = 'uno smoke'; i.dispatchEvent(new Event('input')); })()");
   teste("Todos os veículos acha o cadastrado", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-cadastro').length === 1", 4000));
   await capturar("todos-veiculos-1366x820");
   await ir("form-tecnico");
-  await js("(() => { document.getElementById('nome').value = 'Técnico Smoke'; document.getElementById('btn-salvar').click(); })()");
-  teste("Cadastrar técnico grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
+  await js("document.getElementById('nome').value = 'Técnico Smoke'");
+  await enter("#nome");
+  teste("Enter = SALVAR: cadastrar técnico grava", await esperarPredicado("!!document.body.dataset.cadastroSalvo", 5000));
   await ir("todos-tecnicos");
   teste("Todos os técnicos mostra o novo com a bolinha", await esperarPredicado("document.querySelector('#tableBody').textContent.includes('TÉCNICO SMOKE') && !!document.querySelector('#tableBody .perfil-avatar')", 6000));
   await ir("graficos");
@@ -273,24 +284,26 @@ async function executar() {
   await ir("atualizar-precos");
   teste("ATUALIZAR PREÇOS lista a tabela", await esperarPredicado("Number(document.body.dataset.precosCarregados) >= 11"));
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
-    const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); tr.querySelector('button').click(); })()`);
-  teste("Salvar preço de um serviço", await esperarPredicado("[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA')).querySelector('input').value === '85,00' && [...document.querySelectorAll('.notificacao__texto')].some(n => n.textContent.includes('preço salvo'))", 5000));
+    const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); i.id = 'preco-gaiola'; })()`);
+  await enter("#preco-gaiola");
+  teste("Enter no preço = SALVAR da linha (preço salvo)", await esperarPredicado("[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA')).querySelector('input').value === '85,00' && [...document.querySelectorAll('.notificacao__texto')].some(n => n.textContent.includes('preço salvo'))", 5000));
   await capturar("atualizar-precos-1366x820");
 
   // ---------- CONTAS (icone na barra): o admin cadastra; o usuario comum nao administra ----------
   await ir("contas");
   teste("CONTAS abre com a área do administrador", await esperarPredicado("document.body.dataset.adminCarregado === 'true' && !document.getElementById('area-admin').classList.contains('hidden')", 8000));
-  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('u_nome', 'Renato'); v('u_email', 'renato@hotmail.com'); v('u_pin', '5678');
-    document.querySelector('#form-usuario button[type=submit]').click(); })()`);
-  teste("Admin cadastra uma conta", await esperarPredicado("document.body.dataset.usuarioCriado === 'RENATO' && document.getElementById('tabela-usuarios').textContent.includes('renato')", 6000));
+  await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('u_nome', 'Renato'); v('u_email', 'renato@hotmail.com'); v('u_pin', '5678'); })()`);
+  await enter("#u_pin");
+  teste("Enter = CADASTRAR: admin cadastra uma conta", await esperarPredicado("document.body.dataset.usuarioCriado === 'RENATO' && document.getElementById('tabela-usuarios').textContent.includes('renato')", 6000));
   teste("Histórico de acessos registra as entradas", (await texto("#acessos-todos")).includes("FELIPE"));
   await capturar("contas-1366x820");
   teste("Barra tem um botão só para a conta", await js("document.querySelectorAll('#nav-global .nav-barra .conta-menu').length === 1"));
   await ir("perfis");
   await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 2");
   await js("document.querySelector('.perfil-cartao[data-perfil=\"RENATO\"]').click()");
-  await js("(() => { document.getElementById('pin-campo').value = '5678'; document.getElementById('pin-entrar').click(); })()");
-  teste("Renato entra com o PIN dele", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'RENATO'"));
+  await js("document.getElementById('pin-campo').value = '5678'");
+  await enter("#pin-campo");
+  teste("Enter no PIN = ENTRAR: Renato entra com o PIN dele", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'RENATO'"));
   await ir("contas");
   await esperar(1200);
   teste("Usuário comum não vê a administração de contas", await js("document.getElementById('area-admin').classList.contains('hidden')") && (await texto("#minha-conta")).includes("RENATO"));

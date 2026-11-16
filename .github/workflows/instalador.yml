@@ -2,7 +2,9 @@
 # Na loja: abra o repositorio no GitHub, clique em Releases (a direita), baixe
 # "Garantias - Chaveiro Universal - Instalador X.Y.Z.exe" e de dois cliques.
 # Roda a cada envio para a main e tambem pelo botao "Run workflow" (aba Actions).
-# A versao vem do package.json: a mesma versao publicada de novo so troca o .exe.
+# Versao automatica: X.Y do package.json + o numero desta execucao (ex.: 1.4.7), sempre
+# maior que a anterior; e ela que faz o sistema da loja oferecer ATUALIZAR sozinho.
+# Para mudar X.Y (ex.: 1.5), troque a versao no package.json.
 name: instalador
 
 on:
@@ -37,6 +39,13 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Versao automatica
+        shell: bash
+        run: |
+          VERSAO=$(node -p "const [x,y,z]=require('./package.json').version.split('.').map(Number); [x,y,Math.max(z,${{ github.run_number }})].join('.')")
+          npm version "$VERSAO" --no-git-tag-version --allow-same-version
+          echo "Versao do instalador: $VERSAO"
 
       # frontend + backend (com os testes JUnit) + Java minimo (jlink) + instalador NSIS
       - name: Gerar o instalador (npm run instalador)

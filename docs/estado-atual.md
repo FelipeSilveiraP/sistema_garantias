@@ -2,7 +2,7 @@
 
 > Máximo 30 linhas. **Reescreva** este arquivo a cada entrega (sem histórico — decisões vão em `decisoes.md`).
 
-**Atualizado em:** 2026-11-15 — versão **1.4.0** (auditoria de segurança) na `main` (PR #1; ainda não instalada na loja)
+**Atualizado em:** 2026-11-16 — **1.4.x** na `main`; instalador gerado pelo GitHub em **Releases** a cada envio (versão automática); o sistema se atualiza sozinho pelo GitHub (botão ATUALIZAR)
 
 ## Situação
 - Projeto irmão do Sistema de Contas a Pagar (Electron + TS puro + Spring Boot 3.5/Java 21 + SQLite WAL), substitui a planilha `GARANTIAS-AAAA.xlsm`.
@@ -13,7 +13,8 @@
 - **Testes na nuvem (2026-11-15):** JUnit 68 (67 ok, 1 pulado: planilha real só existe no PC) · máscaras 74 · filtros 22 · automações 26 · persistência 11/11 · smoke 83/86 no Linux (as 3 falhas de layout são iguais na versão antiga) · smoke-boot só no Windows. **CI no GitHub (Windows): tudo verde** — JUnit, máscaras, smoke, persistência, smoke-boot, segurança e CodeQL.
 
 ## Próximos passos
-- Gerar e instalar a 1.4.0 na loja (`npm run instalador`; o banco passa sozinho para a v7, com backup antes).
+- Instalar na loja a 1ª versão baixada de Releases (depois disso as próximas chegam pelo botão ATUALIZAR).
+- Enter = botão de enviar em todos os formulários (`enter-envia.ts`); teste de atualização sem perda (`AtualizacaoSemPerdaTest`).
 - Assinar o `versao.json` das atualizações pelo Drive (risco médio, `docs/seguranca.md` §6).
 - electron-builder 25 → 26 (só ferramentas de build) com teste do instalador no Windows.
 - Automação do cupom fiscal no SAT web da RM Software (estrutura pronta: `codigo_cupom`, `cupom_status`, `PUT /api/garantias/{id}/cupom`).

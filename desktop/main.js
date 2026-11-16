@@ -529,10 +529,16 @@ ipcMain.handle("findesk:atualizacao-disponivel", async () => {
     ? { versao: atualizacaoEncontrada.versao, atual: VERSAO_SISTEMA, novidades: atualizacaoEncontrada.novidades }
     : null;
 });
-ipcMain.handle("findesk:instalar-atualizacao", () => {
+ipcMain.handle("findesk:instalar-atualizacao", async () => {
   if (!atualizacaoEncontrada) return false;
-  automacoes.instalarAtualizacao(app, atualizacaoEncontrada, registrarLog);
-  return true;
+  try {
+    // do GitHub: baixa e confere o SHA-256 antes; os dados nunca sao tocados
+    await automacoes.aplicarAtualizacao(app, atualizacaoEncontrada, registrarLog);
+    return true;
+  } catch (erro) {
+    registrarLog("WARN", `atualizacao nao instalada: ${erro && erro.message}`);
+    return false;
+  }
 });
 
 ipcMain.handle("findesk:fechar", () => {

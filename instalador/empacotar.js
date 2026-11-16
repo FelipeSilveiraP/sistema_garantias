@@ -69,6 +69,14 @@ function marcarExecutavel(exe) {
 }
 
 async function main() {
+// Desde o Electron 44 o programa do Electron so e baixado na 1a vez que e usado (nao no
+// npm install). O require abaixo baixa se faltar; sem isso a pasta dist fica vazia e o
+// electron-builder falha com "rename electron.exe ... ENOENT".
+await etapa("Electron baixado", () => {
+  const exe = require("electron");
+  if (!fs.existsSync(exe)) throw new Error(`Electron nao encontrado em ${exe}`);
+  console.log(`[instalador] ${exe}`);
+});
 await etapa("Frontend", () => execSync("npm run build", { cwd: RAIZ, stdio: "inherit" }));
 await etapa("Backend (testes + jar)", () => execSync(`${acharMaven()} -q -f backend/pom.xml package`, { cwd: RAIZ, stdio: "inherit" }));
 await etapa("Java minimo (jlink)", () => execFileSync(process.execPath, [path.join(__dirname, "gerar-jre.js")], { cwd: RAIZ, stdio: "inherit" }));

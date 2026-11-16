@@ -35,6 +35,8 @@ function primeiroErro(erro: unknown, padrao: string): string {
 function linhaServico(s: ServicoDados): HTMLTableRowElement {
   const tr = document.createElement("tr");
   tr.dataset.id = String(s.id);
+  // Enter num campo da linha = SALVAR desta linha (enter-envia.ts)
+  tr.dataset.enterEnvia = "button";
   if (!s.ativo) tr.classList.add("bg-neutral-100", "text-neutral-500");
   const nome = document.createElement("td");
   nome.className = "py-2 px-3 uppercase";
