@@ -1,7 +1,8 @@
 // Enter = botao de enviar/concluir, em QUALQUER formulario do sistema (pedido do usuario,
 // 2026-11-16). Vale em campo de texto, numero, data, caixa de selecao e caixa de marcar:
-// - dentro de um <form>: envia o formulario (o mesmo que clicar no botao de enviar,
-//   com as mesmas conferencias da tela);
+// - dentro de um <form>: clica no botao de enviar VISIVEL (o mesmo que clicar nele, com
+//   as mesmas conferencias da tela). Em formulario com etapas, enquanto o botao de
+//   salvar esta escondido, vale o botao do data-enter-envia do form (ex.: PROXIMA);
 // - fora de <form>: clica no botao indicado pelo bloco mais proximo marcado com
 //   data-enter-envia="<seletor do botao>" (ex.: "APLICAR ALTERACAO", "APLICAR REAJUSTE").
 // Nao muda: Shift/Ctrl/Alt+Enter, area de texto grande (Enter = nova linha), botoes e
@@ -27,7 +28,14 @@ function usavel(botao: HTMLButtonElement | null): botao is HTMLButtonElement {
  */
 export function acaoDoEnter(campo: HTMLInputElement | HTMLSelectElement): { form: HTMLFormElement } | { botao: HTMLButtonElement } | null {
   if (campo.disabled) return null;
-  if (campo.form) return { form: campo.form };
+  const form = campo.form;
+  if (form) {
+    const enviar = [...form.querySelectorAll<HTMLButtonElement>("button[type='submit'], button:not([type])")].find(usavel);
+    if (enviar) return { form };
+    // etapa intermediaria (salvar escondido): o botao indicado no form, ex.: PROXIMA
+    const proximo = form.dataset.enterEnvia ? form.querySelector<HTMLButtonElement>(form.dataset.enterEnvia) : null;
+    return usavel(proximo) ? { botao: proximo } : null;
+  }
   const zona = campo.closest<HTMLElement>("[data-enter-envia]");
   if (!zona) return null;
   const seletor = zona.dataset.enterEnvia || "button";
@@ -45,10 +53,10 @@ export function ligarEnterEnvia(raiz: Document = document): void {
     if (!acao) return;
     evento.preventDefault();
     if ("form" in acao) {
-      // requestSubmit: dispara o "submit" da tela (com as validacoes), igual ao botao
-      const enviar = acao.form.querySelector<HTMLButtonElement>("button[type='submit'], button:not([type])");
-      if (enviar && enviar.disabled) return;
-      acao.form.requestSubmit(enviar && acao.form.contains(enviar) ? enviar : undefined);
+      // requestSubmit com o botao visivel: dispara o "submit" da tela (com as validacoes),
+      // igual a clicar no botao
+      const enviar = [...acao.form.querySelectorAll<HTMLButtonElement>("button[type='submit'], button:not([type])")].find(usavel);
+      acao.form.requestSubmit(enviar);
     } else {
       acao.botao.click();
     }
