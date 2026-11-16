@@ -9,6 +9,14 @@ const automacoes = require("./automacoes");
 // o app roda por script (desenvolvimento/testes)
 const VERSAO_SISTEMA = require(path.join(__dirname, "..", "package.json")).version;
 
+// MAIS LEVE (pedido do usuario, 2026-11-16): a tela e simples e nao precisa da placa de
+// video; sem a aceleracao, o Chromium nao abre o processo de GPU (menos memoria em PC antigo)
+app.disableHardwareAcceleration();
+// Java do servidor interno com pouca memoria e pouco processamento: ~125 MB em vez de
+// ~200 MB (medido), coletor de lixo simples e compilacao rapida (TieredStopAtLevel=1)
+const JAVA_LEVE = ["-Xmx256m", "-Xms16m", "-XX:+UseSerialGC", "-Xss512k", "-XX:TieredStopAtLevel=1",
+  "-XX:ReservedCodeCacheSize=32m", "-XX:MaxMetaspaceSize=128m"];
+
 let processoBackend = null;
 let janela = null;
 let token = null;
@@ -263,7 +271,7 @@ async function iniciarBackend() {
     throw new Error("backend nao compilado. Execute: mvn -f backend/pom.xml package");
   }
 
-  const proc = spawn(java, ["-Xmx256m", "-jar", jar], {
+  const proc = spawn(java, [...JAVA_LEVE, "-jar", jar], {
     env: {
       ...process.env,
       SERVER_PORT: String(porta),
