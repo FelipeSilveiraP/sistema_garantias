@@ -41,15 +41,15 @@ function spawnFalso() {
   console.log("=== Configuracoes ===");
   const dados = path.join(PASTA, "dados");
   const cfg = a.lerConfiguracoes(dados, log);
-  teste("Padrao: abre com o Windows, mas NAO abre o e-mail (o Contas a Pagar ja abre)", cfg.abrirAoLigarComputador && !cfg.abrirEmailAoLigar && cfg.enderecoEmail.startsWith("https://mail.google.com"));
+  teste("Padrao: NAO abre com o Windows e NAO abre o e-mail", !cfg.abrirAoLigarComputador && !cfg.abrirEmailAoLigar && cfg.enderecoEmail.startsWith("https://mail.google.com"));
   teste("configuracoes.json criado ao lado do banco para o usuario editar", fs.existsSync(path.join(dados, "configuracoes.json")));
   fs.writeFileSync(path.join(dados, "configuracoes.json"), JSON.stringify({ abrirEmailAoLigar: false }));
   const cfg2 = a.lerConfiguracoes(dados, log);
-  teste("Valor editado pelo usuario e respeitado e o resto vem do padrao", cfg2.abrirEmailAoLigar === false && cfg2.abrirAoLigarComputador === true);
+  teste("Valor editado pelo usuario e respeitado e o resto vem do padrao", cfg2.abrirEmailAoLigar === false && cfg2.abrirAoLigarComputador === false);
   fs.writeFileSync(path.join(dados, "configuracoes.json"), "﻿" + JSON.stringify({ abrirAoLigarComputador: false }));
   teste("Arquivo salvo com BOM (Bloco de Notas) e lido corretamente", a.lerConfiguracoes(dados, log).abrirAoLigarComputador === false);
   fs.writeFileSync(path.join(dados, "configuracoes.json"), "{ quebrado");
-  teste("Arquivo invalido nao derruba o sistema (usa o padrao)", a.lerConfiguracoes(dados, log).abrirAoLigarComputador === true);
+  teste("Arquivo invalido nao derruba o sistema (usa o padrao)", a.lerConfiguracoes(dados, log).abrirAoLigarComputador === false);
   teste("Arquivo invalido NAO e sobrescrito (o texto do usuario fica)", fs.readFileSync(path.join(dados, "configuracoes.json"), "utf8") === "{ quebrado");
 
   console.log("\n=== Abrir com o Windows ===");
@@ -66,15 +66,15 @@ function spawnFalso() {
   const regDev = registroFalso();
   teste("Em desenvolvimento/testes NAO registra nada no Windows", a.configurarInicioComWindows(appFalso(false), cfg, log, regDev) === false && regDev.gravacoes.length === 0);
   const reg = registroFalso();
-  teste("Instalado: grava o caminho ENTRE ASPAS com o marcador de inicio automatico",
-    a.configurarInicioComWindows(appFalso(true), cfg, log, reg) === true && reg.valor === esperado);
-  reg.valor = esperado.replace(/"/g, "");
-  a.configurarInicioComWindows(appFalso(true), cfg, log, reg);
-  teste("Cadastro antigo sem aspas (gravado pelo Electron) e corrigido", reg.valor === esperado);
-  teste("Desligado no configuracoes.json: remove do inicio do Windows",
-    a.configurarInicioComWindows(appFalso(true), { ...cfg, abrirAoLigarComputador: false }, log, reg) === true && reg.valor === null);
-  teste("Cadastro que nao fica gravado: avisa no log (WARN) com 'ausente'",
-    a.configurarInicioComWindows(appFalso(true), cfg, log, registroFalso(9)) === false && logs.some((l) => l.startsWith("WARN") && l.includes("ausente")));
+  reg.valor = esperado; // cadastro gravado por uma versao antiga
+  teste("Instalado: APAGA o cadastro antigo na inicializacao do Windows (o Garantias nao abre sozinho)",
+    a.configurarInicioComWindows(appFalso(true), cfg, log, reg) === true && reg.valor === null && reg.gravacoes.length === 0);
+  reg.valor = esperado;
+  teste("Mesmo com configuracoes.json antigo pedindo para abrir, NAO cadastra (apaga)",
+    a.configurarInicioComWindows(appFalso(true), { ...cfg, abrirAoLigarComputador: true }, log, reg) === true && reg.valor === null && reg.gravacoes.length === 0);
+  teste("Sem cadastro: continua sem nada gravado", a.configurarInicioComWindows(appFalso(true), cfg, log, reg) === true && reg.valor === null);
+  const nsh = fs.readFileSync(path.join(__dirname, "..", "instalador", "instalador.nsh"), "utf8");
+  teste("Instalador nao grava o inicio com o Windows (so apaga)", !/WriteRegStr/i.test(nsh) && /DeleteRegValue[^\n]*Run" "Garantias - Chaveiro Universal"/.test(nsh));
 
   console.log("\n=== Chrome com o e-mail ===");
   const shell = { abertos: [], openExternal(u) { this.abertos.push(u); return Promise.resolve(); } };

@@ -70,19 +70,9 @@ O sistema só oferece a atualização quando a versão é maior que a instalada 
 2. Rode o instalador da versão nova. Ele substitui o programa e **não toca nos dados**.
 3. Ao abrir, o sistema faz sozinho um **backup do banco** antes de aplicar qualquer mudança de estrutura (migração). As migrações só acrescentam, nunca apagam dados.
 
-## Abrir com o Windows e abrir o e-mail
+## Não abre sozinho com o Windows
 
-O sistema instalado se registra para **abrir sozinho quando o computador liga**. Nesse início automático ele também **abre o Chrome no e-mail** (Gmail). Se o sistema for aberto à mão, o e-mail não abre. Tudo isso é configurável no arquivo `configuracoes.json`, ao lado do banco, editável no Bloco de Notas:
-
-```json
-{
-  "abrirAoLigarComputador": true,
-  "abrirEmailAoLigar": true,
-  "enderecoEmail": "https://mail.google.com/"
-}
-```
-
-Depois de mudar, feche e abra o sistema. Com `abrirAoLigarComputador: false` ele sai do início do Windows. O endereço aceita só `https://` ou `http://`.
+**O Sistema de Garantias não abre sozinho quando o computador liga** (pedido do usuário, 2026-11-16). O instalador não cadastra o sistema na inicialização do Windows e **apaga** o cadastro que as versões até a 1.4.5 gravavam; o sistema também confere e apaga esse cadastro toda vez que abre. Para usar, abra pelo atalho **"Garantias"** na Área de Trabalho ou no Menu Iniciar. (Quem abre sozinho com o Windows é o Contas a Pagar.)
 
 ## Onde ficam os dados
 

@@ -26,7 +26,8 @@ const NOME_INSTALADOR = /^Garantias - Chaveiro Universal - Instalador (\d+\.\d+\
 const LIMITE_INSTALADOR = 400 * 1024 * 1024;
 
 const PADRAO = {
-  abrirAoLigarComputador: true,
+  // o Garantias NAO abre sozinho quando o computador liga (pedido do usuario, 2026-11-16)
+  abrirAoLigarComputador: false,
   abrirEmailAoLigar: false,
   enderecoEmail: "https://mail.google.com/",
 };
@@ -90,7 +91,10 @@ const registroWindows = {
 /** Registra (ou remove) o sistema na inicializacao do Windows e confere se ficou gravado. */
 function configurarInicioComWindows(app, config, registrarLog, registro = registroWindows) {
   if (!app.isPackaged) return false;
-  const ligar = Boolean(config.abrirAoLigarComputador);
+  // REGRA (pedido do usuario, 2026-11-16): o Garantias nunca abre sozinho com o Windows.
+  // Mesmo que um configuracoes.json antigo tenha "abrirAoLigarComputador": true, o
+  // cadastro feito pelas versoes anteriores e APAGADO aqui, a cada abertura.
+  const ligar = false;
   const esperado = `"${process.execPath}" ${ARG_INICIO}`;
   try {
     if (ligar && registro.ler() !== esperado) registro.gravar(esperado);
