@@ -65,11 +65,11 @@ class LegadoESegurancaTest {
         List<String> cab = List.of("DATA", "PLACA", "MODELO (CARRO)", "SERVIÇO", "CPF", "VALOR", "TÉCNICO ", "OBSERVAÇÃO");
         return PlanilhaXlsx.gerar(List.of(
                 new PlanilhaXlsx.Aba("JANEIRO", cab, List.of(
-                        List.of(46027, "GEW5638", "RENEGADE", "01 TROCA DE CARCAÇA", "", 240, "FELIPE", ""),
+                        List.of(46027, "TST1234", "RENEGADE", "01 TROCA DE CARCAÇA", "", 240, "FELIPE", ""),
                         List.of(46028, "SEM PLACA", "ONIX", "01 CARCAÇA CANIVETE E PILHA", "12345678909", 130, "RENATO", "CLIENTE VOLTA"),
                         List.of("", "", "", "", "", "", "", ""))),
                 new PlanilhaXlsx.Aba("MARÇO", cab, List.of(
-                        List.of("15/03/2026", "ddq-6717", "voiage", "01 TROCA DA GAIOLA", "", "85,50", "renato", ""))),
+                        List.of("15/03/2026", "tst-9876", "voiage", "01 TROCA DA GAIOLA", "", "85,50", "renato", ""))),
                 new PlanilhaXlsx.Aba("RESUMO", cab, List.of(
                         List.of(46027, "NAO E MES", "X", "X", "", 1, "X", "")))));
     }
@@ -83,13 +83,13 @@ class LegadoESegurancaTest {
         assertThat(r.importadas()).isEqualTo(3);
         List<Garantia> lista = garantias.listar();
         assertThat(lista).hasSize(3).allMatch(g -> "LEGADO".equals(g.origem()));
-        Garantia renegade = lista.stream().filter(g -> "GEW5638".equals(g.placa())).findFirst().orElseThrow();
+        Garantia renegade = lista.stream().filter(g -> "TST1234".equals(g.placa())).findFirst().orElseThrow();
         assertThat(renegade.dataServico()).hasToString("2026-01-05");
         assertThat(renegade.valor()).isEqualByComparingTo("240.00");
         Garantia semPlaca = lista.stream().filter(Garantia::semPlaca).findFirst().orElseThrow();
         assertThat(semPlaca.placa()).isNull();
         assertThat(semPlaca.cpf()).isEqualTo("12345678909");
-        Garantia gaiola = lista.stream().filter(g -> "DDQ6717".equals(g.placa())).findFirst().orElseThrow();
+        Garantia gaiola = lista.stream().filter(g -> "TST9876".equals(g.placa())).findFirst().orElseThrow();
         assertThat(gaiola.valor()).isEqualByComparingTo("85.50");
         assertThat(gaiola.tecnico()).isEqualTo("RENATO");
         assertThat(contar("SELECT COUNT(*) FROM legado_garantias WHERE id_garantia_migrada IS NOT NULL")).isEqualTo(3);
@@ -106,11 +106,16 @@ class LegadoESegurancaTest {
                 .isInstanceOf(DadosInvalidosException.class);
     }
 
-    /** Usa a planilha real da loja quando ela existe nesta maquina (no CI o teste e pulado). */
+    /**
+     * Usa a planilha real da loja quando o caminho dela e informado na variavel de ambiente
+     * GARANTIAS_PLANILHA_REAL (no CI, ou sem a variavel, o teste e pulado). O caminho fica so
+     * na maquina de quem testa: nada da loja vai para o repositorio.
+     */
     @Test
     void importaAPlanilhaRealDoLegadoQuandoDisponivel() throws Exception {
-        Path real = Path.of(System.getProperty("user.home"), "Desktop", "FELIPE IMPORTANTE 2.0", "CHAVEIRO",
-                "GARANTIAS-2026 - Copia.xlsm");
+        String caminho = System.getenv("GARANTIAS_PLANILHA_REAL");
+        assumeTrue(caminho != null && !caminho.isBlank(), "GARANTIAS_PLANILHA_REAL nao definida");
+        Path real = Path.of(caminho);
         assumeTrue(Files.exists(real), "planilha real ausente nesta maquina");
 
         LegadoService.Resultado r = legado.importar(real.getFileName().toString(), Files.readAllBytes(real));

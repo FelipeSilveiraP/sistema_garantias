@@ -88,19 +88,19 @@ class GarantiaServiceTest {
     @Test
     void mesmaPlacaMesmoDiaMesmoServicoPedeConfirmacao() throws Exception {
         long carcaca = servico("TROCA CARCAÇA");
-        service.cadastrar(garantia("GEW5638", false, null, carcaca, null, 1, 0, 0, 0), false);
+        service.cadastrar(garantia("TST1234", false, null, carcaca, null, 1, 0, 0, 0), false);
 
-        assertThatThrownBy(() -> service.cadastrar(garantia("GEW-5638", false, null, carcaca, null, 1, 0, 0, 0), false))
+        assertThatThrownBy(() -> service.cadastrar(garantia("TST-1234", false, null, carcaca, null, 1, 0, 0, 0), false))
                 .isInstanceOf(PossivelDuplicataException.class);
-        assertThat(service.cadastrar(garantia("GEW5638", false, null, carcaca, null, 1, 0, 0, 0), true).id()).isNotNull();
+        assertThat(service.cadastrar(garantia("TST1234", false, null, carcaca, null, 1, 0, 0, 0), true).id()).isNotNull();
         assertThat(service.listar()).hasSize(2);
     }
 
     @Test
     void editaExcluiEMarcaCupomComData() throws Exception {
-        Garantia g = service.cadastrar(garantia("DDQ6717", false, null, servico("TROCA GAIOLA"), null, 0, 0, 0, 1), false);
+        Garantia g = service.cadastrar(garantia("TST9876", false, null, servico("TROCA GAIOLA"), null, 0, 0, 0, 1), false);
 
-        Garantia editada = service.atualizar(g.id(), new Garantia(null, g.dataServico(), "DDQ6717", false, null, "VOYAGE",
+        Garantia editada = service.atualizar(g.id(), new Garantia(null, g.dataServico(), "TST9876", false, null, "VOYAGE",
                 g.idServico(), null, 0, 0, 0, 2, new BigDecimal("85.00"), "RENATO", null, null, null, null, null, null, null));
         assertThat(editada.modelo()).isEqualTo("VOYAGE");
         assertThat(editada.qtdItens()).isEqualTo(2);
