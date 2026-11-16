@@ -198,7 +198,8 @@ async function carregar(): Promise<void> {
     limparPerfil();
     const { primeiroAcesso, perfis } = await listarPerfis(cfg);
     if (primeiroAcesso) {
-      el("perfis-titulo").textContent = "Bem-vindo!";
+      // o "BEM-VINDO AO SISTEMA DE GARANTIAS" ja fica no topo (perfis.html)
+      el("perfis-titulo").textContent = "Vamos começar";
       el("perfis-dica").textContent = "Ainda não há contas no sistema.";
       el("primeiro-admin").classList.remove("hidden");
       document.body.dataset.primeiroAcesso = "true";

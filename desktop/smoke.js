@@ -117,6 +117,7 @@ async function executar() {
   while (!janela) await esperar(100);
   janela.setContentSize(1366, 820);
   teste("Primeira abertura pede a conta do administrador", await telaPronta("perfis") && await esperarPredicado("document.body.dataset.primeiroAcesso === 'true'", 30000));
+  teste("Primeira conta: BEM-VINDO AO SISTEMA DE GARANTIAS no topo", (await texto("#perfis-boas-vindas")) === "BEM-VINDO AO SISTEMA DE GARANTIAS" && await js("document.getElementById('perfis-boas-vindas').getBoundingClientRect().top < document.querySelector('.perfis-titulo').getBoundingClientRect().top"));
   await capturar("primeiro-admin-1366x820");
   teste("Primeira conta: o login é o e-mail (sem campo LOGIN)", await js("!document.getElementById('adm_login') && !!document.getElementById('adm_email')"));
   await js(`(() => { const v = (id, t) => { document.getElementById(id).value = t; }; v('adm_nome', 'Felipe');
@@ -125,6 +126,7 @@ async function executar() {
   await js(`(() => { document.getElementById('adm_pin2').value = '1234'; document.querySelector('#form-admin button[type=submit]').click(); })()`);
   teste("Admin criado entra direto no Menu", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
   await ir("perfis");
+  teste("Bolinhas: BEM-VINDO AO SISTEMA DE GARANTIAS continua no topo", (await texto("#perfis-boas-vindas")) === "BEM-VINDO AO SISTEMA DE GARANTIAS" && await js("document.getElementById('perfis-boas-vindas').getBoundingClientRect().bottom <= document.getElementById('perfis').getBoundingClientRect().top"));
   teste("Voltar aos perfis mostra a bolinha do admin", await esperarPredicado("Number(document.body.dataset.perfisCarregados) === 1"));
   teste("Bolinhas são círculos", await js("getComputedStyle(document.querySelector('.perfil-avatar')).borderTopLeftRadius !== '0px'"));
   await js("document.querySelector('.perfil-cartao[data-perfil=\"FELIPE\"]').click()");
