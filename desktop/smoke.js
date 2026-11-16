@@ -253,6 +253,38 @@ async function executar() {
   await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
   teste("EXCLUIR remove a garantia", await esperarPredicado("![...document.querySelectorAll('#tableBody tr.linha-garantia')].some(tr => tr.textContent.includes('LEG1A23'))", 5000));
 
+  // tabela recolhida: so 5 garantias; EXPANDIR TABELA mostra todas e RECOLHER volta a 5
+  // (garantias do ano passado, para nao mexer nos numeros do mes usados nos graficos)
+  const ids = JSON.parse(await js(`(async () => { const cfg = await window.finDesk.config(); const ids = [];
+    const ano = new Date().getFullYear() - 1;
+    for (let i = 0; i < 8; i++) {
+      const resp = await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias', { method: 'POST',
+        headers: { 'X-FinDesk-Token': cfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataServico: ano + '-03-1' + i, placa: 'EXP1A2' + i, modelo: 'GOL', servico: 'TESTE EXPANDIR', tecnico: 'FELIPE', valor: 10, forcar: true }) });
+      ids.push((await resp.json()).id);
+    }
+    return JSON.stringify(ids); })()`));
+  await ir("menu");
+  await ir("pesquisar-garantias");
+  await esperarPredicado("document.body.dataset.garantiasCarregadas !== undefined");
+  await js("document.querySelector('[data-filter=TODOS]').click()");
+  teste("Pesquisa mostra só 5 garantias com a tabela recolhida",
+    await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 5", 4000), await js("document.querySelectorAll('#tableBody tr.linha-garantia').length"));
+  teste("Botão EXPANDIR TABELA com a flecha para baixo aparece embaixo da tabela",
+    await js("(() => { const b = document.getElementById('btnExpandirTabela'); return !b.classList.contains('hidden') && b.textContent.includes('EXPANDIR TABELA') && b.textContent.includes('keyboard_arrow_down') && b.getBoundingClientRect().top >= document.getElementById('tabela').getBoundingClientRect().bottom; })()"));
+  teste("Contador avisa quantas aparecem de quantas", (await texto("#contador")).startsWith("Mostrando 5 de "), await texto("#contador"));
+  await capturar("pesquisar-garantias-recolhida-1366x820");
+  await js("document.getElementById('btnExpandirTabela').click()");
+  teste("EXPANDIR TABELA mostra todas as garantias", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length >= 8", 3000));
+  teste("Depois de expandir o botão vira RECOLHER TABELA (flecha para cima)", (await texto("#btnExpandirTabela")).includes("RECOLHER TABELA") && (await texto("#btnExpandirTabela")).includes("keyboard_arrow_up"));
+  await js("document.getElementById('btnExpandirTabela').click()");
+  teste("RECOLHER TABELA volta a mostrar só 5", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 5", 3000));
+  await js("(() => { const i = document.getElementById('searchInput'); i.value = 'EXP1A21'; i.dispatchEvent(new Event('input')); })()");
+  teste("A pesquisa procura em TODAS (não só nas 5 visíveis)", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 1 && document.getElementById('btnExpandirTabela').classList.contains('hidden')", 3000));
+  await js("(() => { const i = document.getElementById('searchInput'); i.value = ''; i.dispatchEvent(new Event('input')); })()");
+  await js(`(async () => { const cfg = await window.finDesk.config();
+    for (const id of ${JSON.stringify(ids)}) await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias/' + id, { method: 'DELETE', headers: { 'X-FinDesk-Token': cfg.token } }); })()`);
+
   // ---------- ESTATISTICA E ATUALIZACOES ----------
   await ir("estatisticas");
   teste("CONTROLE tem GRÁFICOS e o botão CONTROLE", await esperarPredicado("document.querySelectorAll('.submenu-grade button, .submenu-grade a').length === 2", 5000));
