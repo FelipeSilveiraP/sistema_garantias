@@ -168,6 +168,17 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
         fechar("cancelar");
         return;
       }
+      // Enter = botao de continuar/OK (pedido do usuario, 2026-11-16). Excecao: EXCLUIR (tom
+      // "perigo"), onde o Enter CANCELA, para um Enter sem querer nunca apagar um registro. Se a
+      // pessoa foi com Tab ate CANCELAR (ou a alternativa), o Enter vale o botao escolhido.
+      if (evento.key === "Enter" && !evento.isComposing && !evento.shiftKey && !evento.ctrlKey && !evento.altKey) {
+        const atual = document.activeElement;
+        if (atual === cancelar || (alternativa && atual === alternativa)) return;
+        evento.preventDefault();
+        evento.stopPropagation();
+        fechar(tom === "perigo" ? "cancelar" : "confirmar");
+        return;
+      }
       if (evento.key === "Tab" && opcoes.semCancelar) {
         evento.preventDefault();
         confirmar.focus();
@@ -192,8 +203,8 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
       if (evento.target === veu) evento.preventDefault();
     });
     document.addEventListener("keydown", aoTeclar, true);
-    // aviso: foco no OK (Enter fecha); decisao: foco na acao segura
-    (opcoes.semCancelar ? confirmar : cancelar).focus();
+    // foco no botao que o Enter aciona: CONTINUAR/OK; na exclusao, CANCELAR (acao segura)
+    (tom === "perigo" ? cancelar : confirmar).focus();
   });
 }
 

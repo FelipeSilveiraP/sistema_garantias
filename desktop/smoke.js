@@ -27,6 +27,12 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const js = (codigo) => janela.webContents.executeJavaScript(codigo);
 // Enter DE VERDADE (tecla enviada pela janela) num campo: tem de fazer o mesmo que o
 // botao de enviar/concluir do formulario (frontend/ts/enter-envia.ts)
+// Enter de verdade com o foco onde estiver (ex.: pop-up aberto)
+function enterNoFoco() {
+  janela.webContents.sendInputEvent({ type: "keyDown", keyCode: "Enter" });
+  janela.webContents.sendInputEvent({ type: "char", keyCode: "\r" });
+  janela.webContents.sendInputEvent({ type: "keyUp", keyCode: "Enter" });
+}
 async function enter(seletor) {
   await js(`document.querySelector(${JSON.stringify(seletor)}).focus()`);
   janela.webContents.sendInputEvent({ type: "keyDown", keyCode: "Enter" });
@@ -199,7 +205,8 @@ async function executar() {
   teste("Pop-up GARANTIA SALVA (verde) aparece",
     await esperarPredicado("document.querySelector('[data-dialogo=sucesso] [data-dialogo-titulo]')?.textContent === 'GARANTIA SALVA'", 3000));
   await capturar("cadastrar-garantia-salva-1366x820");
-  await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
+  enterNoFoco();
+  teste("Enter no pop-up GARANTIA SALVA = OK (fecha)", await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
@@ -209,7 +216,20 @@ async function executar() {
     document.getElementById('placa').value = 'SMK1A23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })(); document.getElementById('tecnico').value = 'FELIPE';
     document.getElementById('btn-salvar').click(); })()`);
   teste("Garantia repetida pede confirmação", await esperarPredicado("!!document.querySelector('[data-dialogo]') && document.querySelector('[data-dialogo-titulo]').textContent.includes('GARANTIA PARECIDA')", 4000));
-  await js("document.querySelector('[data-dialogo-acao=cancelar]').click()");
+  // Enter no pop-up de confirmacao = SALVAR MESMO ASSIM (o botao de continuar)
+  const antesDup = await js("(async () => { const cfg = await window.finDesk.config(); return (await (await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias', { headers: { 'X-FinDesk-Token': cfg.token } })).json()).length; })()");
+  enterNoFoco();
+  teste("Enter no pop-up GARANTIA PARECIDA = SALVAR MESMO ASSIM",
+    await esperarPredicado("document.querySelector('[data-dialogo=sucesso] [data-dialogo-titulo]')?.textContent === 'GARANTIA SALVA'", 5000));
+  enterNoFoco();
+  await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000);
+  // tira a repetida para nao mexer nas contas do resto do teste
+  const depoisDup = await js(`(async () => { const cfg = await window.finDesk.config(); const h = { 'X-FinDesk-Token': cfg.token };
+    const l = await (await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias', { headers: h })).json();
+    const nova = Math.max(...l.map(g => g.id));
+    await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias/' + nova, { method: 'DELETE', headers: h });
+    return l.length; })()`);
+  teste("A garantia repetida foi mesmo gravada pelo Enter", depoisDup === antesDup + 1, `${antesDup} -> ${depoisDup}`);
 
   // ---------- PESQUISAR ----------
   await ir("pesquisar-garantias");
@@ -248,6 +268,12 @@ async function executar() {
   await js("document.querySelector('[data-filter=TODOS]').click()");
   teste("Garantia importada aparece com o selo PLANILHA", await esperarPredicado("[...document.querySelectorAll('#tableBody tr.linha-garantia')].some(tr => tr.textContent.includes('LEG1A23') && tr.textContent.includes('Planilha'))", 5000));
   await js("[...document.querySelectorAll('#tableBody tr.linha-garantia')].find(tr => tr.textContent.includes('LEG1A23')).click()");
+  await js("document.getElementById('btnExcluir').click()");
+  await esperarPredicado("!!document.querySelector('[data-dialogo]')", 3000);
+  // EXCLUIR: o Enter CANCELA (um Enter sem querer nunca apaga um registro)
+  enterNoFoco();
+  teste("Enter no pop-up EXCLUIR cancela e a garantia continua lá",
+    await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000) && await js("[...document.querySelectorAll('#tableBody tr.linha-garantia')].some(tr => tr.textContent.includes('LEG1A23'))"));
   await js("document.getElementById('btnExcluir').click()");
   await esperarPredicado("!!document.querySelector('[data-dialogo]')", 3000);
   await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
