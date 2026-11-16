@@ -197,7 +197,22 @@ async function executar() {
   await js("document.getElementById('sem_placa').click()");
   teste("Carro sem placa libera o CPF", await js("!document.getElementById('cpf').disabled && document.getElementById('placa').disabled"));
   await js("document.getElementById('sem_placa').click()");
-  await js(`(() => { document.getElementById('placa').value = 'smk-1a23'; (() => { const s = document.getElementById('modelo'); s.value = [...s.options].find(o => o.textContent === 'ONIX (CHEVROLET)').value; })();
+  // modelo do carro: digita e a lista mostra os carros que combinam
+  await js("document.getElementById('modelo_busca').focus()");
+  janela.webContents.insertText("carro do cliente");
+  await esperar(150);
+  teste("Modelo fora da lista: avisa e fica como OUTRO com o texto digitado",
+    await js("document.getElementById('modelo').value === 'OUTRO' && document.getElementById('modelo_outro').value === 'CARRO DO CLIENTE' && document.querySelector('#lista-modelos .caixa-busca__vazio')?.textContent.includes('CARRO DO CLIENTE')"));
+  await js("(() => { const c = document.getElementById('modelo_busca'); c.value = ''; c.dispatchEvent(new Event('input')); return true; })()");
+  janela.webContents.insertText("oni");
+  await esperar(150);
+  const sugestoes = JSON.parse(await js("JSON.stringify([...document.querySelectorAll('#lista-modelos [role=option]')].map(li => li.textContent))"));
+  teste("Digitando 'oni' a lista mostra os carros que combinam", sugestoes.includes("ONIX (CHEVROLET)") && sugestoes.every((t) => t.includes("ONI")), JSON.stringify(sugestoes));
+  await capturar("cadastrar-garantia-modelo-busca-1366x820");
+  await enter("#modelo_busca");
+  teste("Enter escolhe o carro marcado (não envia o formulário)",
+    await esperarPredicado("document.getElementById('modelo_busca').value === 'ONIX (CHEVROLET)' && document.getElementById('modelo').selectedOptions[0]?.textContent === 'ONIX (CHEVROLET)' && document.getElementById('lista-modelos').classList.contains('hidden') && !document.querySelector('[data-dialogo]')", 3000));
+  await js(`(() => { document.getElementById('placa').value = 'smk-1a23';
     document.getElementById('tecnico').value = 'FELIPE'; document.getElementById('observacao').value = 'chave canivete';
     const v = document.getElementById('valor'); v.value = '130,00'; v.dispatchEvent(new Event('input')); })()`);
   await capturar("cadastrar-garantia-1366x820");
@@ -209,6 +224,9 @@ async function executar() {
   enterNoFoco();
   teste("Enter no pop-up GARANTIA SALVA = OK (fecha)", await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
+  teste("Formulário limpo também limpa o modelo digitado", await js("document.getElementById('modelo_busca').value === '' && document.getElementById('modelo').value === ''"));
+  teste("Avisos curtos (notificações) aparecem no meio da tela", await js(`(() => { const d = document.createElement('div'); d.className = 'notificacoes'; d.style.width = '200px'; d.style.height = '40px'; document.body.appendChild(d);
+    const r = d.getBoundingClientRect(); d.remove(); return Math.abs(r.left + r.width / 2 - innerWidth / 2) < 4 && Math.abs(r.top + r.height / 2 - innerHeight / 2) < 4; })()`));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
   await js("document.querySelector('#produtos .produto-mais').click()");

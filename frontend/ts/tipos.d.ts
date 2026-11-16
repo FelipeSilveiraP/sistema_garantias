@@ -43,5 +43,6 @@ interface Window {
     ) => Promise<{ ok: boolean; caminho?: string; anexoIncluido?: boolean }>;
     atualizacaoDisponivel: () => Promise<{ versao: string; atual: string; novidades: string } | null>;
     instalarAtualizacao: () => Promise<boolean>;
+    onProgressoAtualizacao?: (callback: (progresso: { recebidos: number; total: number }) => void) => void;
   };
 }

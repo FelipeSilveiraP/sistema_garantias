@@ -12,6 +12,7 @@
 - Versão 1.3.3 (instalada na loja): vários produtos por garantia (banco v6 `garantia_itens`), cadastro na vertical. Versões anteriores: ver `decisoes.md`.
 - **Testes na nuvem (2026-11-15):** JUnit 68 (67 ok, 1 pulado: planilha real só existe no PC) · máscaras 74 · filtros 22 · automações 26 · persistência 11/11 · smoke 83/86 no Linux (as 3 falhas de layout são iguais na versão antiga) · smoke-boot só no Windows. **CI no GitHub (Windows): tudo verde** — JUnit, máscaras, smoke, persistência, smoke-boot, segurança e CodeQL.
 
+- **2026-11-16:** modelo do carro digitável com sugestões, barra de carregamento no ATUALIZAR, avisos no meio da tela.
 - **Não abre sozinho com o Windows** (desde a 1.4.6): o instalador e o próprio sistema apagam o cadastro de inicialização das versões antigas.
 
 ## Próximos passos

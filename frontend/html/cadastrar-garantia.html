@@ -45,8 +45,15 @@
 </div>
 
 <div class="campo-form">
-<label class="rotulo-form" for="modelo"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">POR MARCA</span></label>
-<select class="entrada-form" id="modelo"><option value="">Selecione o modelo...</option></select>
+<label class="rotulo-form" for="modelo_busca"><span>MODELO DO CARRO <strong class="text-[#ba1a1a]">*</strong></span><span class="dica-form">DIGITE OU ESCOLHA</span></label>
+<!-- digita e a lista mostra os modelos que combinam (caixa-busca.ts); modelo fora da lista
+     e salvo como foi escrito (OUTRO). A caixa escondida guarda o modelo escolhido. -->
+<div class="caixa-busca">
+<input class="entrada-form uppercase caixa-busca__campo" id="modelo_busca" maxlength="60" placeholder="Digite ou escolha o modelo..." type="text" autocomplete="off">
+<button class="caixa-busca__seta" id="btn-lista-modelos" type="button" tabindex="-1" title="Ver todos os modelos" aria-label="Ver todos os modelos"><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button>
+<ul class="caixa-busca__lista hidden" id="lista-modelos" aria-label="Modelos encontrados"></ul>
+</div>
+<select class="entrada-form hidden" id="modelo" tabindex="-1" aria-hidden="true"><option value="">Selecione o modelo...</option></select>
 <!-- OUTRO: o campo de texto entra no lugar da caixa; o botao volta a lista de modelos -->
 <div class="servico-outro hidden" id="bloco-modelo-outro">
 <input class="entrada-form uppercase" id="modelo_outro" maxlength="60" placeholder="Escreva o modelo do carro" type="text" autocomplete="off" aria-label="Descreva o modelo do carro">

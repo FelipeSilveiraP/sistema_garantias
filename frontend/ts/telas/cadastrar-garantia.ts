@@ -3,6 +3,7 @@
 // CPF; produtos em linhas (caixa + quantidade de 1 a 5 + botao + para acrescentar
 // outro abaixo); "OUTRO" troca a caixa por um campo de texto.
 // O valor e sugerido pela tabela de precos e pode ser alterado.
+import { CaixaBusca, ligarCaixaBusca } from "../caixa-busca";
 import {
   buscarStatus,
   cadastrarGarantia,
@@ -26,6 +27,7 @@ import { hojeIso } from "../filtros";
 import { perfilAtual } from "../perfil";
 
 const OUTRO = "OUTRO";
+let caixaModelo: CaixaBusca | null = null;
 let servicos: ServicoDados[] = [];
 let sujo = false;
 let valorDigitado = false;
@@ -371,14 +373,12 @@ async function salvar(): Promise<void> {
   }
 }
 
-/** Modelo OUTRO: o campo de texto toma o lugar da caixa de modelos (e o botao volta). */
-function trocarModeloOutro(outro: boolean): void {
-  el("bloco-modelo-outro").classList.toggle("hidden", !outro);
-  el("modelo").classList.toggle("hidden", outro);
-  if (!outro) {
-    el<HTMLInputElement>("modelo_outro").value = "";
-    if (el<HTMLSelectElement>("modelo").value === OUTRO) el<HTMLSelectElement>("modelo").value = "";
-  }
+/** Limpa o modelo (caixa de digitar + escolha guardada). */
+function trocarModeloOutro(_outro: boolean): void {
+  el("bloco-modelo-outro").classList.add("hidden");
+  el<HTMLInputElement>("modelo_outro").value = "";
+  el<HTMLSelectElement>("modelo").value = "";
+  caixaModelo?.limpar();
 }
 
 /** Observacao: a seta sobre a linha expande o cadastro para baixo com o campo. */
@@ -424,6 +424,7 @@ async function carregarListas(): Promise<void> {
       }
       grupo.appendChild(opcao(String(v.id), `${v.modelo} (${v.marca})`));
     }
+    caixaModelo?.definirItens(veiculos.filter((v) => v.ativo).map((v) => ({ valor: String(v.id), rotulo: `${v.modelo} (${v.marca})`, grupo: v.marca })));
     selModelo.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
     reiniciarProdutos();
     document.body.dataset.listasCarregadas = "true";
@@ -459,14 +460,18 @@ function iniciar(): void {
     abrirObservacao(aberta);
     if (aberta) el<HTMLInputElement>("observacao").focus();
   });
-  el("modelo").addEventListener("change", () => {
-    if (el<HTMLSelectElement>("modelo").value !== OUTRO) return;
-    trocarModeloOutro(true);
-    el<HTMLInputElement>("modelo_outro").focus();
+  // modelo: digita e escolhe; o que estiver fora da lista vai como OUTRO (escrito)
+  caixaModelo = ligarCaixaBusca(el<HTMLInputElement>("modelo_busca"), el<HTMLUListElement>("lista-modelos"), (item, texto) => {
+    const sel = el<HTMLSelectElement>("modelo");
+    sel.value = item ? item.valor : texto.trim() ? OUTRO : "";
+    el<HTMLInputElement>("modelo_outro").value = item ? "" : texto.trim().toUpperCase();
+    sujo = true;
   });
-  el("btn-voltar-modelos").addEventListener("click", () => {
-    trocarModeloOutro(false);
-    el<HTMLSelectElement>("modelo").focus();
+  el("btn-lista-modelos").addEventListener("mousedown", (evento) => {
+    evento.preventDefault();
+    const campo = el<HTMLInputElement>("modelo_busca");
+    if (document.activeElement === campo && !el("lista-modelos").classList.contains("hidden")) campo.blur();
+    else campo.focus();
   });
   validarAoDigitar();
   el("sem_placa").addEventListener("change", () => atualizarSemPlaca());

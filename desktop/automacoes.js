@@ -274,7 +274,11 @@ async function procurarAtualizacaoGithub(app, registrarLog, versaoAtual = app.ge
  * enquanto grava. So devolve o caminho se o SHA-256 conferir; senao apaga o
  * arquivo baixado e lanca erro (nada e instalado).
  */
-async function baixarInstalador(atualizacao, registrarLog) {
+/**
+ * Baixa o instalador do GitHub conferindo o SHA-256. `aoProgresso(recebidos, total)` alimenta a
+ * barra de carregamento do pop-up de atualizacao (total = tamanho do Release; 0 se desconhecido).
+ */
+async function baixarInstalador(atualizacao, registrarLog, aoProgresso = () => {}) {
   const pasta = path.join(os.tmpdir(), "garantias-atualizacao");
   fs.mkdirSync(pasta, { recursive: true });
   const destino = path.join(pasta, path.basename(atualizacao.nome));
@@ -287,10 +291,13 @@ async function baixarInstalador(atualizacao, registrarLog) {
   const hash = crypto.createHash("sha256");
   const saida = fs.createWriteStream(parcial);
   let total = 0;
+  const esperado = Number(atualizacao.tamanho) || Number(resposta.headers.get("content-length")) || 0;
+  aoProgresso(0, esperado);
   try {
     for await (const pedaco of resposta.body) {
       total += pedaco.length;
       if (total > LIMITE_INSTALADOR) throw new Error("instalador maior que o limite");
+      aoProgresso(total, esperado);
       hash.update(pedaco);
       if (!saida.write(pedaco)) await new Promise((ok) => saida.once("drain", ok));
     }
@@ -321,9 +328,9 @@ async function procurarAtualizacao(app, registrarLog, versaoAtual = app.getVersi
 }
 
 /** ATUALIZAR: baixa do GitHub (se for de la), confere, executa e fecha o sistema. */
-async function aplicarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn) {
+async function aplicarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn, aoProgresso = () => {}) {
   const pronta = atualizacao.origem === "github"
-    ? { ...atualizacao, instalador: await baixarInstalador(atualizacao, registrarLog) }
+    ? { ...atualizacao, instalador: await baixarInstalador(atualizacao, registrarLog, aoProgresso) }
     : atualizacao;
   return instalarAtualizacao(app, pronta, registrarLog, iniciar);
 }
