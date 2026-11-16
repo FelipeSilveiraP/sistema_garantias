@@ -19,9 +19,18 @@ O comando faz tudo em sequência:
 
 Resultado: `release/Garantias - Chaveiro Universal - Instalador <versão>.exe`, com cerca de 143 MB.
 
+## Baixar o instalador pelo GitHub (o jeito mais fácil)
+
+A cada envio para a `main`, o GitHub gera o instalador num Windows dele (`.github/workflows/instalador.yml`) e publica em **Releases**. Na loja:
+
+1. Abra https://github.com/FelipeSilveiraP/sistema_garantias.
+2. À direita, clique em **Releases** (ou no nome da versão, ex.: "Garantias 1.4.0").
+3. Em **Assets**, clique em `Garantias - Chaveiro Universal - Instalador X.Y.Z.exe` para baixar.
+4. Siga "Instalar" abaixo.
+
 ## Instalar (computador da loja)
 
-1. Copie o instalador para o computador, por pen drive, rede ou como preferir.
+1. Baixe o instalador pelo GitHub (acima) ou copie por pen drive, rede ou como preferir.
 2. Dê dois cliques. A instalação é automática, para o usuário do Windows, **sem pedir senha de administrador**, e o sistema abre sozinho ao terminar.
 3. Atalhos criados: **"Garantias"** na Área de Trabalho e no Menu Iniciar.
 

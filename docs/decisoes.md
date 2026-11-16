@@ -80,3 +80,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **REGRA do backup no Google Drive (pedido do usuário): nunca apaga nem sobrescreve arquivo que o sistema não criou.** Só apaga arquivo comum com o nome exato `Garantias - dados AAAA-MM-DD.xlsx` direto na subpasta `Chaveiro Universal - Backup` (compartilhada com o Contas a Pagar); nunca pasta, atalho ou recursivo; não sobrescreve pasta/atalho com o nome do dia. `instalador/publicar.js` segue a mesma regra na pasta de atualizações. Teste: `BackupDriveProtecaoTest`.
 - **Pendente (risco médio)**: assinar o `versao.json` das atualizações pelo Drive (hoje o SHA-256 só prova que o arquivo está completo, não quem publicou). Até lá: não compartilhar a pasta de atualizações.
 - **Teste de persistência espera o banco pronto (2026-11-15):** o `/api/status` responde antes das migrações terminarem (`"inicializado": "false"`). O Electron já esperava o `"true"`; o `teste-persistencia.js` não, e às vezes cadastrava antes das tabelas existirem (falha intermitente vista no CI e numa rodada anterior). Agora espera como o app.
+
+## Instalador pelo GitHub (2026-11-16)
+
+- **O GitHub é o backup do código E o lugar de onde a loja baixa o instalador (decisão do usuário).** `.github/workflows/instalador.yml` roda `npm run instalador` num Windows do GitHub a cada envio para a `main` e publica o `.exe` em Releases (tag `vX.Y.Z` do `package.json`; mesma versão = troca o arquivo). O Google Drive (`npm run publicar`) continua como opção de atualização automática.
