@@ -96,6 +96,8 @@ async function iniciar(): Promise<void> {
   try {
     if (!window.finDesk) throw new Error("configuração indisponível");
     const cfg = await window.finDesk.config();
+    // versao instalada no rodape do Menu (para conferir se a atualizacao entrou)
+    if (cfg.versao) document.getElementById("versao-sistema")!.textContent = `Sistema de Garantias · versão ${cfg.versao}`;
     await buscarStatus(cfg);
     document.body.dataset.apiStatus = "ok";
     void mostrarResumoDoDia(cfg).catch(() => undefined);

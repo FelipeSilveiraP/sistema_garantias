@@ -399,7 +399,7 @@ function encerrarBackend() {
   }
 }
 
-ipcMain.handle("findesk:config", () => ({ port: porta, token }));
+ipcMain.handle("findesk:config", () => ({ port: porta, token, versao: VERSAO_SISTEMA }));
 
 // Reparo de foco da pagina apos fechar dialogos modais nativos (alert/confirm):
 // o Chromium/Windows devolve a janela como ativa sem re-emitir o ciclo de foco

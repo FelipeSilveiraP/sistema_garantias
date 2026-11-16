@@ -142,6 +142,7 @@ async function executar() {
   await capturar("perfis-pin-1366x820");
   await js("(() => { document.getElementById('pin-campo').value = '1234'; document.getElementById('pin-entrar').click(); })()");
   teste("PIN certo entra no Menu com o perfil", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'FELIPE'"));
+  teste("Menu mostra a versão instalada no rodapé", await esperarPredicado(`document.getElementById('versao-sistema').textContent === 'Sistema de Garantias · versão ${require("../package.json").version}'`, 5000), await texto("#versao-sistema"));
   teste("Menu tem exatamente 3 botões quadrados", await js("[...document.querySelectorAll('a[data-path]')].every(a => Math.abs(a.offsetWidth - a.offsetHeight) <= 2)") && (await js("document.querySelectorAll('a[data-path]').length")) === 3);
   teste("Terceiro botão: Controle", (await texto("a[data-path=estatisticas]")).toUpperCase().includes("CONTROLE"));
   teste("Pesquisar é vermelho", (await js("getComputedStyle(document.querySelector('a[data-path=pesquisar-garantias]')).backgroundColor")) === "rgb(255, 59, 48)");
