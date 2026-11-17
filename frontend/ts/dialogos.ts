@@ -29,6 +29,8 @@ export interface OpcoesConfirmacao {
   itens?: string[];
   /** aviso: so o botao de confirmar (OK) */
   semCancelar?: boolean;
+  /** pop-up maior, com letras grandes (ex.: GARANTIA SALVA) */
+  grande?: boolean;
 }
 
 export type RespostaDialogo = "confirmar" | "alternativa" | "cancelar";
@@ -87,7 +89,7 @@ function montar(opcoes: OpcoesConfirmacao): Promise<RespostaDialogo> {
     veu.className = "dialogo-veu";
 
     const caixa = document.createElement("div");
-    caixa.className = opcoes.textoAlternativa ? "dialogo dialogo--largo" : "dialogo";
+    caixa.className = opcoes.grande ? "dialogo dialogo--grande" : opcoes.textoAlternativa ? "dialogo dialogo--largo" : "dialogo";
     caixa.setAttribute("role", "alertdialog");
     caixa.setAttribute("aria-modal", "true");
     caixa.setAttribute("aria-labelledby", "dialogo-titulo");
@@ -274,8 +276,10 @@ export function avisar(opcoes: {
   itens?: string[];
   detalhes?: string;
   textoOk?: string;
+  grande?: boolean;
 }): Promise<void> {
   return escolher({
+    grande: opcoes.grande,
     titulo: opcoes.titulo,
     mensagem: opcoes.mensagem,
     detalhes: opcoes.detalhes,

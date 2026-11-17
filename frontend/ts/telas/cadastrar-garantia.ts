@@ -301,6 +301,14 @@ function limpar(): void {
   el<HTMLInputElement>("placa").focus();
 }
 
+/** Depois de salvar: a tela volta para o comeco do formulario (pedido do usuario). */
+function voltarAoTopo(): void {
+  // quem rola pode ser a janela ou uma area da pagina: zera todas acima do formulario
+  for (let n: HTMLElement | null = el("form-garantia"); n; n = n.parentElement) n.scrollTop = 0;
+  document.scrollingElement?.scrollTo({ top: 0 });
+  window.scrollTo({ top: 0 });
+}
+
 /** Pop-up "CONFIRA OS DADOS" com a lista do que esta errado; ao fechar, marca os campos e foca o primeiro. */
 async function avisarConfira(mensagem: string, erros: Record<string, string>): Promise<void> {
   await avisar({ titulo: "CONFIRA OS DADOS", mensagem, itens: Object.values(erros), tom: "atencao", textoOk: "CORRIGIR" });
@@ -332,14 +340,17 @@ async function salvar(): Promise<void> {
     }
     document.body.dataset.garantiaSalva = String(salva.id);
     limpar();
+    voltarAoTopo();
     await avisar({
+      grande: true,
       titulo: "GARANTIA SALVA",
       mensagem: `A garantia de ${salva.placa ?? "cliente sem placa"} foi salva.`,
       detalhes: `${formatarDataBR(salva.dataServico)} · ${salva.modelo} · ${salva.servico} · `
         + `${formatarMoedaBR(Math.round(salva.valor * 100))} · ${salva.tecnico}`,
       tom: "sucesso",
     });
-    el<HTMLInputElement>("placa").focus();
+    voltarAoTopo();
+    el<HTMLInputElement>("placa").focus({ preventScroll: true });
   } catch (erro) {
     if (erro instanceof ErroValidacaoApi) {
       await avisarConfira("O sistema recusou a garantia. Corrija o que está abaixo:", erro.campos);
