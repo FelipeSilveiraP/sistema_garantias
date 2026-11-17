@@ -152,6 +152,7 @@ async function executar() {
   await js("document.querySelector('a[data-path=\"cadastrar-garantia\"]').click()");
   teste("CADASTRAR GARANTIA abre o formulário", await telaPronta("cadastrar-garantia"));
   teste("Técnicos, modelos e serviços carregados", await esperarPredicado("document.body.dataset.listasCarregadas === 'true'"));
+  teste("Rótulo: TÉCNICO QUE REALIZOU O SERVIÇO", (await texto("label[for=tecnico]")).includes("TÉCNICO QUE REALIZOU O SERVIÇO"));
   teste("Técnicos iniciais do VBA", (await js("[...document.querySelectorAll('#tecnico option')].map(o => o.value).join(',')")).includes("RENATO"));
   // produtos em linhas: + acrescenta outra linha abaixo (combos do VBA saíram da lista)
   teste("Combos CARCAÇA+PILHA saíram da lista", await js("![...document.querySelectorAll('#produtos .produto-caixa option')].some(o => o.textContent.includes('+'))"));
@@ -159,7 +160,7 @@ async function executar() {
   await js("document.querySelector('#produtos .produto-mais').click()");
   teste("Botão + acrescenta uma linha de produto", (await js("document.querySelectorAll('#produtos > li').length")) === 2);
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'PILHA').value; s.dispatchEvent(new Event('change')); })()`);
-  teste("Valor sugerido soma os produtos (pilha R$ 12,00)", (await js("document.getElementById('valor').value")) === "12,00", await js("document.getElementById('valor').value"));
+  teste("Valor NAO e preenchido sozinho pela tabela (pedido do usuario)", (await js("document.getElementById('valor').value")) === "" && !(await js("Boolean(document.getElementById('valor-dica'))")), await js("document.getElementById('valor').value"));
   // OUTRO numa linha: o campo de texto entra no lugar da caixa; o botao volta para a lista
   await js("document.querySelectorAll('#produtos .produto-mais')[1].click()");
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'OUTRO (DESCREVER)').value; s.dispatchEvent(new Event('change')); })()`);

@@ -63,6 +63,34 @@ jobs:
           echo "versao do instalador: $VERSAO | versao dentro do programa: $DENTRO"
           [ "$DENTRO" = "$VERSAO" ] || { echo "ERRO: o programa diz $DENTRO e o instalador $VERSAO"; exit 1; }
 
+      # TRAVA: ensaio COMPLETO do ATUALIZAR pela tela, num Windows de verdade (igual ao Contas a
+      # Pagar). Instala a ultima versao publicada, abre o programa, confere o pop-up no centro,
+      # clica em ATUALIZAR, confere a barra andando, o programa fechar, a versao nova instalar, o
+      # programa abrir de novo sozinho, o rodape com a versao nova e que nao oferece atualizar de
+      # novo. Fotos no artefato "ensaio-atualizacao-fotos". Se falhar, nada e publicado.
+      - name: Ensaio do ATUALIZAR pela tela (versao anterior -> esta versao)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENSAIO_FOTOS: ensaio-fotos
+        run: |
+          VERSAO=$(node -p "require('./package.json').version")
+          npm install --no-save --no-audit --no-fund playwright-core@1.49.1
+          mkdir -p anterior
+          gh release download --pattern "*.exe" --dir anterior
+          ANTERIOR=$(ls anterior/*.exe | head -1)
+          echo "versao anterior: $ANTERIOR"
+          node desktop/ensaio-atualizacao-tela.js "$(cygpath -w "$ANTERIOR")" "$(cygpath -w "release/Garantias - Chaveiro Universal - Instalador ${VERSAO}.exe")" "$VERSAO"
+
+      - name: Guardar as fotos do ensaio do ATUALIZAR
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ensaio-atualizacao-fotos
+          retention-days: 30
+          path: ensaio-fotos/
+          if-no-files-found: ignore
+
       - name: Publicar em Releases
         shell: bash
         env:

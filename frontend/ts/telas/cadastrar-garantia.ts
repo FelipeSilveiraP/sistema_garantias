@@ -2,7 +2,7 @@
 // (frmControleGarantias V17.1): placa de 7 letras/numeros OU "sem placa" com
 // CPF; produtos em linhas (caixa + quantidade de 1 a 5 + botao + para acrescentar
 // outro abaixo); "OUTRO" troca a caixa por um campo de texto.
-// O valor e sugerido pela tabela de precos e pode ser alterado.
+// O valor e digitado por quem atende (sem preenchimento automatico pela tabela).
 import { CaixaBusca, ligarCaixaBusca } from "../caixa-busca";
 import {
   buscarStatus,
@@ -20,7 +20,7 @@ import { notificar } from "../notificacoes";
 import { montarNavbar } from "../navbar";
 import { voltar } from "../navegacao";
 import {
-  cpfValido, formatarDataBR, formatarMoedaBR, formatarMoedaCampo, limparPlaca, mascaraCPF, mascaraData, mascaraMoeda,
+  cpfValido, formatarDataBR, formatarMoedaBR, limparPlaca, mascaraCPF, mascaraData, mascaraMoeda,
   parseDataBR, placaValida,
 } from "../mascaras";
 import { hojeIso } from "../filtros";
@@ -30,7 +30,6 @@ const OUTRO = "OUTRO";
 let caixaModelo: CaixaBusca | null = null;
 let servicos: ServicoDados[] = [];
 let sujo = false;
-let valorDigitado = false;
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -131,7 +130,6 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
       outro.classList.remove("hidden");
       texto.focus();
     }
-    sugerirValor();
   });
   voltar.addEventListener("click", () => {
     texto.value = "";
@@ -139,9 +137,7 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
     outro.classList.add("hidden");
     caixa.classList.remove("hidden");
     caixa.focus();
-    sugerirValor();
   });
-  qtd.addEventListener("change", sugerirValor);
   mais.addEventListener("click", () => {
     if (linhasProduto().length >= MAX_PRODUTOS) return;
     const nova = novaLinha(li);
@@ -152,7 +148,6 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
     const vizinha = (li.previousElementSibling ?? li.nextElementSibling) as HTMLLIElement | null;
     li.remove();
     atualizarBotoesLinhas();
-    sugerirValor();
     vizinha?.querySelector<HTMLSelectElement>(".produto-caixa")?.focus();
   });
 
@@ -168,17 +163,6 @@ function reiniciarProdutos(): void {
   novaLinha();
 }
 
-/** Preco sugerido: soma de preco x quantidade de cada produto da tabela. */
-function sugerirValor(): void {
-  let sugerido = 0;
-  for (const li of linhasProduto()) {
-    const l = lerLinha(li);
-    const s = servicos.find((x) => x.id === l.idServico);
-    if (s) sugerido += Math.round(s.preco * 100) * l.quantidade;
-  }
-  el("valor-dica").textContent = sugerido > 0 ? `TABELA: ${formatarMoedaBR(sugerido)}` : "";
-  if (!valorDigitado) el<HTMLInputElement>("valor").value = sugerido > 0 ? formatarMoedaCampo(sugerido) : "";
-}
 
 /** CPF travado (embacado, cursor de bloqueio) ate marcar "carro sem placa"; a placa trava ao contrario. */
 function atualizarSemPlaca(focar = true): void {
@@ -307,7 +291,6 @@ function limpar(): void {
   el<HTMLFormElement>("form-garantia").reset();
   el<HTMLInputElement>("data_servico").value = formatarDataBR(hojeIso());
   el<HTMLInputElement>("valor").value = "";
-  valorDigitado = false;
   sujo = false;
   abrirObservacao(false);
   trocarModeloOutro(false);
@@ -476,9 +459,6 @@ function iniciar(): void {
   validarAoDigitar();
   el("sem_placa").addEventListener("change", () => atualizarSemPlaca());
   atualizarSemPlaca(false);
-  el("valor").addEventListener("input", () => {
-    valorDigitado = el<HTMLInputElement>("valor").value.trim() !== "";
-  });
   const form = el<HTMLFormElement>("form-garantia");
   form.addEventListener("input", () => {
     sujo = true;
