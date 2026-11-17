@@ -5,6 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const automacoes = require("./automacoes");
+const { criarRm } = require("./rm");
 // versao DO SISTEMA (package.json): app.getVersion() devolve a do Electron quando
 // o app roda por script (desenvolvimento/testes)
 const VERSAO_SISTEMA = require(path.join(__dirname, "..", "package.json")).version;
@@ -310,11 +311,31 @@ function liberarAplicativo() {
   janela.loadFile(path.join(__dirname, "..", "frontend", "html", "perfis.html"));
 }
 
+// ===== Cupom fiscal automatico no RM Software (desktop/rm.js) =====
+// Avisos do RM ficam numa fila ate a tela buscar (a tela pode estar trocando de pagina).
+// Desligado nos testes (banco temporario), a nao ser com um RM falso (FINDESK_RM_APP).
+const RM_LIGADO = !process.env.FINDESK_DB_PATH || Boolean(process.env.FINDESK_RM_APP);
+const avisosRm = [];
+const rm = criarRm({
+  registrarLog,
+  backend: () => ({ porta, token }),
+  avisar: (aviso) => {
+    avisosRm.push(aviso);
+    if (janela && !janela.isDestroyed()) janela.webContents.send("findesk:aviso-rm");
+  },
+  encerrando: () => encerrando,
+});
+let rmIniciado = false;
+
 async function prepararAplicativo() {
   try {
     await iniciarBackend();
     definirEstadoInicializacao("pronto");
     liberarAplicativo();
+    if (RM_LIGADO && !rmIniciado) {
+      rmIniciado = true;
+      rm.iniciar().catch((erro) => registrarLog("WARN", `[rm] conexao inicial falhou: ${erro && erro.message}`));
+    }
   } catch (erro) {
     console.error("[startup] falha na inicializacao:", erro.message);
     registrarLog("ERROR", `falha na inicializacao: ${erro.message}`);
@@ -389,6 +410,8 @@ function criarJanela() {
   janela.loadFile(path.join(__dirname, "..", "frontend", "html", "carregando.html"));
   janela.on("closed", () => {
     janela = null;
+    // a janela escondida do RM nao segura o sistema aberto
+    app.quit();
   });
 }
 
@@ -556,6 +579,10 @@ ipcMain.handle("findesk:instalar-atualizacao", async () => {
     return false;
   }
 });
+
+// depois de salvar a garantia: o cupom sai em segundo plano (a tela nao espera)
+ipcMain.handle("findesk:emitir-cupom", (_evento, idGarantia) => (RM_LIGADO ? rm.emitir(idGarantia) : false));
+ipcMain.handle("findesk:avisos-rm", () => avisosRm.splice(0));
 
 ipcMain.handle("findesk:fechar", () => {
   app.quit();

@@ -84,4 +84,6 @@ async function iniciar(): Promise<void> {
 void iniciar().then(() => {
   // Sinal de prontidao: componentes da tela ja inicializados.
   document.body.dataset.pronto = "true";
+  // pop-ups do cupom fiscal no RM (menos na tela de carregamento)
+  if (tela !== "carregando") void import("./avisos-rm").then(({ iniciarAvisosRm }) => iniciarAvisosRm());
 });

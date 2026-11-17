@@ -25,6 +25,14 @@ type TelaFinDesk =
   | "todos-produtos"
   | "contas";
 
+/** Pop-up pedido pelo processo do RM (conexao, cupom que nao saiu, impressora). */
+interface AvisoRm {
+  titulo: string;
+  mensagem: string;
+  tom: "sucesso" | "erro" | "atencao";
+  itens?: string[];
+}
+
 interface Window {
   finDesk?: {
     config: () => Promise<FinDeskConfig>;
@@ -44,5 +52,9 @@ interface Window {
     atualizacaoDisponivel: () => Promise<{ versao: string; atual: string; novidades: string } | null>;
     instalarAtualizacao: () => Promise<boolean>;
     onProgressoAtualizacao?: (callback: (progresso: { recebidos: number; total: number }) => void) => void;
+    /** cupom fiscal no RM Software, em segundo plano (desktop/rm.js) */
+    emitirCupom?: (idGarantia: number) => Promise<boolean>;
+    avisosRm?: () => Promise<AvisoRm[]>;
+    onAvisoRm?: (callback: () => void) => void;
   };
 }

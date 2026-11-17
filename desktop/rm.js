@@ -1,0 +1,344 @@
+// Ligacao do Sistema de Garantias com o RM Software (cupom fiscal automatico).
+//
+// - Uma janela ESCONDIDA abre o PDV do RM (app.rmsoftware.dev.br/app/pdv) numa sessao
+//   so dela ("persist:rm"), que guarda o login como o Chrome guarda.
+// - O login e feito na propria pagina do RM: o sistema nunca le, guarda ou registra
+//   e-mail ou senha. Se o RM pedir login, a janela aparece e o pop-up avisa.
+// - O "cracha" (Authorization) que a pagina do RM manda a cada pedido fica so na
+//   memoria, para os pedidos do cupom; nunca vai para arquivo ou log.
+// - Os pedidos ao RM rodam DENTRO da pagina do RM (fetch na janela escondida): mesma
+//   origem, mesmo navegador, o RM ve o mesmo que veria do operador.
+const { BrowserWindow, session } = require("electron");
+const fs = require("fs");
+const path = require("path");
+const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
+const { montarHtml } = require("./cupom-impressao");
+
+const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
+const RM_API = process.env.FINDESK_RM_API || "https://api.rmsoftware.dev.br";
+const PARTICAO = "persist:rm";
+const ESPERA_CONEXAO_MS = Number(process.env.FINDESK_RM_ESPERA_MS) || 30000;
+const ESPERA_PEDIDO_MS = 30000;
+
+/**
+ * @param {object} o
+ * @param {(nivel: string, msg: string) => void} o.registrarLog
+ * @param {() => {porta: number, token: string}} o.backend  servidor interno (Spring)
+ * @param {(aviso: object) => void} o.avisar  pop-up na tela do sistema
+ * @param {() => boolean} o.encerrando  o sistema esta fechando
+ */
+function criarRm({ registrarLog, backend, avisar, encerrando }) {
+  let janelaRm = null;
+  let autorizacao = null;
+  const contexto = { companyId: null, tabelaPrecoId: null };
+  let estado = "desconectado";
+  let esperando = [];
+  let fila = Promise.resolve();
+  let sessaoPronta = false;
+
+  function definirEstado(novo) {
+    if (estado === novo) return;
+    estado = novo;
+    registrarLog("INFO", `[rm] estado: ${novo}`);
+    if (!janelaRm || janelaRm.isDestroyed()) return;
+    if (novo === "login") {
+      // a pagina do RM pede e-mail e senha: a janela aparece para alguem entrar
+      janelaRm.show();
+      janelaRm.focus();
+    } else if (novo === "conectado" && janelaRm.isVisible()) {
+      janelaRm.hide();
+    }
+    if (novo !== "conectando") esperando.splice(0).forEach((f) => f(novo));
+  }
+
+  function prepararSessao() {
+    if (sessaoPronta) return;
+    sessaoPronta = true;
+    const ses = session.fromPartition(PARTICAO);
+    ses.webRequest.onBeforeSendHeaders((det, responder) => {
+      if (det.url.startsWith(RM_API)) {
+        for (const [nome, valor] of Object.entries(det.requestHeaders)) {
+          if (nome.toLowerCase() === "authorization" && valor) autorizacao = valor;
+        }
+        try {
+          const p = new URL(det.url).searchParams;
+          if (p.get("companyId")) contexto.companyId = p.get("companyId");
+          if (p.get("tabelaPrecoId")) contexto.tabelaPrecoId = p.get("tabelaPrecoId");
+        } catch {
+          // endereco estranho: ignora
+        }
+      }
+      responder({ requestHeaders: det.requestHeaders });
+    });
+    ses.webRequest.onCompleted((det) => {
+      if (det.method !== "GET" || !det.url.startsWith(`${RM_API}/v1/auth/me`)) return;
+      if (det.statusCode === 200) definirEstado("conectado");
+      else if (det.statusCode === 401 || det.statusCode === 403) definirEstado("login");
+    });
+  }
+
+  function criarJanela() {
+    if (janelaRm && !janelaRm.isDestroyed()) return;
+    prepararSessao();
+    janelaRm = new BrowserWindow({
+      width: 520,
+      height: 720,
+      show: false,
+      center: true,
+      title: "RM Software — entre para o cupom fiscal sair sozinho",
+      autoHideMenuBar: true,
+      webPreferences: {
+        partition: PARTICAO,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        backgroundThrottling: false,
+      },
+    });
+    janelaRm.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    // so paginas do proprio RM
+    janelaRm.webContents.on("will-navigate", (evento, url) => {
+      if (!url.startsWith(RM_APP)) evento.preventDefault();
+    });
+    const conferirEndereco = (_evento, url) => {
+      try {
+        if (!new URL(url).pathname.startsWith("/app")) definirEstado("login");
+      } catch {
+        // ignora
+      }
+    };
+    janelaRm.webContents.on("did-navigate", conferirEndereco);
+    janelaRm.webContents.on("did-navigate-in-page", conferirEndereco);
+    janelaRm.webContents.on("did-fail-load", (_evento, codigo, _descricao, _url, principal) => {
+      if (principal && codigo !== -3) definirEstado("fora");
+    });
+    // fechar a janela do RM so a esconde (o login continua guardado)
+    janelaRm.on("close", (evento) => {
+      if (!encerrando()) {
+        evento.preventDefault();
+        janelaRm.hide();
+      }
+    });
+  }
+
+  function aguardarEstado() {
+    if (estado !== "conectando") return Promise.resolve(estado);
+    return new Promise((resolver) => {
+      const tempo = setTimeout(() => {
+        esperando = esperando.filter((f) => f !== fim);
+        resolver(estado === "conectando" ? "fora" : estado);
+      }, ESPERA_CONEXAO_MS);
+      const fim = (novo) => {
+        clearTimeout(tempo);
+        resolver(novo);
+      };
+      esperando.push(fim);
+    });
+  }
+
+  /** Abre (ou recarrega) o PDV do RM escondido e espera: conectado, login ou fora. */
+  async function conectar(recarregar = false) {
+    criarJanela();
+    if (!recarregar && estado === "conectado" && autorizacao && contexto.tabelaPrecoId) return "conectado";
+    // alguem esta entrando no RM na janela: nao recarrega por cima
+    if (estado === "login" && janelaRm.isVisible()) return "login";
+    autorizacao = null;
+    estado = "conectando";
+    janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {
+      // a falha chega por did-fail-load
+    });
+    const final = await aguardarEstado();
+    if (final === "conectado") {
+      // o PDV pede a lista de produtos logo depois: dela vem a tabela de precos
+      for (let i = 0; i < 50 && !(autorizacao && contexto.tabelaPrecoId); i++) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    if (final === "fora") estado = "fora";
+    return final;
+  }
+
+  /** Pedido ao RM feito pela pagina do RM. Devolve { status, dados } (status 0 = sem resposta). */
+  async function chamar(metodo, caminho, corpo) {
+    if (!janelaRm || janelaRm.isDestroyed()) return { status: 0, dados: null };
+    const cabecalhos = {};
+    if (autorizacao) cabecalhos.authorization = autorizacao;
+    if (corpo !== undefined) cabecalhos["content-type"] = "application/json";
+    const opcoes = { method: metodo, headers: cabecalhos };
+    if (corpo !== undefined) opcoes.body = JSON.stringify(corpo);
+    const codigo = `(async () => {
+      try {
+        const r = await fetch(${JSON.stringify(RM_API + caminho)}, ${JSON.stringify(opcoes)});
+        return { status: r.status, texto: await r.text() };
+      } catch { return { status: 0, texto: "" }; }
+    })()`;
+    let tempo;
+    const resposta = await Promise.race([
+      janelaRm.webContents.executeJavaScript(codigo, true).catch(() => ({ status: 0, texto: "" })),
+      new Promise((r) => { tempo = setTimeout(() => r({ status: 0, texto: "" }), ESPERA_PEDIDO_MS); }),
+    ]);
+    clearTimeout(tempo);
+    let dados = null;
+    try {
+      dados = JSON.parse(resposta.texto);
+    } catch {
+      // resposta sem JSON
+    }
+    return { status: resposta.status, dados };
+  }
+
+  /** Pedido ao servidor interno (Spring). */
+  async function servidor(metodo, caminho, corpo) {
+    const { porta, token } = backend();
+    try {
+      const r = await fetch(`http://127.0.0.1:${porta}${caminho}`, {
+        method: metodo,
+        headers: { "X-FinDesk-Token": token, ...(corpo ? { "Content-Type": "application/json" } : {}) },
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+      let dados = null;
+      try {
+        dados = await r.json();
+      } catch {
+        // sem corpo
+      }
+      return { status: r.status, dados };
+    } catch {
+      return { status: 0, dados: null };
+    }
+  }
+
+  async function imprimir(dados) {
+    const html = montarHtml(dados);
+    const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+    try {
+      await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      // testes: grava o cupom em PDF em vez de imprimir
+      if (process.env.FINDESK_RM_PDF_DIR) {
+        const pdf = await w.webContents.printToPDF({ pageSize: { width: 3.15, height: 11 }, margins: { marginType: "none" } });
+        fs.mkdirSync(process.env.FINDESK_RM_PDF_DIR, { recursive: true });
+        fs.writeFileSync(path.join(process.env.FINDESK_RM_PDF_DIR, `nfce-${dados.numero}.pdf`), pdf);
+        return;
+      }
+      const impressoras = await w.webContents.getPrintersAsync();
+      const daruma = impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`));
+      if (!daruma) throw new Error("impressora DARUMA não encontrada no Windows");
+      await new Promise((ok, falha) => {
+        w.webContents.print({ silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" } },
+          (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || "a impressão falhou"))));
+      });
+    } finally {
+      w.destroy();
+    }
+  }
+
+  function moeda(valor) {
+    return `R$ ${Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  function avisarManual(idGarantia, motivo, pedido) {
+    const itens = pedido && pedido.itens && pedido.itens.length
+      ? pedido.itens.map((i) => `${i.quantidade}x ${i.nomeRm} — ${moeda(i.valorUnitario)} cada`)
+      : [];
+    if (pedido && pedido.total) itens.push(`TOTAL: ${moeda(pedido.total)} (dinheiro)`);
+    avisar({
+      titulo: "FAÇA O CUPOM NO RM",
+      mensagem: `O cupom fiscal da garantia nº ${idGarantia} não saiu sozinho (${motivo}). `
+        + "A garantia está salva. Faça o cupom manualmente no PDV do RM e depois marque LANÇADO em PESQUISAR GARANTIA.",
+      itens,
+      tom: "erro",
+    });
+  }
+
+  async function processar(idGarantia) {
+    const lido = await servidor("GET", `/api/garantias/${idGarantia}/cupom-rm`);
+    if (lido.status !== 200 || !lido.dados) {
+      const motivo = lido.dados && lido.dados.campos && lido.dados.campos.cupom;
+      registrarLog("WARN", `[rm] garantia ${idGarantia}: pedido do cupom recusado (${lido.status})`);
+      avisarManual(idGarantia, String(motivo || "não foi possível ler a garantia").replace(/\.$/, ""), null);
+      return;
+    }
+    const pedido = lido.dados;
+    if (pedido.status !== "NAO_LANCADO") return;
+
+    const memoria = {};
+    let nota = null;
+    let ultimoErro = null;
+    // 1a tentativa; se falhar por conexao/login, reconecta e tenta mais UMA vez
+    for (let tentativa = 1; tentativa <= 2 && !nota; tentativa++) {
+      try {
+        const situacao = await conectar(tentativa > 1);
+        // login: outra tentativa nao resolve (a janela do RM abriu para alguem entrar)
+        if (situacao === "login") throw new ErroDefinitivo("o RM pediu para entrar de novo; entre na janela do RM que abriu");
+        if (situacao !== "conectado") throw new ErroTemporario("sem conexão com o RM");
+        nota = await emitirNoRm(pedido, chamar, contexto, memoria);
+      } catch (erro) {
+        ultimoErro = erro;
+        registrarLog("WARN", `[rm] garantia ${idGarantia}: tentativa ${tentativa} falhou: ${erro && erro.message}`);
+        if (erro instanceof ErroDefinitivo) break;
+      }
+    }
+    if (!nota) {
+      avisarManual(idGarantia, ((ultimoErro && ultimoErro.message) || "erro desconhecido").replace(/\.$/, ""), pedido);
+      return;
+    }
+    registrarLog("INFO", `[rm] garantia ${idGarantia}: NFC-e ${nota.numero} emitida (${nota.status})`);
+
+    const gravado = await servidor("POST", `/api/garantias/${idGarantia}/cupom-rm/emitido`, { nfce: nota.numero, chave: nota.chave });
+    if (gravado.status !== 200) {
+      avisar({
+        titulo: "CUPOM EMITIDO — MARQUE NA GARANTIA",
+        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida no RM, mas o sistema não conseguiu `
+          + "marcar a garantia. Marque LANÇADO em PESQUISAR GARANTIA. NÃO emita o cupom de novo.",
+        tom: "atencao",
+      });
+    }
+    try {
+      const dados = await chamar("GET", `/v1/pdv/vendas/${encodeURIComponent(nota.idVenda)}/cupom-dados`);
+      if (dados.status !== 200 || !dados.dados || !dados.dados.data) throw new Error(`o RM respondeu ${dados.status}`);
+      await imprimir(dados.dados.data);
+    } catch (erro) {
+      registrarLog("WARN", `[rm] garantia ${idGarantia}: NFC-e ${nota.numero} nao impressa: ${erro && erro.message}`);
+      avisar({
+        titulo: "CUPOM EMITIDO, MAS NÃO IMPRIMIU",
+        mensagem: `A NFC-e nº ${nota.numero} foi emitida, mas não saiu na impressora (${erro && erro.message}). `
+          + "Imprima pelo RM em ÚLTIMAS VENDAS. NÃO emita o cupom de novo.",
+        tom: "atencao",
+      });
+    }
+  }
+
+  return {
+    /** Ao abrir o sistema: conecta escondido e so avisa se houver problema. */
+    async iniciar() {
+      const situacao = await conectar();
+      if (situacao === "login") {
+        avisar({
+          titulo: "ENTRE NO RM SOFTWARE",
+          mensagem: "A janela do RM abriu. Entre com o e-mail e a senha da loja (só desta vez): "
+            + "depois disso o cupom fiscal de cada garantia sai sozinho.",
+          tom: "atencao",
+        });
+      } else if (situacao === "fora") {
+        avisar({
+          titulo: "RM SOFTWARE FORA DO AR",
+          mensagem: "Não foi possível conectar ao RM (sem internet ou o RM está fora do ar). O sistema tenta de novo "
+            + "a cada garantia; se não conseguir, avisa para fazer o cupom manualmente.",
+          tom: "erro",
+        });
+      }
+    },
+    /** Depois de salvar a garantia: emite em segundo plano, uma por vez. */
+    emitir(idGarantia) {
+      const id = Number(idGarantia);
+      if (!Number.isInteger(id) || id <= 0) return false;
+      fila = fila.then(() => processar(id)).catch((erro) => {
+        registrarLog("ERROR", `[rm] falha inesperada no cupom da garantia ${id}: ${erro && erro.stack ? erro.stack : erro}`);
+        avisarManual(id, "erro inesperado", null);
+      });
+      return true;
+    },
+  };
+}
+
+module.exports = { criarRm };

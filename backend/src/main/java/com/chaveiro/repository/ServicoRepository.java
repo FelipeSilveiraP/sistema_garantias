@@ -21,7 +21,7 @@ public class ServicoRepository {
 
     private static final Logger log = LoggerFactory.getLogger(ServicoRepository.class);
 
-    private static final String COLUNAS = "id_servico, nome, preco_centavos, codigo_cupom, pede_carcaca, pede_botao,"
+    private static final String COLUNAS = "id_servico, nome, preco_centavos, codigo_cupom, nome_rm, pede_carcaca, pede_botao,"
             + " pede_pilha, pede_itens, peca, ativo";
 
     private final ConnectionFactory conexao;
@@ -65,7 +65,7 @@ public class ServicoRepository {
 
     public Servico inserir(Servico s) throws SQLException {
         String sql = "INSERT INTO servicos (nome, preco_centavos, codigo_cupom, pede_carcaca, pede_botao, pede_pilha,"
-                + " pede_itens, peca, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + " pede_itens, peca, ativo, nome_rm) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         return conexao.emTransacao(conn -> {
             try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 preencher(stmt, s);
@@ -74,7 +74,7 @@ public class ServicoRepository {
                     chaves.next();
                     long id = chaves.getLong(1);
                     log.info("servico cadastrado (id={})", id);
-                    return new Servico(id, s.nome(), s.preco(), s.codigoCupom(), s.pedeCarcaca(), s.pedeBotao(),
+                    return new Servico(id, s.nome(), s.preco(), s.codigoCupom(), s.nomeRm(), s.pedeCarcaca(), s.pedeBotao(),
                             s.pedePilha(), s.pedeItens(), s.peca(), s.ativo());
                 }
             }
@@ -83,11 +83,11 @@ public class ServicoRepository {
 
     public boolean atualizar(long id, Servico s) throws SQLException {
         String sql = "UPDATE servicos SET nome = ?, preco_centavos = ?, codigo_cupom = ?, pede_carcaca = ?,"
-                + " pede_botao = ?, pede_pilha = ?, pede_itens = ?, peca = ?, ativo = ? WHERE id_servico = ?";
+                + " pede_botao = ?, pede_pilha = ?, pede_itens = ?, peca = ?, ativo = ?, nome_rm = ? WHERE id_servico = ?";
         return conexao.emTransacao(conn -> {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 preencher(stmt, s);
-                stmt.setLong(10, id);
+                stmt.setLong(11, id);
                 return stmt.executeUpdate() > 0;
             }
         });
@@ -147,12 +147,13 @@ public class ServicoRepository {
         stmt.setInt(7, s.pedeItens() ? 1 : 0);
         stmt.setInt(8, s.peca() ? 1 : 0);
         stmt.setInt(9, s.ativo() ? 1 : 0);
+        stmt.setString(10, s.nomeRm());
     }
 
     private static Servico mapear(ResultSet rs) throws SQLException {
         return new Servico(rs.getLong("id_servico"), rs.getString("nome"),
                 BigDecimal.valueOf(rs.getLong("preco_centavos"), 2), rs.getString("codigo_cupom"),
-                rs.getInt("pede_carcaca") == 1, rs.getInt("pede_botao") == 1, rs.getInt("pede_pilha") == 1,
+                rs.getString("nome_rm"), rs.getInt("pede_carcaca") == 1, rs.getInt("pede_botao") == 1, rs.getInt("pede_pilha") == 1,
                 rs.getInt("pede_itens") == 1, rs.getInt("peca") == 1, rs.getInt("ativo") == 1);
     }
 }

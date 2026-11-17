@@ -14,7 +14,7 @@
     "dev": "npm run build && electron desktop/main.js",
     "test:mascaras": "node desktop/teste-mascaras.js",
     "test:filtros": "node desktop/teste-filtros.js",
-    "test:frontend": "node desktop/teste-mascaras.js && node desktop/teste-filtros.js && node desktop/teste-automacoes.js",
+    "test:frontend": "node desktop/teste-mascaras.js && node desktop/teste-filtros.js && node desktop/teste-automacoes.js && node desktop/teste-rm-cupom.js",
     "jre": "node instalador/gerar-jre.js",
     "instalador": "node instalador/empacotar.js",
     "publicar": "node instalador/publicar.js",
@@ -30,6 +30,7 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "pdf-lib": "1.17.1"
+    "pdf-lib": "1.17.1",
+    "qrcode-generator": "1.4.4"
   }
 }

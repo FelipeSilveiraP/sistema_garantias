@@ -12,6 +12,8 @@ public record Servico(
         String nome,
         BigDecimal preco,
         String codigoCupom,
+        /** nome do produto na busca do PDV do RM Software (cupom fiscal automatico) */
+        String nomeRm,
         boolean pedeCarcaca,
         boolean pedeBotao,
         boolean pedePilha,

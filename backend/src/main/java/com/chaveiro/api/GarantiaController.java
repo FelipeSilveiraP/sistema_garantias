@@ -1,6 +1,7 @@
 package com.chaveiro.api;
 
 import com.chaveiro.model.Garantia;
+import com.chaveiro.service.CupomService;
 import com.chaveiro.service.GarantiaService;
 import com.chaveiro.service.UsuarioService;
 import java.math.BigDecimal;
@@ -37,12 +38,18 @@ public class GarantiaController {
     public record CupomRequest(String status) {
     }
 
+    /** NFC-e emitida no RM (numero e chave de acesso). */
+    public record EmitidoRequest(String nfce, String chave) {
+    }
+
     private final GarantiaService service;
     private final UsuarioService usuarios;
+    private final CupomService cupons;
 
-    public GarantiaController(GarantiaService service, UsuarioService usuarios) {
+    public GarantiaController(GarantiaService service, UsuarioService usuarios, CupomService cupons) {
         this.service = service;
         this.usuarios = usuarios;
+        this.cupons = cupons;
     }
 
     @GetMapping
@@ -81,6 +88,18 @@ public class GarantiaController {
     @PutMapping("/{id}/cupom")
     public Garantia marcarCupom(@PathVariable long id, @RequestBody CupomRequest requisicao) {
         return service.marcarCupom(id, requisicao.status());
+    }
+
+    /** O que o PDV do RM recebe: produtos (pelo nome no RM), quantidades e valores. */
+    @GetMapping("/{id}/cupom-rm")
+    public CupomService.PedidoCupom pedidoCupom(@PathVariable long id) {
+        return cupons.pedido(id);
+    }
+
+    @PostMapping("/{id}/cupom-rm/emitido")
+    public Garantia cupomEmitido(@PathVariable long id, @RequestBody EmitidoRequest requisicao) {
+        cupons.registrarEmitido(id, requisicao.nfce(), requisicao.chave());
+        return service.buscarPorId(id);
     }
 
     @DeleteMapping("/{id}")

@@ -348,6 +348,8 @@ async function salvar(): Promise<void> {
       salva = await cadastrarGarantia(cfg, { ...dados, forcar: true });
     }
     document.body.dataset.garantiaSalva = String(salva.id);
+    // cupom fiscal no RM em segundo plano: o atendimento continua (avisa so se der problema)
+    void window.finDesk!.emitirCupom?.(salva.id);
     limpar();
     await avisar({
       titulo: "GARANTIA SALVA",

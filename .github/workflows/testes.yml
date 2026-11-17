@@ -63,6 +63,9 @@ jobs:
       - name: Persistencia (cold start do backend)
         run: node desktop/teste-persistencia.js
 
+      - name: Cupom fiscal no RM de ponta a ponta (RM falso, sem nota de verdade)
+        run: npx electron desktop/teste-rm-electron.js
+
       # smoke-boot clica e digita de verdade (SendInput via desktop/entrada-real.ps1). O runner
       # do GitHub tem uma sessao de desktop, mas sem garantia de foco de janela: quando falhar
       # por foco, o resultado vale como aviso (nao bloqueia o PR). Rode na maquina para valer.

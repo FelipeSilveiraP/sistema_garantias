@@ -125,7 +125,7 @@ const PRODUTOS: Config<ServicoDados> = {
     { titulo: "SERVIÇO / PEÇA", valor: (s) => s.nome },
     { titulo: "TIPO", classe: "text-center", valor: (s) => (s.peca ? selo("Peça", "bg-[#e0f2fe] text-[#075985]") : selo("Serviço", "bg-[#FFE600]/40 text-[#6a5f00]")) },
     { titulo: "PREÇO", classe: "text-right font-mono whitespace-nowrap", valor: (s) => formatarMoedaBR(Math.round(s.preco * 100)) },
-    { titulo: "CÓDIGO NO CUPOM", classe: "font-mono", valor: (s) => s.codigoCupom ?? "—" },
+    { titulo: "NOME NO RM", valor: (s) => s.nomeRm ?? "—" },
     {
       titulo: "PEDE",
       classe: "text-xs",
@@ -133,20 +133,20 @@ const PRODUTOS: Config<ServicoDados> = {
     },
     { titulo: "SITUAÇÃO", classe: "text-center", valor: (s) => seloAtivo(s.ativo) },
   ],
-  pesquisa: (s) => [s.nome, s.codigoCupom],
+  pesquisa: (s) => [s.nome, s.nomeRm ?? null],
   carregar: listarServicos,
   campos: () => [
     { valor: "nome", rotulo: "Nome" },
     { valor: "preco", rotulo: "Preço (R$)", mascara: "moeda" },
-    { valor: "codigoCupom", rotulo: "Código no cupom" },
+    { valor: "nomeRm", rotulo: "Nome no RM" },
   ],
   valorCampo: (s, campo) =>
-    campo === "preco" ? formatarMoedaBR(Math.round(s.preco * 100)).replace("R$ ", "") : campo === "codigoCupom" ? s.codigoCupom ?? "" : s.nome,
+    campo === "preco" ? formatarMoedaBR(Math.round(s.preco * 100)).replace("R$ ", "") : campo === "nomeRm" ? s.nomeRm ?? "" : s.nome,
   aplicar: async (cfg, s, campo, valor) => {
     const p = campo === "preco" ? precoTexto(valor) : s.preco.toFixed(2);
     if (p === null) throw new ErroValidacaoApi({ preco: "Preço inválido. Exemplo: 150,00." });
     await salvarServico(cfg, {
-      ...s, preco: p, nome: campo === "nome" ? valor : s.nome, codigoCupom: campo === "codigoCupom" ? valor || null : s.codigoCupom,
+      ...s, preco: p, nome: campo === "nome" ? valor : s.nome, nomeRm: campo === "nomeRm" ? valor || null : s.nomeRm ?? null,
     });
   },
   alternarAtivo: async (cfg, s) => {
@@ -256,7 +256,7 @@ function montar<T extends { id: number; ativo: boolean }>(tela: Tela, cfgTela: C
     const item = selecionado();
     if (!item) return;
     const valor = editor.ler().trim();
-    if (!valor && editor.campo() !== "codigoCupom") {
+    if (!valor && editor.campo() !== "nomeRm") {
       editor.erro("Informe o novo valor.");
       return;
     }

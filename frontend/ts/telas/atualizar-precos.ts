@@ -60,10 +60,11 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   const codigoTd = document.createElement("td");
   codigoTd.className = "py-2 px-3";
   const codigo = document.createElement("input");
-  codigo.className = "entrada-form !py-1.5 font-mono";
-  codigo.maxLength = 30;
-  codigo.value = s.codigoCupom ?? "";
-  codigo.setAttribute("aria-label", `Código no cupom de ${s.nome}`);
+  codigo.className = "entrada-form !py-1.5 uppercase";
+  codigo.maxLength = 120;
+  codigo.placeholder = "COMO ESTÁ NO RM";
+  codigo.value = s.nomeRm ?? "";
+  codigo.setAttribute("aria-label", `Nome no RM de ${s.nome}`);
   codigoTd.appendChild(codigo);
   const ativoTd = document.createElement("td");
   ativoTd.className = "py-2 px-3 text-center";
@@ -96,7 +97,7 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
         return;
       }
       try {
-        await salvarServico(await window.finDesk!.config(), { ...s, preco: p, codigoCupom: codigo.value.trim() || null, ativo: ativo.checked });
+        await salvarServico(await window.finDesk!.config(), { ...s, preco: p, nomeRm: codigo.value.trim() || null, ativo: ativo.checked });
         notificar(`${s.nome}: preço salvo.`);
         await carregarPrecos();
       } catch (erro) {
