@@ -1547,3 +1547,12 @@ select.entrada-form:disabled {
 #form-garantia .caixa-busca__grupo { font-size: 0.8125rem; }
 #form-garantia .caixa-busca__vazio { font-size: 0.9375rem; }
 
+/* ===== Tudo em MAIUSCULAS ao digitar (pedido do usuario, 2026-11-18; o servidor ja grava assim) =====
+   Fora: e-mail e senha (outros tipos de campo) e quem tiver .sem-maiusculas. */
+input[type="text"]:not(.sem-maiusculas),
+input[type="search"]:not(.sem-maiusculas),
+input:not([type]):not(.sem-maiusculas),
+textarea:not(.sem-maiusculas) {
+  text-transform: uppercase;
+}
+
