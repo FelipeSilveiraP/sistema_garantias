@@ -126,11 +126,6 @@ const PRODUTOS: Config<ServicoDados> = {
     { titulo: "TIPO", classe: "text-center", valor: (s) => (s.peca ? selo("Peça", "bg-[#e0f2fe] text-[#075985]") : selo("Serviço", "bg-[#FFE600]/40 text-[#6a5f00]")) },
     { titulo: "PREÇO", classe: "text-right font-mono whitespace-nowrap", valor: (s) => formatarMoedaBR(Math.round(s.preco * 100)) },
     { titulo: "NOME NO RM", valor: (s) => s.nomeRm ?? "—" },
-    {
-      titulo: "PEDE",
-      classe: "text-xs",
-      valor: (s) => [s.pedeCarcaca && "carcaça", s.pedeBotao && "botão", s.pedePilha && "pilha", s.pedeItens && "itens"].filter(Boolean).join(" · ") || "—",
-    },
     { titulo: "SITUAÇÃO", classe: "text-center", valor: (s) => seloAtivo(s.ativo) },
   ],
   pesquisa: (s) => [s.nome, s.nomeRm ?? null],

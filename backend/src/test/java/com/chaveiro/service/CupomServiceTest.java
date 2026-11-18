@@ -67,9 +67,16 @@ class CupomServiceTest {
     }
 
     @Test
-    void carcacaJaVemComONomeDoRmDaVendaReal() throws Exception {
+    void produtosJaVemComONomeDoRm() throws Exception {
         assertThat(servico("TROCA CARCAÇA").nomeRm()).isEqualTo("CARCAÇA CANIVETE");
-        assertThat(servico("PILHA").nomeRm()).isNull();
+        assertThat(servico("TROCA GAIOLA").nomeRm()).isEqualTo("GAIOLA");
+        assertThat(servico("TROCA EXCÊNTRICO").nomeRm()).isEqualTo("EXCENTRICO");
+        assertThat(servico("TROCA BOLACHA").nomeRm()).isEqualTo("BOLACHA");
+        assertThat(servico("TROCA COMUTADOR PARTIDA").nomeRm()).isEqualTo("COMUTADOR DA PARTIDA");
+        assertThat(servico("PILHA").nomeRm()).isEqualTo("PILHA");
+        assertThat(servico("BOTÃO").nomeRm()).isEqualTo("BOTÃO");
+        // sem produto no RM: cupom manual ate alguem preencher
+        assertThat(servico("TROCA CILINDRO IGNIÇÃO").nomeRm()).isNull();
     }
 
     @Test

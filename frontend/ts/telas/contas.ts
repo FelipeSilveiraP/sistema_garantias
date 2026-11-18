@@ -3,17 +3,17 @@
 // PIN, admin, ativo), o historico de acessos e o Gmail que envia os codigos.
 // O servidor confere o admin em cada pedido (403 para quem nao e).
 import {
+  configEmail,
+  gravarConfigEmail,
+  testarEmail,
   atualizarUsuario,
   cadastrarUsuario,
-  configEmail,
   excluirUsuario,
   fotoDoPerfil,
-  gravarConfigEmail,
   listarAcessos,
   listarUsuarios,
   minhaConta,
   novoPinDoUsuario,
-  testarEmail,
   trocarFotoDoUsuario,
   trocarMeuPin,
   AcessoDados,
@@ -309,32 +309,28 @@ function ligarAdmin(): void {
       el<HTMLInputElement>("novo_pin").value = "";
     });
   });
+  // GRAVAR = grava e ja confere: manda um e-mail de confirmacao para o proprio Gmail da loja
   el<HTMLFormElement>("form-email").addEventListener("submit", (e) => {
     e.preventDefault();
     void (async () => {
+      const cfg = await window.finDesk!.config();
+      const remetente = el<HTMLInputElement>("e_remetente").value.trim();
       try {
-        await gravarConfigEmail(await window.finDesk!.config(), el<HTMLInputElement>("e_remetente").value, el<HTMLInputElement>("e_senha").value);
-        el<HTMLInputElement>("e_senha").value = "";
+        await gravarConfigEmail(cfg, remetente, el<HTMLInputElement>("e_senha").value);
         mostrarErrosForm("form-email", {});
-        notificar("Gmail da loja gravado (criptografado).");
-        await recarregarAdmin();
       } catch (falha) {
         if (falha instanceof ErroValidacaoApi) mostrarErrosForm("form-email", falha.campos);
         else notificar(mensagem(falha, "Não foi possível gravar."), "erro");
+        return;
       }
-    })();
-  });
-  el<HTMLFormElement>("form-teste").addEventListener("submit", (e) => {
-    e.preventDefault();
-    void (async () => {
       try {
-        await testarEmail(await window.finDesk!.config(), el<HTMLInputElement>("e_destino").value);
-        mostrarErrosForm("form-teste", {});
-        notificar("E-mail de teste enviado.");
-      } catch (falha) {
-        if (falha instanceof ErroValidacaoApi) mostrarErrosForm("form-teste", falha.campos);
-        else notificar(mensagem(falha, "Não foi possível enviar."), "erro");
+        await testarEmail(cfg, remetente);
+        el<HTMLInputElement>("e_senha").value = "";
+        notificar(`Gmail da loja conectado: mandamos um e-mail de confirmação para ${remetente}.`);
+      } catch {
+        notificar("Gravado, mas o Google recusou o envio: confira o Gmail da loja e a senha de app (16 letras, criada com a verificação em 2 etapas ligada).", "erro");
       }
+      await recarregarAdmin();
     })();
   });
 }
@@ -356,6 +352,8 @@ export function iniciarContas(): void {
     if (falha instanceof ErroApi && falha.status === 401) void window.finDesk!.navegar("perfis");
   });
   if (perfil.admin) {
+    // admin troca o proprio PIN (e o de qualquer conta) so na conta selecionada, la embaixo
+    el("form-meu-pin").classList.add("hidden");
     el("area-admin").classList.remove("hidden");
     el("selo-admin").classList.remove("hidden");
     ligarAdmin();

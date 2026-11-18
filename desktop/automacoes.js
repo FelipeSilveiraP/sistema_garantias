@@ -328,28 +328,57 @@ async function procurarAtualizacao(app, registrarLog, versaoAtual = app.getVersi
 }
 
 /** ATUALIZAR: baixa do GitHub (se for de la), confere, executa e fecha o sistema. */
-async function aplicarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn, aoProgresso = () => {}) {
+async function aplicarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn, aoProgresso = () => {}, esperaMs = 1500) {
   const pronta = atualizacao.origem === "github"
     ? { ...atualizacao, instalador: await baixarInstalador(atualizacao, registrarLog, aoProgresso) }
     : atualizacao;
-  return instalarAtualizacao(app, pronta, registrarLog, iniciar);
+  return instalarAtualizacao(app, pronta, registrarLog, iniciar, esperaMs);
 }
 
-/** Copia o instalador para a pasta temporaria, executa e fecha o sistema. */
-function instalarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn) {
+/**
+ * Copia o instalador para a pasta temporaria, abre e fecha o sistema.
+ *
+ * Mesmo jeito do atualizador do proprio electron-builder: o INSTALADOR e aberto direto
+ * (sem PowerShell escondido, que antivirus barram em silencio) com "--updated": nesse
+ * modo ele espera/fecha o sistema antigo sozinho, instala e abre a versao nova
+ * (runAfterFinish). O sistema so fecha depois que o instalador abriu de verdade: se o
+ * Windows barrar, o erro volta para a tela e o sistema continua aberto.
+ */
+function instalarAtualizacao(app, atualizacao, registrarLog, iniciar = spawn, esperaMs = 1500) {
   const destino = path.join(os.tmpdir(), path.basename(atualizacao.instalador));
   // o baixado do GitHub ja esta na pasta temporaria (subpasta propria): copiar so do Drive
   if (path.resolve(destino) !== path.resolve(atualizacao.instalador)) {
     fs.copyFileSync(atualizacao.instalador, destino);
   }
-  // espera o sistema (e o Java) fecharem antes de o instalador substituir os arquivos
-  const comando = `Start-Sleep -Seconds 3; Start-Process -FilePath '${destino.replace(/'/g, "''")}'`;
-  const proc = iniciar("powershell.exe", ["-NoProfile", "-WindowStyle", "Hidden", "-Command", comando],
-    { detached: true, stdio: "ignore", windowsHide: true });
-  proc.unref?.();
-  registrarLog("INFO", `instalando a atualizacao ${atualizacao.versao}`);
-  setTimeout(() => app.quit(), 500);
-  return destino;
+  return new Promise((resolver, rejeitar) => {
+    let terminou = false;
+    const falhar = (motivo) => {
+      if (terminou) return;
+      terminou = true;
+      registrarLog("ERROR", `atualizacao ${atualizacao.versao}: ${motivo}`);
+      rejeitar(new Error(motivo));
+    };
+    let proc;
+    try {
+      proc = iniciar(destino, ["--updated"], { detached: true, stdio: "ignore", windowsHide: false });
+    } catch (erro) {
+      falhar(`o instalador nao abriu (${erro && erro.message})`);
+      return;
+    }
+    proc.once?.("error", (erro) => falhar(`o instalador nao abriu (${erro && (erro.code || erro.message)})`));
+    proc.once?.("exit", (codigo) => {
+      if (codigo !== 0) falhar(`o instalador fechou logo ao abrir (codigo ${codigo})`);
+    });
+    setTimeout(() => {
+      if (terminou) return;
+      terminou = true;
+      proc.unref?.();
+      registrarLog("INFO", `instalando a atualizacao ${atualizacao.versao} (instalador aberto: ${path.basename(destino)})`);
+      // o instalador espera o sistema fechar para trocar os arquivos e depois o abre de novo
+      setTimeout(() => app.quit(), 300);
+      resolver(destino);
+    }, esperaMs);
+  });
 }
 
 module.exports = {

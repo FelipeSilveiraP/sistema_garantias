@@ -113,7 +113,7 @@ async function oferecerAtualizacao(): Promise<void> {
   }
   progresso.fechar();
   delete document.body.dataset.atualizando;
-  await avisar({ titulo: "Atualização não instalada", mensagem: "Não foi possível baixar a atualização. Confira a internet e tente de novo (o aviso aparece de novo ao abrir o Menu).", tom: "erro" });
+  await avisar({ titulo: "Atualização não instalada", mensagem: "A atualização não foi feita agora. O sistema continua funcionando normalmente; tente de novo pelo aviso que aparece ao abrir o Menu.", tom: "erro" });
 }
 
 async function iniciar(): Promise<void> {

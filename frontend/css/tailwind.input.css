@@ -1523,3 +1523,27 @@ select.entrada-form:disabled {
 .caixa-busca__opcao:hover { background: #fff9d6; }
 .caixa-busca__opcao[aria-selected="true"] { background: #FFE600; }
 .caixa-busca__vazio { padding: 0.6rem 0.75rem; font-size: 0.8125rem; font-weight: 700; color: #525252; }
+
+/* ===== Pop-up grande (GARANTIA SALVA) — pedido do usuario 2026-11-17 ===== */
+.dialogo--grande { width: min(42rem, 100%); }
+.dialogo--grande .dialogo__cabecalho { padding: 1.25rem 1.5rem; }
+.dialogo--grande .dialogo__icone { font-size: 2.75rem; }
+.dialogo--grande .dialogo__titulo { font-size: 1.75rem; }
+.dialogo--grande .dialogo__corpo { padding: 1.5rem 1.75rem; gap: 1rem; }
+.dialogo--grande .dialogo__mensagem { font-size: 1.375rem; line-height: 1.45; }
+.dialogo--grande .dialogo__detalhes { font-size: 1.125rem; padding: 0.875rem 1rem; }
+.dialogo--grande .dialogo__acoes { padding: 0 1.75rem 1.75rem; }
+.dialogo--grande .dialogo-botao { min-height: 3.5rem; padding: 0.75rem 2.5rem; font-size: 1.125rem; }
+
+/* ===== Cadastrar garantia: letras maiores em todo o formulario — pedido do usuario 2026-11-17 ===== */
+#form-garantia .rotulo-form { font-size: 1.0625rem; }
+#form-garantia .dica-form { font-size: 0.875rem; }
+#form-garantia .entrada-form { font-size: 1.1875rem; padding: 0.8125rem 1rem; }
+#form-garantia select.entrada-form { padding-right: 2.75rem; }
+#form-garantia .campo-erro { font-size: 0.9375rem; }
+#form-garantia .sem-placa__texto { font-size: 1.125rem; }
+#form-garantia .sem-placa__texto small { font-size: 0.875rem; }
+#form-garantia .caixa-busca__opcao { font-size: 1.0625rem; padding: 0.625rem 0.875rem; }
+#form-garantia .caixa-busca__grupo { font-size: 0.8125rem; }
+#form-garantia .caixa-busca__vazio { font-size: 0.9375rem; }
+

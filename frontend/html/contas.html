@@ -110,13 +110,14 @@
 <div class="campo-form"><label class="rotulo-form" for="e_senha"><span>SENHA DE APP DO GOOGLE</span><span class="dica-form">16 LETRAS</span></label><input class="entrada-form font-mono" id="e_senha" maxlength="19" type="password" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="senhaApp"></p></div>
 <button class="btn-acao bg-[#FFE600] self-start" type="submit"><span class="material-symbols-outlined text-base font-bold">save</span>GRAVAR</button>
 </form>
-<form class="flex flex-col gap-3" id="form-teste" novalidate>
-<p class="text-sm font-medium">Para criar a senha de app: na conta Google da loja, ative a verificação em 2 etapas e entre em <b>Senhas de app</b>. A senha fica criptografada no banco.</p>
-<div class="campo-form"><label class="rotulo-form" for="e_destino">MANDAR UM E-MAIL DE TESTE PARA</label><input class="entrada-form" id="e_destino" maxlength="120" type="email" autocomplete="off"><p class="campo-erro hidden" data-erro-campo="destino"></p></div>
-<button class="btn-acao bg-white self-start" type="submit"><span class="material-symbols-outlined text-base font-bold">send</span>TESTAR</button>
-</form>
+<div class="flex flex-col gap-3 text-sm font-medium">
+<p><b>Para que serve:</b> é por este Gmail que o sistema manda o código do "Esqueci meu PIN" (para o e-mail da pessoa e para o e-mail da loja).</p>
+<p><b>Senha de app (uma vez só):</b> o Google só deixa um programa mandar e-mail pela conta com uma senha de app. Na conta Google da loja: ative a <b>verificação em 2 etapas</b>, procure <b>Senhas de app</b>, crie uma (nome: Garantias) e cole aqui as 16 letras (pode ser a mesma do Contas a Pagar). Ela fica criptografada no banco.</p>
+<p>Ao clicar em GRAVAR, o sistema confere sozinho: manda um e-mail de confirmação para o Gmail da loja.</p>
+</div>
 </div>
 </section>
+
 </div>
 </div>
 <script type="module" src="../dist/app.js"></script>

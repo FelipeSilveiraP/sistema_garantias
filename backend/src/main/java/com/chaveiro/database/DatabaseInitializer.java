@@ -698,8 +698,9 @@ public class DatabaseInitializer {
 
     /**
      * - servicos.nome_rm: nome do produto como aparece na busca do PDV do RM (a busca e
-     *   sempre pela palavra, nunca pelo codigo — pedido do usuario). TROCA CARCACA ja vem
-     *   com o produto usado na loja (CARCACA CANIVETE, conferido numa venda real).
+     *   sempre pela palavra, nunca pelo codigo — pedido do usuario). Ja vem preenchido com a
+     *   correlacao feita com a tabela de produtos do RM (TROCA CILINDRO IGNICAO nao tem
+     *   produto no RM: fica em branco e cai no cupom manual ate alguem preencher).
      * - garantias.cupom_venda_uuid: identificador da venda mandado ao RM. E criado uma vez
      *   por garantia, para a nova tentativa nunca gerar uma segunda venda.
      * - garantias.cupom_nfce / cupom_chave: numero e chave de acesso da NFC-e emitida
@@ -712,6 +713,13 @@ public class DatabaseInitializer {
                 "ALTER TABLE garantias ADD COLUMN cupom_nfce TEXT CHECK (cupom_nfce IS NULL OR length(cupom_nfce) <= 20)",
                 "ALTER TABLE garantias ADD COLUMN cupom_chave TEXT CHECK (cupom_chave IS NULL OR length(cupom_chave) <= 60)",
                 "CREATE UNIQUE INDEX idx_garantias_cupom_venda_uuid ON garantias(cupom_venda_uuid)",
-                "UPDATE servicos SET nome_rm = 'CARCAÇA CANIVETE' WHERE nome = 'TROCA CARCAÇA'");
+                // correlacao com os produtos do PDV do RM (tabela de produtos da loja, 2026-11-18)
+                "UPDATE servicos SET nome_rm = 'CARCAÇA CANIVETE' WHERE nome = 'TROCA CARCAÇA'",
+                "UPDATE servicos SET nome_rm = 'GAIOLA' WHERE nome = 'TROCA GAIOLA'",
+                "UPDATE servicos SET nome_rm = 'EXCENTRICO' WHERE nome = 'TROCA EXCÊNTRICO'",
+                "UPDATE servicos SET nome_rm = 'BOLACHA' WHERE nome = 'TROCA BOLACHA'",
+                "UPDATE servicos SET nome_rm = 'COMUTADOR DA PARTIDA' WHERE nome = 'TROCA COMUTADOR PARTIDA'",
+                "UPDATE servicos SET nome_rm = 'PILHA' WHERE nome = 'PILHA'",
+                "UPDATE servicos SET nome_rm = 'BOTÃO' WHERE nome = 'BOTÃO'");
     }
 }
