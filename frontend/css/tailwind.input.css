@@ -1478,7 +1478,7 @@ select.entrada-form:disabled {
 /* ===== Cadastrar Garantia: produtos em linhas (caixa + quantidade + "+" + "x") ===== */
 .produtos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .produto-linha { display: flex; align-items: stretch; gap: 0.5rem; }
-.produto-linha .produto-caixa, .produto-linha .produto-outro { flex: 1 1 auto; min-width: 0; }
+.produto-linha .produto-caixa, .produto-linha .produto-outro, .produto-linha .produto-busca { flex: 1 1 auto; min-width: 0; }
 .produto-linha .produto-qtd { flex: 0 0 5.5rem; width: 5.5rem; }
 .produto-mais, .produto-tirar {
   flex: 0 0 auto;

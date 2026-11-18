@@ -36,6 +36,8 @@ export function ligarCaixaBusca(
   campo: HTMLInputElement,
   lista: HTMLUListElement,
   aoMudar: (escolhido: ItemBusca | null, texto: string) => void,
+  /** aviso quando nada combina (padrao: o do modelo do carro) */
+  textoVazio?: (digitado: string) => string,
 ): CaixaBusca {
   let itens: ItemBusca[] = [];
   let visiveis: ItemBusca[] = [];
@@ -99,9 +101,11 @@ export function ligarCaixaBusca(
       const vazio = document.createElement("li");
       vazio.className = "caixa-busca__vazio";
       vazio.setAttribute("role", "presentation");
-      vazio.textContent = campo.value.trim()
-        ? `Nenhum modelo na lista: "${campo.value.trim().toUpperCase()}" será salvo como está escrito.`
-        : "Nenhum modelo cadastrado.";
+      vazio.textContent = textoVazio
+        ? textoVazio(campo.value.trim())
+        : campo.value.trim()
+          ? `Nenhum modelo na lista: "${campo.value.trim().toUpperCase()}" será salvo como está escrito.`
+          : "Nenhum modelo cadastrado.";
       lista.appendChild(vazio);
     }
     lista.classList.remove("hidden");
@@ -169,3 +173,91 @@ export function ligarCaixaBusca(
     },
   };
 }
+
+let contadorCaixas = 0;
+
+export interface CaixaSobreSelect {
+  /** caixa visivel (campo + seta + lista); a <select> fica dentro dela, escondida */
+  envoltorio: HTMLDivElement;
+  campo: HTMLInputElement;
+  /** mostra no campo a opcao escolhida na <select> (depois de mudar o valor pelo codigo) */
+  sincronizar(): void;
+  /** le de novo as opcoes da <select> (depois de carregar a lista) */
+  atualizarItens(): void;
+}
+
+/**
+ * Transforma uma <select> numa caixa de escolher digitando (pedido do usuario): a <select>
+ * continua existindo, escondida, guardando o valor (o resto do codigo le e grava nela) e
+ * recebendo "change" quando a pessoa escolhe; o campo mostra o texto da opcao escolhida.
+ * Texto que nao e um item da lista nao escolhe nada (ao sair do campo, ele e apagado).
+ */
+export function caixaSobreSelect(sel: HTMLSelectElement, placeholder: string, nomeItens: string): CaixaSobreSelect {
+  const id = `caixa-${++contadorCaixas}`;
+  const envoltorio = document.createElement("div");
+  envoltorio.className = "caixa-busca";
+  const campo = document.createElement("input");
+  campo.type = "text";
+  campo.className = "entrada-form uppercase caixa-busca__campo";
+  campo.autocomplete = "off";
+  campo.placeholder = placeholder;
+  campo.maxLength = 120;
+  if (sel.id) campo.id = `${sel.id}_busca`;
+  const label = sel.id ? document.querySelector<HTMLLabelElement>(`label[for="${sel.id}"]`) : null;
+  if (label) label.htmlFor = campo.id;
+  const seta = document.createElement("button");
+  seta.type = "button";
+  seta.className = "caixa-busca__seta";
+  seta.tabIndex = -1;
+  seta.title = `Ver todos os ${nomeItens}`;
+  seta.setAttribute("aria-label", `Ver todos os ${nomeItens}`);
+  const icone = document.createElement("span");
+  icone.className = "material-symbols-outlined";
+  icone.setAttribute("aria-hidden", "true");
+  icone.textContent = "expand_more";
+  seta.appendChild(icone);
+  const lista = document.createElement("ul");
+  lista.className = "caixa-busca__lista hidden";
+  lista.id = `${id}-lista`;
+  lista.setAttribute("aria-label", `${nomeItens} encontrados`);
+  if (sel.parentElement) sel.parentElement.insertBefore(envoltorio, sel);
+  envoltorio.append(campo, seta, lista, sel);
+  sel.classList.add("hidden");
+  sel.tabIndex = -1;
+  sel.setAttribute("aria-hidden", "true");
+
+  let daCaixa = false;
+  const textoEscolhido = (): string => (sel.value ? sel.selectedOptions[0]?.textContent ?? "" : "");
+  const caixa = ligarCaixaBusca(campo, lista, (item) => {
+    const novo = item ? item.valor : "";
+    if (sel.value === novo) return;
+    sel.value = novo;
+    daCaixa = true;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    daCaixa = false;
+  }, (digitado) => (digitado ? `Nenhum item com "${digitado.toUpperCase()}".` : `Nenhum ${nomeItens.replace(/s$/, "")} cadastrado.`));
+
+  const sincronizar = (): void => {
+    campo.value = textoEscolhido();
+  };
+  const atualizarItens = (): void => {
+    caixa.definirItens([...sel.options].filter((o) => o.value).map((o) => ({ valor: o.value, rotulo: o.textContent ?? "" })));
+    sincronizar();
+  };
+  sel.addEventListener("change", () => {
+    if (!daCaixa) sincronizar();
+  });
+  // saiu do campo com um texto que nao e item da lista: apaga (nada foi escolhido)
+  campo.addEventListener("blur", () => {
+    if (!sel.value) campo.value = "";
+    else campo.value = textoEscolhido();
+  });
+  seta.addEventListener("mousedown", (evento) => {
+    evento.preventDefault();
+    if (document.activeElement === campo && !lista.classList.contains("hidden")) campo.blur();
+    else campo.focus();
+  });
+  atualizarItens();
+  return { envoltorio, campo, sincronizar, atualizarItens };
+}
+
