@@ -3,7 +3,7 @@
 // CPF; produtos em linhas (caixa + quantidade de 1 a 5 + botao + para acrescentar
 // outro abaixo); "OUTRO" troca a caixa por um campo de texto.
 // O valor e digitado por quem atende (sem preenchimento automatico pela tabela).
-import { CaixaBusca, ligarCaixaBusca } from "../caixa-busca";
+import { CaixaBusca, CaixaSobreSelect, caixaSobreSelect, ligarCaixaBusca } from "../caixa-busca";
 import {
   buscarStatus,
   cadastrarGarantia,
@@ -28,6 +28,7 @@ import { perfilAtual } from "../perfil";
 
 const OUTRO = "OUTRO";
 let caixaModelo: CaixaBusca | null = null;
+let caixaTecnico: CaixaSobreSelect | null = null;
 let servicos: ServicoDados[] = [];
 let sujo = false;
 
@@ -89,6 +90,7 @@ function atualizarBotoesLinhas(): void {
     li.querySelector<HTMLButtonElement>(".produto-tirar")!.classList.toggle("invisible", linhas.length === 1);
     li.querySelector<HTMLButtonElement>(".produto-mais")!.disabled = linhas.length >= MAX_PRODUTOS;
     li.querySelector<HTMLSelectElement>(".produto-caixa")!.setAttribute("aria-label", `Produto ${n + 1}`);
+    li.querySelector<HTMLInputElement>(".caixa-busca__campo")?.setAttribute("aria-label", `Produto ${n + 1}`);
   });
 }
 
@@ -101,6 +103,9 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
   caixa.appendChild(opcao("", "Selecione o produto..."));
   for (const s of servicos.filter((s) => s.ativo)) caixa.appendChild(opcao(String(s.id), s.nome));
   caixa.appendChild(opcao(OUTRO, "OUTRO (DESCREVER)"));
+  // digita e a lista mostra os produtos que combinam (a <select> fica escondida guardando o valor)
+  const busca = caixaSobreSelect(caixa, "Digite ou escolha o produto...", "produtos");
+  busca.envoltorio.classList.add("produto-busca");
 
   // OUTRO: campo de texto no lugar da caixa, com botao de volta a lista
   const outro = document.createElement("div");
@@ -122,11 +127,11 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
 
   const mais = botaoIcone("produto-mais", "add", "Acrescentar outro produto");
   const tirar = botaoIcone("produto-tirar", "close", "Tirar este produto");
-  li.append(caixa, outro, qtd, mais, tirar);
+  li.append(busca.envoltorio, outro, qtd, mais, tirar);
 
   caixa.addEventListener("change", () => {
     if (caixa.value === OUTRO) {
-      caixa.classList.add("hidden");
+      busca.envoltorio.classList.add("hidden");
       outro.classList.remove("hidden");
       texto.focus();
     }
@@ -134,21 +139,22 @@ function novaLinha(depois?: HTMLLIElement): HTMLLIElement {
   voltar.addEventListener("click", () => {
     texto.value = "";
     caixa.value = "";
+    busca.sincronizar();
     outro.classList.add("hidden");
-    caixa.classList.remove("hidden");
-    caixa.focus();
+    busca.envoltorio.classList.remove("hidden");
+    busca.campo.focus();
   });
   mais.addEventListener("click", () => {
     if (linhasProduto().length >= MAX_PRODUTOS) return;
     const nova = novaLinha(li);
-    nova.querySelector<HTMLSelectElement>(".produto-caixa")!.focus();
+    nova.querySelector<HTMLInputElement>(".caixa-busca__campo")!.focus();
   });
   tirar.addEventListener("click", () => {
     if (linhasProduto().length === 1) return;
     const vizinha = (li.previousElementSibling ?? li.nextElementSibling) as HTMLLIElement | null;
     li.remove();
     atualizarBotoesLinhas();
-    vizinha?.querySelector<HTMLSelectElement>(".produto-caixa")?.focus();
+    vizinha?.querySelector<HTMLInputElement>(".caixa-busca__campo")?.focus();
   });
 
   const lista = el("produtos");
@@ -395,6 +401,7 @@ function tecnicoDoPerfil(): void {
   const perfil = perfilAtual();
   const sel = el<HTMLSelectElement>("tecnico");
   if (perfil && [...sel.options].some((o) => o.value === perfil.nome)) sel.value = perfil.nome;
+  caixaTecnico?.sincronizar();
 }
 
 async function carregarListas(): Promise<void> {
@@ -406,6 +413,7 @@ async function carregarListas(): Promise<void> {
     servicos = lista;
     const selTecnico = el<HTMLSelectElement>("tecnico");
     for (const t of tecnicos.filter((t) => t.ativo)) selTecnico.appendChild(opcao(t.nome, t.nome));
+    caixaTecnico?.atualizarItens();
     tecnicoDoPerfil();
     // modelos agrupados por marca (catalogo de CONTROLE > VEICULOS)
     const selModelo = el<HTMLSelectElement>("modelo");
@@ -457,6 +465,8 @@ function iniciar(): void {
     if (aberta) el<HTMLInputElement>("observacao").focus();
   });
   // modelo: digita e escolhe; o que estiver fora da lista vai como OUTRO (escrito)
+  // tecnico: digita e a lista mostra os tecnicos que combinam
+  caixaTecnico = caixaSobreSelect(el<HTMLSelectElement>("tecnico"), "Digite ou escolha o técnico...", "técnicos");
   caixaModelo = ligarCaixaBusca(el<HTMLInputElement>("modelo_busca"), el<HTMLUListElement>("lista-modelos"), (item, texto) => {
     const sel = el<HTMLSelectElement>("modelo");
     sel.value = item ? item.valor : texto.trim() ? OUTRO : "";

@@ -119,3 +119,12 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 - **2026-11-17 — ATUALIZAR igual ao Contas a Pagar:** o instalador e aberto direto com `--updated` (o PowerShell escondido nao funcionava: a loja ficou presa numa versao antiga, ainda com o modelo do carro em lista). O sistema so fecha se o instalador abriu. Ensaio obrigatorio pela tela no Windows (`desktop/ensaio-atualizacao-tela.js`) antes de publicar; pulado so na 1a versao, porque a anterior ainda tem o atualizador antigo. A loja instala essa 1a versao a mao, uma vez.
 - **2026-11-17 — Cadastro (pedido do usuario):** rotulo "TECNICO QUE REALIZOU O SERVICO"; o VALOR nao e mais preenchido pela tabela de precos e o "TABELA: R$ ..." saiu.
+
+## Tudo em MAIUSCULAS (2026-11-18)
+
+- **2026-11-18 — Todo texto em MAIUSCULAS (pedido do usuario, nos dois sistemas):** o servidor do Garantias ja gravava em maiusculas (placa, modelo, tecnico, servico/produtos, OUTRO, observacao, marcas/veiculos, nomes das contas, planilha antiga). Agora as telas tambem mostram em maiusculas o que se digita (CSS `text-transform: uppercase` nos campos de texto; e-mail e senha ficam como sao).
+
+## 2026-11-18 — Dica ao parar o mouse, tabelas com 5 linhas e NOME NO RM no main
+- `frontend/ts/dicas.ts` (igual ao Contas a Pagar): todo botão/link ganha a dica do Windows (`title`); as telas principais têm explicação no main.ts.
+- `tabela-recolhivel.ts` (do Contas a Pagar): Todos os técnicos/veículos/produtos, Atualizar preços, usuários e históricos de acesso mostram 5 linhas + EXPANDIR TABELA (Pesquisar garantia já tinha).
+- v8 (main): `servicos.nome_rm` + correlação com os produtos do RM. Editável em Cadastrar produto, Todos os produtos e Atualizar preços (o CÓDIGO NO CUPOM continua). O ramo cupom-rm passa a usar a v9 para as colunas do cupom.

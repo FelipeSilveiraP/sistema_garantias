@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 8;
+    private static final int VERSAO_ATUAL = 9;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -126,7 +126,8 @@ public class DatabaseInitializer {
             case 5 -> validacoesEAuditoriaCadastros();
             case 6 -> itensDaGarantia();
             case 7 -> limitesEAuditoriaSeguranca();
-            case 8 -> cupomNoRm();
+            case 8 -> nomeNoRm();
+            case 9 -> cupomNoRm();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -694,26 +695,17 @@ public class DatabaseInitializer {
         return sql;
     }
 
-    // ---------- v8: cupom fiscal automatico no sistema web da RM Software ----------
+    // ---------- v8: nome do produto no RM (palavra que o cupom fiscal procura) ----------
 
     /**
-     * - servicos.nome_rm: nome do produto como aparece na busca do PDV do RM (a busca e
-     *   sempre pela palavra, nunca pelo codigo — pedido do usuario). Ja vem preenchido com a
-     *   correlacao feita com a tabela de produtos do RM (TROCA CILINDRO IGNICAO nao tem
-     *   produto no RM: fica em branco e cai no cupom manual ate alguem preencher).
-     * - garantias.cupom_venda_uuid: identificador da venda mandado ao RM. E criado uma vez
-     *   por garantia, para a nova tentativa nunca gerar uma segunda venda.
-     * - garantias.cupom_nfce / cupom_chave: numero e chave de acesso da NFC-e emitida
-     *   (codigo_cupom continua com os codigos antigos do VBA, sem uso no RM).
+     * servicos.nome_rm: o produto como aparece na busca do PDV do RM Software (a busca e
+     * sempre pela palavra, nunca pelo codigo). Editavel no cadastro de produtos; ja vem com
+     * a correlacao feita com a tabela de produtos da loja (TROCA CILINDRO IGNICAO nao tem
+     * produto no RM: fica em branco).
      */
-    private static List<String> cupomNoRm() {
+    private static List<String> nomeNoRm() {
         return List.of(
                 "ALTER TABLE servicos ADD COLUMN nome_rm TEXT CHECK (nome_rm IS NULL OR length(nome_rm) BETWEEN 2 AND 120)",
-                "ALTER TABLE garantias ADD COLUMN cupom_venda_uuid TEXT CHECK (cupom_venda_uuid IS NULL OR length(cupom_venda_uuid) = 36)",
-                "ALTER TABLE garantias ADD COLUMN cupom_nfce TEXT CHECK (cupom_nfce IS NULL OR length(cupom_nfce) <= 20)",
-                "ALTER TABLE garantias ADD COLUMN cupom_chave TEXT CHECK (cupom_chave IS NULL OR length(cupom_chave) <= 60)",
-                "CREATE UNIQUE INDEX idx_garantias_cupom_venda_uuid ON garantias(cupom_venda_uuid)",
-                // correlacao com os produtos do PDV do RM (tabela de produtos da loja, 2026-11-18)
                 "UPDATE servicos SET nome_rm = 'CARCAÇA CANIVETE' WHERE nome = 'TROCA CARCAÇA'",
                 "UPDATE servicos SET nome_rm = 'GAIOLA' WHERE nome = 'TROCA GAIOLA'",
                 "UPDATE servicos SET nome_rm = 'EXCENTRICO' WHERE nome = 'TROCA EXCÊNTRICO'",
@@ -721,5 +713,21 @@ public class DatabaseInitializer {
                 "UPDATE servicos SET nome_rm = 'COMUTADOR DA PARTIDA' WHERE nome = 'TROCA COMUTADOR PARTIDA'",
                 "UPDATE servicos SET nome_rm = 'PILHA' WHERE nome = 'PILHA'",
                 "UPDATE servicos SET nome_rm = 'BOTÃO' WHERE nome = 'BOTÃO'");
+    }
+
+    // ---------- v9: cupom fiscal automatico no sistema web da RM Software ----------
+
+    /**
+     * - garantias.cupom_venda_uuid: identificador da venda mandado ao RM. E criado uma vez
+     *   por garantia, para a nova tentativa nunca gerar uma segunda venda.
+     * - garantias.cupom_nfce / cupom_chave: numero e chave de acesso da NFC-e emitida
+     *   (o produto e procurado no RM pelo servicos.nome_rm da v8).
+     */
+    private static List<String> cupomNoRm() {
+        return List.of(
+                "ALTER TABLE garantias ADD COLUMN cupom_venda_uuid TEXT CHECK (cupom_venda_uuid IS NULL OR length(cupom_venda_uuid) = 36)",
+                "ALTER TABLE garantias ADD COLUMN cupom_nfce TEXT CHECK (cupom_nfce IS NULL OR length(cupom_nfce) <= 20)",
+                "ALTER TABLE garantias ADD COLUMN cupom_chave TEXT CHECK (cupom_chave IS NULL OR length(cupom_chave) <= 60)",
+                "CREATE UNIQUE INDEX idx_garantias_cupom_venda_uuid ON garantias(cupom_venda_uuid)");
     }
 }

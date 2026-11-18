@@ -1,5 +1,6 @@
 // ATUALIZAR PRECOS — tabela de precos dos servicos e pecas, editavel linha a
 // linha e com reajuste em %. Cadastro de produtos, tecnicos e veiculos: CONTROLE.
+import { recolherTabela } from "../tabela-recolhivel";
 import {
   buscarStatus,
   listarServicos,
@@ -60,12 +61,20 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   const codigoTd = document.createElement("td");
   codigoTd.className = "py-2 px-3";
   const codigo = document.createElement("input");
-  codigo.className = "entrada-form !py-1.5 uppercase";
-  codigo.maxLength = 120;
-  codigo.placeholder = "COMO ESTÁ NO RM";
-  codigo.value = s.nomeRm ?? "";
-  codigo.setAttribute("aria-label", `Nome no RM de ${s.nome}`);
+  codigo.className = "entrada-form !py-1.5 font-mono";
+  codigo.maxLength = 30;
+  codigo.value = s.codigoCupom ?? "";
+  codigo.setAttribute("aria-label", `Código no cupom de ${s.nome}`);
   codigoTd.appendChild(codigo);
+  const nomeRmTd = document.createElement("td");
+  nomeRmTd.className = "py-2 px-3";
+  const nomeRm = document.createElement("input");
+  nomeRm.className = "entrada-form !py-1.5 uppercase";
+  nomeRm.maxLength = 120;
+  nomeRm.placeholder = "COMO ESTÁ NO RM";
+  nomeRm.value = s.nomeRm ?? "";
+  nomeRm.setAttribute("aria-label", `Nome no RM de ${s.nome}`);
+  nomeRmTd.appendChild(nomeRm);
   const ativoTd = document.createElement("td");
   ativoTd.className = "py-2 px-3 text-center";
   const ativo = document.createElement("input");
@@ -97,7 +106,7 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
         return;
       }
       try {
-        await salvarServico(await window.finDesk!.config(), { ...s, preco: p, nomeRm: codigo.value.trim() || null, ativo: ativo.checked });
+        await salvarServico(await window.finDesk!.config(), { ...s, preco: p, codigoCupom: codigo.value.trim() || null, nomeRm: nomeRm.value.trim() || null, ativo: ativo.checked });
         notificar(`${s.nome}: preço salvo.`);
         await carregarPrecos();
       } catch (erro) {
@@ -105,13 +114,15 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
       }
     })();
   });
-  tr.append(nome, tipo, precoTd, codigoTd, ativoTd, acaoTd);
+  tr.append(nome, tipo, precoTd, codigoTd, nomeRmTd, ativoTd, acaoTd);
   return tr;
 }
 
 async function carregarPrecos(): Promise<void> {
   const servicos = await listarServicos(await window.finDesk!.config());
-  el("corpoPrecos").replaceChildren(...servicos.map(linhaServico));
+  const corpo = el("corpoPrecos");
+  corpo.replaceChildren(...servicos.map(linhaServico));
+  recolherTabela("precos", corpo, corpo.closest("table")!.parentElement as HTMLElement);
   document.body.dataset.precosCarregados = String(servicos.length);
 }
 

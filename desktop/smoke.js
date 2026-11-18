@@ -153,10 +153,25 @@ async function executar() {
   teste("CADASTRAR GARANTIA abre o formulário", await telaPronta("cadastrar-garantia"));
   teste("Técnicos, modelos e serviços carregados", await esperarPredicado("document.body.dataset.listasCarregadas === 'true'"));
   teste("Letras maiores no formulário (rótulos >= 17px, campos >= 19px)", await js("parseFloat(getComputedStyle(document.querySelector('#form-garantia .rotulo-form')).fontSize) >= 17 && parseFloat(getComputedStyle(document.getElementById('placa')).fontSize) >= 19"));
-  teste("Rótulo: TÉCNICO QUE REALIZOU O SERVIÇO", (await texto("label[for=tecnico]")).includes("TÉCNICO QUE REALIZOU O SERVIÇO"));
+  teste("Rótulo: TÉCNICO QUE REALIZOU O SERVIÇO", (await texto("label[for=tecnico_busca]")).includes("TÉCNICO QUE REALIZOU O SERVIÇO"));
   teste("Técnicos iniciais do VBA", (await js("[...document.querySelectorAll('#tecnico option')].map(o => o.value).join(',')")).includes("RENATO"));
   // produtos em linhas: + acrescenta outra linha abaixo (combos do VBA saíram da lista)
   teste("Combos CARCAÇA+PILHA saíram da lista", await js("![...document.querySelectorAll('#produtos .produto-caixa option')].some(o => o.textContent.includes('+'))"));
+  // caixas de digitar (pedido do usuario): digita "bola" e a lista mostra so TROCA BOLACHA; Enter escolhe
+  const digitarEEscolher = (seletorCampo, texto) => js(`(() => { const c = document.querySelector(${JSON.stringify(seletorCampo)}); c.focus(); c.value = ${JSON.stringify(texto)};
+    c.dispatchEvent(new Event('input')); const lista = c.parentElement.querySelector('.caixa-busca__lista');
+    const opcoes = [...lista.querySelectorAll('[role=option]')].map(o => o.textContent);
+    c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); c.blur(); return opcoes; })()`);
+  const opcoesProduto = await digitarEEscolher("#produtos .caixa-busca__campo", "bola");
+  teste("Produto: digitar mostra só os que combinam (bola → TROCA BOLACHA)", opcoesProduto.length === 1 && opcoesProduto[0] === "TROCA BOLACHA", JSON.stringify(opcoesProduto));
+  teste("Produto: Enter escolhe e a caixa guarda o produto", await js("document.querySelector('#produtos .produto-caixa').selectedOptions[0].textContent === 'TROCA BOLACHA' && document.querySelector('#produtos .caixa-busca__campo').value === 'TROCA BOLACHA'"));
+  const opcoesTecnico = await digitarEEscolher("#tecnico_busca", "ren");
+  teste("Técnico: digitar mostra só os que combinam (ren → RENATO)", opcoesTecnico.join(",") === "RENATO", JSON.stringify(opcoesTecnico));
+  teste("Técnico: Enter escolhe o técnico", await js("document.getElementById('tecnico').value === 'RENATO' && document.getElementById('tecnico_busca').value === 'RENATO'"));
+  await js("(() => { const c = document.getElementById('tecnico_busca'); c.focus(); c.value = 'xyz'; c.dispatchEvent(new Event('input')); c.blur(); })()");
+  teste("Técnico: texto que não é da lista não escolhe nada (campo apagado)", await js("document.getElementById('tecnico').value === '' && document.getElementById('tecnico_busca').value === ''"));
+  // volta ao tecnico do perfil (como a tela abriu) para os testes seguintes
+  await js("(() => { const s = document.getElementById('tecnico'); s.value = 'FELIPE'; s.dispatchEvent(new Event('change')); })()");
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
   await js("document.querySelector('#produtos .produto-mais').click()");
   teste("Botão + acrescenta uma linha de produto", (await js("document.querySelectorAll('#produtos > li').length")) === 2);
@@ -194,7 +209,7 @@ async function executar() {
   await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
   teste("Ao fechar o pop-up, os erros ficam nos campos",
     await esperarPredicado("!document.querySelector('[data-dialogo]') && !document.querySelector('[data-erro-campo=placa]').classList.contains('hidden')", 3000));
-  teste("Técnico já vem com o perfil", (await js("document.getElementById('tecnico').value")) === "FELIPE");
+  teste("Técnico já vem com o perfil", (await js("document.getElementById('tecnico').value")) === "FELIPE" && (await js("document.getElementById('tecnico_busca').value")) === "FELIPE");
   teste("CPF travado até marcar carro sem placa", await js("document.getElementById('cpf').disabled"));
   await js("document.getElementById('sem_placa').click()");
   teste("Carro sem placa libera o CPF", await js("!document.getElementById('cpf').disabled && document.getElementById('placa').disabled"));
@@ -286,6 +301,8 @@ async function executar() {
   teste("Importação da planilha antiga traz a garantia", r.startsWith("200") && r.includes('"importadas":1'), r);
 
   await ir("menu");
+  teste("Menu: cartões têm a dica do que fazem ao parar o mouse", await esperarPredicado("document.querySelector('a[data-path=cadastrar-garantia]').title.startsWith('Cadastrar garantia:') && document.querySelector('a[data-path=pesquisar-garantias]').title.startsWith('Pesquisar garantia:')", 3000),
+    await js("[...document.querySelectorAll('a[data-path]')].map(a => a.title).join(' | ')"));
   await ir("pesquisar-garantias");
   await esperarPredicado("document.body.dataset.garantiasCarregadas !== undefined");
   await js("document.querySelector('[data-filter=TODOS]').click()");
@@ -344,6 +361,22 @@ async function executar() {
     teste(`${form} abre`, await ir(form));
     teste(`${todos} lista a tabela`, await ir(todos) && await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000));
   }
+  // todos os produtos: palavra do cupom no RM + so 5 linhas, depois EXPANDIR TABELA
+  await ir("todos-produtos");
+  await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
+  teste("Todos os produtos: colunas CÓDIGO NO CUPOM e NOME NO RM (CUPOM)", await js("(() => { const th = [...document.querySelectorAll('#tabela thead th')].map(t => t.textContent); return th.includes('CÓDIGO NO CUPOM') && th.includes('NOME NO RM (CUPOM)'); })()"));
+  teste("Todos os produtos: tabela mostra só as 5 primeiras + EXPANDIR TABELA", await js(`(() => { const vis = [...document.querySelectorAll('#tableBody tr')].filter(t => !t.classList.contains('hidden')).length;
+    const b = document.querySelector('[data-expandir-tabela=cadastros]'); return vis === 5 && !!b && b.offsetParent !== null && b.textContent.includes('EXPANDIR TABELA'); })()`));
+  await js("document.querySelector('[data-expandir-tabela=cadastros]').click()");
+  teste("Todos os produtos: EXPANDIR mostra todos e TROCA CARCAÇA = CARCAÇA CANIVETE no RM", await js(`(() => { const linhas = [...document.querySelectorAll('#tableBody tr')];
+    const t = linhas.find(l => l.textContent.includes('TROCA CARCAÇA')); return linhas.every(l => !l.classList.contains('hidden')) && !!t && t.textContent.includes('CARCAÇA CANIVETE'); })()`));
+  await js("[...document.querySelectorAll('#tableBody tr')].find(l => l.textContent.includes('TROCA CILINDRO')).click()");
+  await js("(() => { const s = document.getElementById('fieldSelect'); s.value = 'nomeRm'; s.dispatchEvent(new Event('change')); const i = document.getElementById('newValueInput'); i.value = 'cilindro ignicao'; document.getElementById('btnApplyChange').click(); })()");
+  teste("Todos os produtos: editar o NOME NO RM grava em maiúsculas", await esperarPredicado("[...document.querySelectorAll('#tableBody tr')].some(l => l.textContent.includes('TROCA CILINDRO') && l.textContent.includes('CILINDRO IGNICAO'))", 5000));
+  teste("Dica do Windows: botões têm o nome ao parar o mouse", await esperarPredicado("[...document.querySelectorAll('button')].filter(b => b.offsetParent !== null).every(b => b.title.trim().length > 0)", 3000),
+    await js("[...document.querySelectorAll('button')].filter(b => b.offsetParent !== null && !b.title).map(b => b.outerHTML.slice(0, 80)).join(' | ')"));
+  await ir("form-produto");
+  teste("Cadastrar produto tem o campo NOME NO RM", await js("!!document.getElementById('nomeRm') && !!document.getElementById('codigoCupom')"));
   await ir("form-veiculo");
   await esperarPredicado("document.getElementById('marca').options.length > 20", 5000);
   await js("(() => { const m = document.getElementById('marca'); m.value = 'FIAT'; m.dispatchEvent(new Event('change')); document.getElementById('modelo').value = 'Uno Smoke'; })()");
@@ -366,6 +399,8 @@ async function executar() {
   await capturar("graficos-1366x820");
   await ir("atualizar-precos");
   teste("ATUALIZAR PREÇOS lista a tabela", await esperarPredicado("Number(document.body.dataset.precosCarregados) >= 11"));
+  teste("ATUALIZAR PREÇOS: só 5 linhas + EXPANDIR TABELA", await js("[...document.querySelectorAll('#corpoPrecos tr')].filter(t => !t.classList.contains('hidden')).length === 5 && !!document.querySelector('[data-expandir-tabela=precos]')"));
+  await js("document.querySelector('[data-expandir-tabela=precos]').click()");
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); i.id = 'preco-gaiola'; })()`);
   await enter("#preco-gaiola");
