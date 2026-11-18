@@ -117,3 +117,9 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - `frontend/ts/dicas.ts` (igual ao Contas a Pagar): todo botão/link ganha a dica do Windows (`title`); as telas principais têm explicação no main.ts.
 - `tabela-recolhivel.ts` (do Contas a Pagar): Todos os técnicos/veículos/produtos, Atualizar preços, usuários e históricos de acesso mostram 5 linhas + EXPANDIR TABELA (Pesquisar garantia já tinha).
 - v8 (main): `servicos.nome_rm` + correlação com os produtos do RM. Editável em Cadastrar produto, Todos os produtos e Atualizar preços (o CÓDIGO NO CUPOM continua). O ramo cupom-rm passa a usar a v9 para as colunas do cupom.
+
+## 2026-11-18 — Tabelas com rolagem por dentro, pop-ups grandes e rolagem automática (2 sistemas)
+- Tabelas: sem o botão EXPANDIR TABELA. Altura fixa de 5 linhas e rolagem DENTRO da tabela, cabeçalho parado no topo (`tabela-recolhivel.ts`, `.tabela-rolagem`; igual nos dois sistemas). Todas as linhas ficam na página (pesquisa, totais e impressão valem para todas).
+- Pop-ups: todos maiores. Confirmações, exclusões e alertas de risco no MEIO da tela; avisos de "deu certo" (notificações) GRANDES no canto INFERIOR DIREITO (substitui a decisão de 2026-11-16 de tudo no meio).
+- `rolagem.ts` (igual nos dois): clicar num registro leva a tela até "Alterar um campo" (não à nota fiscal); abrir uma caixa de seleção perto do pé da tela sobe a tela para a lista aparecer inteira.
+- `docs/analise-banco.md`: tabelas e colunas usadas e mortas dos dois sistemas; nada apagado sem aprovação.
