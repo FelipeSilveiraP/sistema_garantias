@@ -1,6 +1,7 @@
 // CONTROLE > Todos os tecnicos / veiculos / produtos: tabela como o Controle do
 // Contas a Pagar (pesquisa, filtros, selos, area de edicao com "Alterar um campo",
 // ativar/desativar e excluir). Uma configuracao por tela.
+import { recolherTabela } from "../tabela-recolhivel";
 import {
   alterarItemLista,
   buscarStatus,
@@ -126,22 +127,25 @@ const PRODUTOS: Config<ServicoDados> = {
     { titulo: "TIPO", classe: "text-center", valor: (s) => (s.peca ? selo("Peça", "bg-[#e0f2fe] text-[#075985]") : selo("Serviço", "bg-[#FFE600]/40 text-[#6a5f00]")) },
     { titulo: "PREÇO", classe: "text-right font-mono whitespace-nowrap", valor: (s) => formatarMoedaBR(Math.round(s.preco * 100)) },
     { titulo: "CÓDIGO NO CUPOM", classe: "font-mono", valor: (s) => s.codigoCupom ?? "—" },
+    { titulo: "NOME NO RM (CUPOM)", valor: (s) => s.nomeRm ?? "—" },
     { titulo: "SITUAÇÃO", classe: "text-center", valor: (s) => seloAtivo(s.ativo) },
   ],
-  pesquisa: (s) => [s.nome, s.codigoCupom],
+  pesquisa: (s) => [s.nome, s.codigoCupom, s.nomeRm ?? null],
   carregar: listarServicos,
   campos: () => [
     { valor: "nome", rotulo: "Nome" },
     { valor: "preco", rotulo: "Preço (R$)", mascara: "moeda" },
     { valor: "codigoCupom", rotulo: "Código no cupom" },
+    { valor: "nomeRm", rotulo: "Nome no RM (cupom)" },
   ],
   valorCampo: (s, campo) =>
-    campo === "preco" ? formatarMoedaBR(Math.round(s.preco * 100)).replace("R$ ", "") : campo === "codigoCupom" ? s.codigoCupom ?? "" : s.nome,
+    campo === "preco" ? formatarMoedaBR(Math.round(s.preco * 100)).replace("R$ ", "") : campo === "codigoCupom" ? s.codigoCupom ?? "" : campo === "nomeRm" ? s.nomeRm ?? "" : s.nome,
   aplicar: async (cfg, s, campo, valor) => {
     const p = campo === "preco" ? precoTexto(valor) : s.preco.toFixed(2);
     if (p === null) throw new ErroValidacaoApi({ preco: "Preço inválido. Exemplo: 150,00." });
     await salvarServico(cfg, {
       ...s, preco: p, nome: campo === "nome" ? valor : s.nome, codigoCupom: campo === "codigoCupom" ? valor || null : s.codigoCupom,
+      nomeRm: campo === "nomeRm" ? valor || null : s.nomeRm ?? null,
     });
   },
   alternarAtivo: async (cfg, s) => {
@@ -182,6 +186,7 @@ function montar<T extends { id: number; ativo: boolean }>(tela: Tela, cfgTela: C
     for (const item of lista) {
       const tr = document.createElement("tr");
       tr.className = "linha-cadastro cursor-pointer transition-colors hover:bg-[#fff9d6]";
+      tr.dataset.id = String(item.id);
       if (!item.ativo) tr.classList.add("text-neutral-500");
       if (item.id === selecionadoId) tr.classList.add("bg-[#FFE600]", "border-l-8", "border-l-[#1c1b1b]");
       for (const c of cfgTela.colunas) {
@@ -205,6 +210,8 @@ function montar<T extends { id: number; ativo: boolean }>(tela: Tela, cfgTela: C
       corpo.appendChild(tr);
     }
     el("contador").textContent = `${lista.length} de ${itens.length} registro(s)`;
+    // so as 5 primeiras; EXPANDIR TABELA mostra todas (a selecionada nunca some)
+    recolherTabela("cadastros", corpo, corpo.closest("table")!.parentElement as HTMLElement, selecionadoId);
     el("selectionEmptyState").classList.toggle("hidden", selecionadoId !== null);
   };
 
@@ -251,7 +258,7 @@ function montar<T extends { id: number; ativo: boolean }>(tela: Tela, cfgTela: C
     const item = selecionado();
     if (!item) return;
     const valor = editor.ler().trim();
-    if (!valor && editor.campo() !== "codigoCupom") {
+    if (!valor && editor.campo() !== "codigoCupom" && editor.campo() !== "nomeRm") {
       editor.erro("Informe o novo valor.");
       return;
     }

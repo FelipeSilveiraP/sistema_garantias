@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 7;
+    private static final int VERSAO_ATUAL = 8;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -126,6 +126,7 @@ public class DatabaseInitializer {
             case 5 -> validacoesEAuditoriaCadastros();
             case 6 -> itensDaGarantia();
             case 7 -> limitesEAuditoriaSeguranca();
+            case 8 -> nomeNoRm();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -691,5 +692,25 @@ public class DatabaseInitializer {
         // contagem dos codigos de "Esqueci o PIN" por conta e hora (limite contra envio em massa)
         sql.add("CREATE INDEX idx_codigos_usuario ON codigos_redefinicao(id_usuario, criado_em)");
         return sql;
+    }
+
+    // ---------- v8: nome do produto no RM (palavra que o cupom fiscal procura) ----------
+
+    /**
+     * servicos.nome_rm: o produto como aparece na busca do PDV do RM Software (a busca e
+     * sempre pela palavra, nunca pelo codigo). Editavel no cadastro de produtos; ja vem com
+     * a correlacao feita com a tabela de produtos da loja (TROCA CILINDRO IGNICAO nao tem
+     * produto no RM: fica em branco).
+     */
+    private static List<String> nomeNoRm() {
+        return List.of(
+                "ALTER TABLE servicos ADD COLUMN nome_rm TEXT CHECK (nome_rm IS NULL OR length(nome_rm) BETWEEN 2 AND 120)",
+                "UPDATE servicos SET nome_rm = 'CARCAÇA CANIVETE' WHERE nome = 'TROCA CARCAÇA'",
+                "UPDATE servicos SET nome_rm = 'GAIOLA' WHERE nome = 'TROCA GAIOLA'",
+                "UPDATE servicos SET nome_rm = 'EXCENTRICO' WHERE nome = 'TROCA EXCÊNTRICO'",
+                "UPDATE servicos SET nome_rm = 'BOLACHA' WHERE nome = 'TROCA BOLACHA'",
+                "UPDATE servicos SET nome_rm = 'COMUTADOR DA PARTIDA' WHERE nome = 'TROCA COMUTADOR PARTIDA'",
+                "UPDATE servicos SET nome_rm = 'PILHA' WHERE nome = 'PILHA'",
+                "UPDATE servicos SET nome_rm = 'BOTÃO' WHERE nome = 'BOTÃO'");
     }
 }

@@ -70,7 +70,7 @@ async function salvar(tela: TelaForm): Promise<void> {
   if (Object.keys(erros).length) return mostrarErros(erros);
   const peca = marcado("peca");
   const s = await salvarServico(cfg, {
-    nome: valor("nome"), preco: p!, codigoCupom: valor("codigoCupom") || null,
+    nome: valor("nome"), preco: p!, codigoCupom: valor("codigoCupom") || null, nomeRm: valor("nomeRm") || null,
     pedeCarcaca: !peca && marcado("pedeCarcaca"), pedeBotao: !peca && marcado("pedeBotao"),
     pedePilha: !peca && marcado("pedePilha"), pedeItens: !peca && marcado("pedeItens"), peca, ativo: true,
   });

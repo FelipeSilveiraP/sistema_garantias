@@ -3,12 +3,29 @@
 import { iniciarDiagnostico } from "./diagnostico";
 import { iniciarNotificacoes } from "./notificacoes";
 import { ligarEnterEnvia } from "./enter-envia";
+import { ligarDicas } from "./dicas";
 
 iniciarDiagnostico();
 // Enter em qualquer campo = botao de enviar/concluir daquele formulario
 ligarEnterEnvia();
 // regioes vivas das notificacoes existem desde o carregamento (e mostram o aviso deixado pela tela anterior)
 iniciarNotificacoes();
+// dica do Windows ao parar o mouse em cima de qualquer botao
+ligarDicas({
+  "CADASTRAR GARANTIA": "Cadastrar garantia: registrar um serviço com garantia (sai o cupom fiscal)",
+  "PESQUISAR GARANTIA": "Pesquisar garantia: procurar, ver, editar e imprimir as garantias",
+  "PESQUISAR GARANTIAS": "Pesquisar garantia: procurar, ver, editar e imprimir as garantias",
+  CONTROLE: "Controle: técnicos, veículos, tabela de valores e gráficos",
+  "ESTATÍSTICAS": "Controle: técnicos, veículos, tabela de valores e gráficos",
+  "GRÁFICOS": "Gráficos das garantias",
+  "TÉCNICOS": "Técnicos: cadastrar e ver os técnicos",
+  "VEÍCULOS": "Veículos: cadastrar e ver as marcas e modelos",
+  "TABELA DE VALORES": "Tabela de valores: produtos, preços e nome no RM",
+  "MENU PRINCIPAL": "Voltar para o Menu Principal",
+  VOLTAR: "Voltar para a tela anterior",
+  APLICAR: "Salvar a alteração deste campo",
+  DESFAZER: "Voltar o campo ao valor gravado",
+});
 
 const tela = document.body.dataset.tela ?? "menu";
 

@@ -124,10 +124,15 @@ public class CadastrosService {
         if (codigo != null && codigo.length() > 30) {
             erros.put("codigoCupom", "Código do cupom com até 30 caracteres.");
         }
+        String nomeRm = d.nomeRm() == null || d.nomeRm().isBlank()
+                ? null : d.nomeRm().trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        if (nomeRm != null && (nomeRm.length() < 2 || nomeRm.length() > 120)) {
+            erros.put("nomeRm", "Nome no RM de 2 a 120 caracteres.");
+        }
         if (!erros.isEmpty()) {
             throw new DadosInvalidosException(erros);
         }
-        return new Servico(id, nome, preco, codigo, d.pedeCarcaca(), d.pedeBotao(), d.pedePilha(), d.pedeItens(),
+        return new Servico(id, nome, preco, codigo, nomeRm, d.pedeCarcaca(), d.pedeBotao(), d.pedePilha(), d.pedeItens(),
                 d.peca(), d.ativo());
     }
 

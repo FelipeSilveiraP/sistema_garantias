@@ -301,6 +301,8 @@ async function executar() {
   teste("Importação da planilha antiga traz a garantia", r.startsWith("200") && r.includes('"importadas":1'), r);
 
   await ir("menu");
+  teste("Menu: cartões têm a dica do que fazem ao parar o mouse", await esperarPredicado("document.querySelector('a[data-path=cadastrar-garantia]').title.startsWith('Cadastrar garantia:') && document.querySelector('a[data-path=pesquisar-garantias]').title.startsWith('Pesquisar garantia:')", 3000),
+    await js("[...document.querySelectorAll('a[data-path]')].map(a => a.title).join(' | ')"));
   await ir("pesquisar-garantias");
   await esperarPredicado("document.body.dataset.garantiasCarregadas !== undefined");
   await js("document.querySelector('[data-filter=TODOS]').click()");
@@ -359,6 +361,22 @@ async function executar() {
     teste(`${form} abre`, await ir(form));
     teste(`${todos} lista a tabela`, await ir(todos) && await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000));
   }
+  // todos os produtos: palavra do cupom no RM + so 5 linhas, depois EXPANDIR TABELA
+  await ir("todos-produtos");
+  await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
+  teste("Todos os produtos: colunas CÓDIGO NO CUPOM e NOME NO RM (CUPOM)", await js("(() => { const th = [...document.querySelectorAll('#tabela thead th')].map(t => t.textContent); return th.includes('CÓDIGO NO CUPOM') && th.includes('NOME NO RM (CUPOM)'); })()"));
+  teste("Todos os produtos: tabela mostra só as 5 primeiras + EXPANDIR TABELA", await js(`(() => { const vis = [...document.querySelectorAll('#tableBody tr')].filter(t => !t.classList.contains('hidden')).length;
+    const b = document.querySelector('[data-expandir-tabela=cadastros]'); return vis === 5 && !!b && b.offsetParent !== null && b.textContent.includes('EXPANDIR TABELA'); })()`));
+  await js("document.querySelector('[data-expandir-tabela=cadastros]').click()");
+  teste("Todos os produtos: EXPANDIR mostra todos e TROCA CARCAÇA = CARCAÇA CANIVETE no RM", await js(`(() => { const linhas = [...document.querySelectorAll('#tableBody tr')];
+    const t = linhas.find(l => l.textContent.includes('TROCA CARCAÇA')); return linhas.every(l => !l.classList.contains('hidden')) && !!t && t.textContent.includes('CARCAÇA CANIVETE'); })()`));
+  await js("[...document.querySelectorAll('#tableBody tr')].find(l => l.textContent.includes('TROCA CILINDRO')).click()");
+  await js("(() => { const s = document.getElementById('fieldSelect'); s.value = 'nomeRm'; s.dispatchEvent(new Event('change')); const i = document.getElementById('newValueInput'); i.value = 'cilindro ignicao'; document.getElementById('btnApplyChange').click(); })()");
+  teste("Todos os produtos: editar o NOME NO RM grava em maiúsculas", await esperarPredicado("[...document.querySelectorAll('#tableBody tr')].some(l => l.textContent.includes('TROCA CILINDRO') && l.textContent.includes('CILINDRO IGNICAO'))", 5000));
+  teste("Dica do Windows: botões têm o nome ao parar o mouse", await esperarPredicado("[...document.querySelectorAll('button')].filter(b => b.offsetParent !== null).every(b => b.title.trim().length > 0)", 3000),
+    await js("[...document.querySelectorAll('button')].filter(b => b.offsetParent !== null && !b.title).map(b => b.outerHTML.slice(0, 80)).join(' | ')"));
+  await ir("form-produto");
+  teste("Cadastrar produto tem o campo NOME NO RM", await js("!!document.getElementById('nomeRm') && !!document.getElementById('codigoCupom')"));
   await ir("form-veiculo");
   await esperarPredicado("document.getElementById('marca').options.length > 20", 5000);
   await js("(() => { const m = document.getElementById('marca'); m.value = 'FIAT'; m.dispatchEvent(new Event('change')); document.getElementById('modelo').value = 'Uno Smoke'; })()");
@@ -381,6 +399,8 @@ async function executar() {
   await capturar("graficos-1366x820");
   await ir("atualizar-precos");
   teste("ATUALIZAR PREÇOS lista a tabela", await esperarPredicado("Number(document.body.dataset.precosCarregados) >= 11"));
+  teste("ATUALIZAR PREÇOS: só 5 linhas + EXPANDIR TABELA", await js("[...document.querySelectorAll('#corpoPrecos tr')].filter(t => !t.classList.contains('hidden')).length === 5 && !!document.querySelector('[data-expandir-tabela=precos]')"));
+  await js("document.querySelector('[data-expandir-tabela=precos]').click()");
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); i.id = 'preco-gaiola'; })()`);
   await enter("#preco-gaiola");

@@ -62,6 +62,8 @@ export interface ServicoDados {
   nome: string;
   preco: number;
   codigoCupom: string | null;
+  /** palavra do produto na busca do PDV do RM Software (o cupom fiscal procura por ela) */
+  nomeRm?: string | null;
   pedeCarcaca: boolean;
   pedeBotao: boolean;
   pedePilha: boolean;

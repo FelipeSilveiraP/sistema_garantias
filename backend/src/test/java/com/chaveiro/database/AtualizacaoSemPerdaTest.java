@@ -136,13 +136,17 @@ class AtualizacaoSemPerdaTest {
                 assertThat(depois.get(nome)).as(nome).hasSizeGreaterThanOrEqualTo(tabela.getValue().size());
                 continue;
             }
-            assertThat(depois.get(nome)).as("registros da tabela %s", nome).containsExactlyElementsOf(tabela.getValue());
+            // cada linha continua igual; migracoes novas so acrescentam colunas no fim
+            assertThat(depois.get(nome)).as("registros da tabela %s", nome).hasSameSizeAs(tabela.getValue());
+            for (int i = 0; i < tabela.getValue().size(); i++) {
+                assertThat(depois.get(nome).get(i)).as("registro %d da tabela %s", i, nome).startsWith(tabela.getValue().get(i));
+            }
         }
         // servicos: mesmas linhas, mesmos precos (no maximo o "ativo" dos combos muda)
         assertThat(depois.get("servicos")).hasSize(antes.get("servicos").size());
         for (int i = 0; i < antes.get("servicos").size(); i++) {
             assertThat(depois.get("servicos").get(i).replaceAll("ativo=\\d", ""))
-                    .isEqualTo(antes.get("servicos").get(i).replaceAll("ativo=\\d", ""));
+                    .startsWith(antes.get("servicos").get(i).replaceAll("ativo=\\d", ""));
         }
         // a auditoria antiga continua la, igual (so ganha linhas novas no fim)
         assertThat(depois.get("auditoria_operacoes")).startsWith(antes.get("auditoria_operacoes").toArray(String[]::new));
