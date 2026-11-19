@@ -314,8 +314,9 @@ function liberarAplicativo() {
 // ===== Cupom fiscal automatico no RM Software (desktop/rm.js) =====
 // Avisos do RM ficam numa fila ate a tela buscar (a tela pode estar trocando de pagina).
 // Desligado nos testes (banco temporario), a nao ser com um RM falso (FINDESK_RM_APP).
-// Tambem desligado com "cupomAutomaticoRm": false no configuracoes.json (lido ao abrir).
-let RM_LIGADO = !process.env.FINDESK_DB_PATH || Boolean(process.env.FINDESK_RM_APP);
+// PARADO (PARAR TUDO / freio / "cupomAutomaticoRm": false no configuracoes.json): nenhum
+// cupom sai ate alguem clicar em LIGAR DE NOVO no painel do cupom.
+const RM_LIGADO = !process.env.FINDESK_DB_PATH || Boolean(process.env.FINDESK_RM_APP);
 const avisosRm = [];
 const rm = criarRm({
   registrarLog,
@@ -325,8 +326,16 @@ const rm = criarRm({
     if (janela && !janela.isDestroyed()) janela.webContents.send("findesk:aviso-rm");
   },
   encerrando: () => encerrando,
+  aoMudar: (situacao) => {
+    if (janela && !janela.isDestroyed()) janela.webContents.send("findesk:estado-cupom", situacao);
+  },
 });
 let rmIniciado = false;
+
+/** Guarda PARADO/LIGADO no configuracoes.json: vale tambem depois de fechar e abrir. */
+function lembrarCupomAutomatico(ligado) {
+  automacoes.gravarConfiguracao(path.dirname(caminhoBanco()), { cupomAutomaticoRm: ligado }, registrarLog);
+}
 
 async function prepararAplicativo() {
   try {
@@ -584,6 +593,20 @@ ipcMain.handle("findesk:instalar-atualizacao", async () => {
 // depois de salvar a garantia: o cupom sai em segundo plano (a tela nao espera)
 ipcMain.handle("findesk:emitir-cupom", (_evento, idGarantia) => (RM_LIGADO ? rm.emitir(idGarantia) : false));
 ipcMain.handle("findesk:avisos-rm", () => avisosRm.splice(0));
+// painel do cupom: situacao, PARAR TUDO e LIGAR DE NOVO
+ipcMain.handle("findesk:cupom-estado", () => (RM_LIGADO ? rm.situacao() : null));
+ipcMain.handle("findesk:cupom-parar", () => {
+  if (!RM_LIGADO) return null;
+  const r = rm.parar();
+  lembrarCupomAutomatico(false);
+  return r;
+});
+ipcMain.handle("findesk:cupom-retomar", () => {
+  if (!RM_LIGADO) return false;
+  rm.retomar();
+  lembrarCupomAutomatico(true);
+  return true;
+});
 
 ipcMain.handle("findesk:fechar", () => {
   app.quit();
@@ -614,10 +637,7 @@ function iniciarInstancia() {
       // automatico, abrir o Chrome no e-mail da firma (configuracoes.json)
       try {
         const config = automacoes.lerConfiguracoes(path.dirname(caminhoBanco()), registrarLog);
-        if (config.cupomAutomaticoRm === false) {
-          RM_LIGADO = false;
-          registrarLog("INFO", "[rm] cupom automatico desligado no configuracoes.json");
-        }
+        if (config.cupomAutomaticoRm === false) rm.parar("desligado no configuracoes.json");
         automacoes.configurarInicioComWindows(app, config, registrarLog);
         automacoes.abrirEmailSeInicioAutomatico(process.argv, config, shell, registrarLog);
       } catch (erro) {

@@ -106,4 +106,6 @@ void iniciar().then(() => {
   document.body.dataset.pronto = "true";
   // pop-ups do cupom fiscal no RM (menos na tela de carregamento)
   if (tela !== "carregando") void import("./avisos-rm").then(({ iniciarAvisosRm }) => iniciarAvisosRm());
+  // painel do cupom fiscal: PARAR TUDO enquanto sai cupom; LIGAR DE NOVO quando parado
+  if (tela !== "carregando") void import("./painel-cupom").then(({ iniciarPainelCupom }) => iniciarPainelCupom());
 });

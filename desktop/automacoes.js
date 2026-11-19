@@ -63,6 +63,20 @@ function lerConfiguracoes(pastaDados, registrarLog) {
   return final;
 }
 
+/** Muda uma chave do configuracoes.json sem mexer nas outras (nunca grava por cima de um arquivo ilegivel). */
+function gravarConfiguracao(pastaDados, mudancas, registrarLog) {
+  const arquivo = path.join(pastaDados, "configuracoes.json");
+  try {
+    const atual = fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8").replace(/^\uFEFF/, "")) : {};
+    fs.mkdirSync(pastaDados, { recursive: true });
+    fs.writeFileSync(arquivo, `${JSON.stringify({ ...PADRAO, ...atual, ...mudancas }, null, 2)}\n`);
+    return true;
+  } catch (erro) {
+    registrarLog("WARN", `configuracoes.json nao atualizado: ${erro && erro.message}`);
+    return false;
+  }
+}
+
 const CHAVE_RUN = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
 /**
@@ -388,6 +402,7 @@ module.exports = {
   ARG_INICIO,
   SUBPASTA_ATUALIZACOES,
   PADRAO,
+  gravarConfiguracao,
   lerConfiguracoes,
   configurarInicioComWindows,
   abrirEmailSeInicioAutomatico,

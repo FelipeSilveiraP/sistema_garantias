@@ -54,7 +54,20 @@ interface Window {
     onProgressoAtualizacao?: (callback: (progresso: { recebidos: number; total: number }) => void) => void;
     /** cupom fiscal no RM Software, em segundo plano (desktop/rm.js) */
     emitirCupom?: (idGarantia: number) => Promise<boolean>;
+    cupomEstado?: () => Promise<SituacaoCupom | null>;
+    cupomParar?: () => Promise<{ emAndamento: number | null } | null>;
+    cupomRetomar?: () => Promise<boolean>;
+    onEstadoCupom?: (callback: (situacao: SituacaoCupom) => void) => void;
     avisosRm?: () => Promise<AvisoRm[]>;
     onAvisoRm?: (callback: () => void) => void;
   };
+}
+
+/** Situacao do cupom fiscal automatico (painel do cupom). */
+interface SituacaoCupom {
+  parado: boolean;
+  /** garantia cujo cupom esta saindo agora */
+  emitindo: number | null;
+  /** quantos cupons esperam na fila */
+  naFila: number;
 }

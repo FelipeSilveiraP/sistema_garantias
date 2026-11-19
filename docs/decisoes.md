@@ -150,3 +150,9 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - Pedido do usuário: o ramo `cupom-rm` foi juntado à `main` e publicado pelo ATUALIZAR. Banco v9 (`cupom_venda_uuid`, `cupom_nfce`, `cupom_chave`) por cima da v8 (NOME NO RM).
 - Chave de segurança: `"cupomAutomaticoRm": false` no `configuracoes.json` (pasta de dados) desliga a automação sem versão nova; aí o cupom volta a ser feito à mão e marcado LANÇADO em Pesquisar Garantia.
 - Primeira vez na loja: ao abrir, a janela do RM aparece; a pessoa entra com e-mail e senha NA PÁGINA DO RM, uma vez (o sistema não lê nem guarda). Produtos sem NOME NO RM (ex.: TROCA CILINDRO IGNIÇÃO) dão o pop-up FAÇA O CUPOM NO RM até alguém preencher em Atualizar preços.
+
+## 2026-11-19 — Segurança do cupom automático: PARAR TUDO e freio
+- Painel do cupom (canto de baixo, à esquerda, em todas as telas, `painel-cupom.ts`): enquanto sai cupom mostra a garantia e a fila, com o botão vermelho PARAR TUDO (para na hora, sem perguntar). Parado, mostra CUPOM AUTOMÁTICO PARADO e LIGAR DE NOVO (pede confirmação: conferir ÚLTIMAS VENDAS no RM antes).
+- Parado = nenhum cupom novo sai; os da fila ficam NÃO LANÇADO (um aviso só lista as garantias); salvar garantia parado avisa para fazer à mão. Só o cupom que já estava sendo enviado ao RM pode terminar.
+- FREIO automático: 3 NFC-e em 5 minutos → o 4º não sai e o cupom automático para até alguém religar (contagem zera ao religar).
+- O estado fica no `configuracoes.json` (`cupomAutomaticoRm`): continua parado depois de fechar e abrir; parado ao abrir nem conecta no RM.

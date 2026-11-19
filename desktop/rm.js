@@ -19,6 +19,10 @@ const RM_API = process.env.FINDESK_RM_API || "https://api.rmsoftware.dev.br";
 const PARTICAO = "persist:rm";
 const ESPERA_CONEXAO_MS = Number(process.env.FINDESK_RM_ESPERA_MS) || 30000;
 const ESPERA_PEDIDO_MS = 30000;
+// FREIO DE SEGURANCA (pedido do usuario, 2026-11-19): mais de 3 NFC-e em 5 minutos e
+// estranho para a loja; o 4o cupom NAO sai e o cupom automatico para ate alguem religar.
+const FREIO_QUANTIDADE = Number(process.env.FINDESK_RM_FREIO) || 3;
+const FREIO_JANELA_MS = 5 * 60 * 1000;
 
 /**
  * @param {object} o
@@ -27,7 +31,7 @@ const ESPERA_PEDIDO_MS = 30000;
  * @param {(aviso: object) => void} o.avisar  pop-up na tela do sistema
  * @param {() => boolean} o.encerrando  o sistema esta fechando
  */
-function criarRm({ registrarLog, backend, avisar, encerrando }) {
+function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false }) {
   let janelaRm = null;
   let autorizacao = null;
   const contexto = { companyId: null, tabelaPrecoId: null };
@@ -35,6 +39,24 @@ function criarRm({ registrarLog, backend, avisar, encerrando }) {
   let esperando = [];
   let fila = Promise.resolve();
   let sessaoPronta = false;
+  // PARAR TUDO / freio: nenhum cupom novo sai ate alguem religar (LIGAR DE NOVO)
+  let parado = paradoNoInicio;
+  let emitindo = null;
+  let naFila = 0;
+  let pulados = [];
+  let emitidas = [];
+
+  /** Situacao do cupom para o painel da tela (emitindo, fila, parado). */
+  function situacao() {
+    return { parado, emitindo, naFila };
+  }
+  function publicar() {
+    try {
+      aoMudar(situacao());
+    } catch {
+      // a tela pode estar trocando de pagina
+    }
+  }
 
   function definirEstado(novo) {
     if (estado === novo) return;
@@ -261,11 +283,33 @@ function criarRm({ registrarLog, backend, avisar, encerrando }) {
     const pedido = lido.dados;
     if (pedido.status !== "NAO_LANCADO") return;
 
+    // freio: cupons demais em pouco tempo = algo errado; para tudo antes de emitir outro
+    const agora = Date.now();
+    emitidas = emitidas.filter((t) => agora - t < FREIO_JANELA_MS);
+    if (emitidas.length >= FREIO_QUANTIDADE) {
+      registrarLog("WARN", `[rm] FREIO: ${emitidas.length} cupons em 5 minutos; garantia ${idGarantia} nao emitida e cupom automatico parado`);
+      parado = true;
+      publicar();
+      avisar({
+        titulo: "FREIO DE SEGURANÇA: CUPOM PARADO",
+        mensagem: `Saíram ${emitidas.length} cupons fiscais em menos de 5 minutos e o sistema parou o cupom automático `
+          + `por segurança. O cupom da garantia nº ${idGarantia} NÃO foi emitido. Confira no RM em ÚLTIMAS VENDAS. `
+          + "Se estiver tudo certo, clique em LIGAR DE NOVO no painel do cupom (canto de baixo, à esquerda).",
+        tom: "erro",
+      });
+      return;
+    }
+
     const memoria = {};
     let nota = null;
     let ultimoErro = null;
     // 1a tentativa; se falhar por conexao/login, reconecta e tenta mais UMA vez
     for (let tentativa = 1; tentativa <= 2 && !nota; tentativa++) {
+      // PARAR TUDO apertado enquanto conectava: nao manda nada ao RM
+      if (parado) {
+        pulados.push(idGarantia);
+        return;
+      }
       try {
         const situacao = await conectar(tentativa > 1);
         // login: outra tentativa nao resolve (a janela do RM abriu para alguem entrar)
@@ -282,6 +326,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando }) {
       avisarManual(idGarantia, ((ultimoErro && ultimoErro.message) || "erro desconhecido").replace(/\.$/, ""), pedido);
       return;
     }
+    emitidas.push(Date.now());
     registrarLog("INFO", `[rm] garantia ${idGarantia}: NFC-e ${nota.numero} emitida (${nota.status})`);
 
     const gravado = await servidor("POST", `/api/garantias/${idGarantia}/cupom-rm/emitido`, { nfce: nota.numero, chave: nota.chave });
@@ -309,8 +354,25 @@ function criarRm({ registrarLog, backend, avisar, encerrando }) {
   }
 
   return {
+    situacao,
+    /** PARAR TUDO: nenhum cupom novo sai; os da fila ficam NAO LANCADO. */
+    parar(motivo = "botão PARAR TUDO") {
+      const estava = emitindo;
+      parado = true;
+      registrarLog("WARN", `[rm] cupom automatico PARADO (${motivo})${estava ? `; garantia ${estava} estava em andamento` : ""}`);
+      publicar();
+      return { emAndamento: estava };
+    },
+    /** LIGAR DE NOVO: volta a emitir (e zera a contagem do freio). */
+    retomar() {
+      parado = false;
+      emitidas = [];
+      registrarLog("INFO", "[rm] cupom automatico LIGADO de novo");
+      publicar();
+    },
     /** Ao abrir o sistema: conecta escondido e so avisa se houver problema. */
     async iniciar() {
+      if (parado) return; // desligado: nem conecta (liga ao clicar em LIGAR DE NOVO)
       const situacao = await conectar();
       if (situacao === "login") {
         avisar({
@@ -332,7 +394,44 @@ function criarRm({ registrarLog, backend, avisar, encerrando }) {
     emitir(idGarantia) {
       const id = Number(idGarantia);
       if (!Number.isInteger(id) || id <= 0) return false;
-      fila = fila.then(() => processar(id)).catch((erro) => {
+      if (parado) {
+        avisar({
+          titulo: "CUPOM AUTOMÁTICO PARADO",
+          mensagem: `O cupom automático está parado: o cupom da garantia nº ${id} NÃO foi emitido. `
+            + "Faça o cupom no PDV do RM e marque LANÇADO em PESQUISAR GARANTIA, ou clique em LIGAR DE NOVO no painel do cupom.",
+          tom: "atencao",
+        });
+        return false;
+      }
+      naFila++;
+      publicar();
+      fila = fila.then(async () => {
+        naFila--;
+        if (parado) {
+          pulados.push(id);
+        } else {
+          emitindo = id;
+          publicar();
+          try {
+            await processar(id);
+          } finally {
+            emitindo = null;
+          }
+        }
+        publicar();
+        // terminou a fila depois de um PARAR: um aviso so, com as garantias sem cupom
+        if (naFila === 0 && pulados.length) {
+          const lista = pulados.splice(0);
+          avisar({
+            titulo: "CUPONS NÃO EMITIDOS (PARADO)",
+            mensagem: `Com o cupom automático parado, estas garantias ficaram SEM cupom (NÃO LANÇADO): nº ${lista.join(", nº ")}. `
+              + "Faça no PDV do RM e marque LANÇADO em PESQUISAR GARANTIA.",
+            tom: "atencao",
+          });
+        }
+      }).catch((erro) => {
+        emitindo = null;
+        publicar();
         registrarLog("ERROR", `[rm] falha inesperada no cupom da garantia ${id}: ${erro && erro.stack ? erro.stack : erro}`);
         avisarManual(id, "erro inesperado", null);
       });

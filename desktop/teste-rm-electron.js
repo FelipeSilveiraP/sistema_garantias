@@ -168,6 +168,7 @@ async function principal() {
     return r.json();
   };
   const avisos = [];
+  const situacoes = [];
   const { criarRm } = require("./rm");
   let encerrando = false;
   const rm = criarRm({
@@ -175,6 +176,7 @@ async function principal() {
     backend: () => ({ porta: backend.porta, token: backend.token }),
     avisar: (a) => avisos.push(a),
     encerrando: () => encerrando,
+    aoMudar: (situacao) => situacoes.push(situacao),
   });
   const janelaRm = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP));
 
@@ -213,6 +215,46 @@ async function principal() {
     rm.emitir(g1.id);
     await esperar(1500);
     teste("garantia ja lançada nao emite de novo", registro.filter((r) => r.caminho === "/v1/pdv/vendas").length === 1);
+
+    // 4b) FREIO DE SEGURANCA: mais de 3 NFC-e em 5 minutos -> o 4o nao sai e tudo para
+    const vendas = () => registro.filter((r) => r.caminho.endsWith("/emitir")).length;
+    const status = async (g) => (await api("GET", `/api/garantias/${g.id}`)).cupomStatus;
+    const g4 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    const g5 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    const g6 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    avisos.length = 0;
+    situacoes.length = 0;
+    rm.emitir(g4.id);
+    rm.emitir(g5.id);
+    rm.emitir(g6.id);
+    teste("painel do cupom: mostra a garantia saindo e a fila", await ate(() => situacoes.some((x) => x.emitindo === g4.id && x.naFila >= 1), 5000),
+      JSON.stringify(situacoes.slice(0, 4)));
+    const freou = await ate(() => avisos.some((a) => a.titulo === "FREIO DE SEGURANÇA: CUPOM PARADO"), 30000);
+    teste("freio: 3 cupons em 5 minutos, o 4o NAO sai e o cupom automatico para", freou && rm.situacao().parado
+      && (await status(g4)) === "LANCADO" && (await status(g5)) === "LANCADO" && (await status(g6)) === "NAO_LANCADO", JSON.stringify(avisos));
+    const emitidasAntes = vendas();
+    avisos.length = 0;
+    teste("parado: salvar outra garantia NAO emite e avisa CUPOM AUTOMATICO PARADO",
+      rm.emitir(g6.id) === false && avisos.some((a) => a.titulo === "CUPOM AUTOMÁTICO PARADO") && vendas() === emitidasAntes);
+
+    // LIGAR DE NOVO: volta a emitir (contagem do freio zerada)
+    rm.retomar();
+    rm.emitir(g6.id);
+    teste("LIGAR DE NOVO: o cupom volta a sair", await ate(async () => (await status(g6)) === "LANCADO", 30000) && !rm.situacao().parado);
+
+    // PARAR TUDO com cupons na fila: nenhum sai, um aviso so com as garantias sem cupom
+    const g7 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    const g8 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    avisos.length = 0;
+    const antesParar = vendas();
+    rm.emitir(g7.id);
+    rm.emitir(g8.id);
+    const parou = rm.parar();
+    teste("PARAR TUDO: nenhum cupom da fila sai e um aviso lista as garantias sem cupom",
+      await ate(() => avisos.some((a) => a.titulo === "CUPONS NÃO EMITIDOS (PARADO)"), 15000) && vendas() === antesParar
+        && (await status(g7)) === "NAO_LANCADO" && (await status(g8)) === "NAO_LANCADO" && rm.situacao().parado && rm.situacao().naFila === 0,
+      JSON.stringify({ parou, avisos, vendas: vendas() - antesParar }));
+    rm.retomar();
 
     // 5) produto sem NOME NO RM: pop-up para fazer o cupom manualmente
     const g2 = await nova("80.00", [{ idServico: null, descricao: "CHAVE CODIFICADA", quantidade: 1 }]);

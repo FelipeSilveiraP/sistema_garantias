@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld("finDesk", {
   instalarAtualizacao: () => ipcRenderer.invoke("findesk:instalar-atualizacao"),
   emitirCupom: (idGarantia) => ipcRenderer.invoke("findesk:emitir-cupom", idGarantia),
   avisosRm: () => ipcRenderer.invoke("findesk:avisos-rm"),
+  cupomEstado: () => ipcRenderer.invoke("findesk:cupom-estado"),
+  cupomParar: () => ipcRenderer.invoke("findesk:cupom-parar"),
+  cupomRetomar: () => ipcRenderer.invoke("findesk:cupom-retomar"),
+  onEstadoCupom: (callback) => ipcRenderer.on("findesk:estado-cupom", (_evento, situacao) => callback(situacao)),
   onAvisoRm: (callback) => ipcRenderer.on("findesk:aviso-rm", () => callback()),
   onProgressoAtualizacao: (callback) =>
     ipcRenderer.on("findesk:progresso-atualizacao", (_evento, progresso) => callback(progresso)),

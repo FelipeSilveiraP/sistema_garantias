@@ -1591,3 +1591,24 @@ textarea:not(.sem-maiusculas) {
 /* ===== Tabelas com altura de 5 linhas e rolagem por dentro (tabela-recolhivel.ts) ===== */
 .tabela-rolagem { overflow-y: auto; overscroll-behavior: contain; }
 .tabela-rolagem > table > thead { position: sticky; top: 0; z-index: 2; }
+
+/* ===== Painel do cupom fiscal (painel-cupom.ts): canto de baixo, a esquerda ===== */
+.painel-cupom {
+  position: fixed; left: 1.5rem; bottom: 1.5rem; z-index: 65;
+  display: flex; flex-direction: column; gap: 0.5rem; width: min(24rem, calc(100vw - 3rem));
+  padding: 1rem 1.25rem; background: #FFE600; color: #1c1b1b;
+  border: 4px solid #1c1b1b; box-shadow: 6px 6px 0 0 #1c1b1b; font-family: "Space Grotesk", Arial, sans-serif;
+}
+.painel-cupom.hidden { display: none; }
+.painel-cupom strong { font-size: 1.125rem; text-transform: uppercase; }
+.painel-cupom span { font-size: 1rem; font-weight: 700; }
+.painel-cupom--parado { background: #dc2626; color: #ffffff; }
+.painel-cupom__botao {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 3.25rem;
+  padding: 0.6rem 1.25rem; border: 3px solid #1c1b1b; box-shadow: 4px 4px 0 0 #1c1b1b;
+  font-family: inherit; font-size: 1.125rem; font-weight: 800; text-transform: uppercase; cursor: pointer;
+}
+.painel-cupom__botao--parar { background: #dc2626; color: #ffffff; }
+.painel-cupom__botao--ligar { background: #ffffff; color: #1c1b1b; }
+.painel-cupom__botao:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #1c1b1b; }
+.painel-cupom__botao:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
