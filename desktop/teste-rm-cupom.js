@@ -4,7 +4,6 @@
 // Uso: node desktop/teste-rm-cupom.js
 const assert = require("assert");
 const { emitirNoRm, normalizar, ErroTemporario, ErroDefinitivo } = require("./rm-cupom");
-const { montarHtml } = require("./cupom-impressao");
 
 let ok = 0;
 let falhas = 0;
@@ -120,31 +119,12 @@ function rmFalso(opcoes = {}) {
     assert.ok(!rm.pedidos.some((p) => p.caminho === "/v1/pdv/vendas"));
   });
 
-  await caso("cupom impresso: dados da nota, QR Code, contingencia e texto do RM sem HTML", () => {
-    const html = montarHtml({
-      chave: "35261168244470000134650010000002629148690252",
-      numero: "262",
-      serie: "1",
-      dhEmi: "2026-11-16T22:36:51-03:00",
-      tpEmis: "9",
-      ambiente: "1",
-      emitente: { nome: "Loja <script>alert(1)</script>", cnpj: "68244470000134", ie: "161123006111", endereco: "Rua X, 1" },
-      itens: [{ codigo: "19", descricao: "CARCACA CANIVETE", quantidade: 1, unidade: "UN", valorUnitario: 120, valorTotal: 120 }],
-      valorTotal: 120,
-      pagamentos: [{ meio: "01", valor: 120 }],
-      troco: 0,
-      valorAproxTributos: 41.74,
-      qrCode: "https://www.nfce.fazenda.sp.gov.br/qrcode?p=3526",
-      urlChave: "https://www.nfce.fazenda.sp.gov.br/consulta",
-      logoTermico: "javascript:alert(1)",
-    });
-    assert.ok(!html.includes("<script>"), "texto do RM nao vira HTML");
-    assert.ok(!html.includes("javascript:"), "logo estranho e ignorado");
-    assert.ok(html.includes("<svg"), "QR Code");
-    assert.ok(html.includes("EMITIDA EM CONTINGÊNCIA"));
-    assert.ok(html.includes("3526 1168 2444 7000 0134 6500 1000 0002 6291 4869 0252"));
-    assert.ok(html.includes("68.244.470/0001-34"));
-    assert.ok(html.includes("Dinheiro") && html.includes("120,00") && html.includes("16/11/2026 22:36:51"));
+  await caso("o sistema NUNCA desenha nem imprime cupom (regra permanente): so manda a requisicao ao RM", () => {
+    const fs = require("fs");
+    const path = require("path");
+    assert.ok(!fs.existsSync(path.join(__dirname, "cupom-impressao.js")), "sem gerador de cupom no sistema");
+    const rmJs = fs.readFileSync(path.join(__dirname, "rm.js"), "utf8");
+    assert.ok(!/\.print\(|printToPDF|getPrintersAsync/.test(rmJs), "rm.js nao imprime nada");
   });
 
   console.log(`\n${ok} ok, ${falhas} falha(s)`);

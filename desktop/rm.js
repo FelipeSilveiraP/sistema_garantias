@@ -12,7 +12,6 @@ const { BrowserWindow, session } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
-const { montarHtml } = require("./cupom-impressao");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
 const RM_API = process.env.FINDESK_RM_API || "https://api.rmsoftware.dev.br";
@@ -34,7 +33,7 @@ const FREIO_JANELA_MS = 5 * 60 * 1000;
 /** CANCELAR apertado no pop-up da automacao: nada mais e mandado ao RM. */
 class Cancelado extends ErroDefinitivo {}
 
-function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false, imprimirPeloSistema = false }) {
+function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false }) {
   let janelaRm = null;
   let autorizacao = null;
   const contexto = { companyId: null, tabelaPrecoId: null };
@@ -242,30 +241,6 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     }
   }
 
-  async function imprimir(dados) {
-    const html = montarHtml(dados);
-    const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
-    try {
-      await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-      // testes: grava o cupom em PDF em vez de imprimir
-      if (process.env.FINDESK_RM_PDF_DIR) {
-        const pdf = await w.webContents.printToPDF({ pageSize: { width: 3.15, height: 11 }, margins: { marginType: "none" } });
-        fs.mkdirSync(process.env.FINDESK_RM_PDF_DIR, { recursive: true });
-        fs.writeFileSync(path.join(process.env.FINDESK_RM_PDF_DIR, `nfce-${dados.numero}.pdf`), pdf);
-        return;
-      }
-      const impressoras = await w.webContents.getPrintersAsync();
-      const daruma = impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`));
-      if (!daruma) throw new Error("impressora DARUMA não encontrada no Windows");
-      await new Promise((ok, falha) => {
-        w.webContents.print({ silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" } },
-          (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || "a impressão falhou"))));
-      });
-    } finally {
-      w.destroy();
-    }
-  }
-
   function moeda(valor) {
     return `R$ ${Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
@@ -372,31 +347,14 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
         tom: "atencao",
       });
     }
-    // IMPRESSAO (pedido do usuario, 2026-11-19): o cupom montado pelo sistema saia diferente do
-    // do RM e devagar na DARUMA. Por enquanto o sistema NAO imprime: a NFC-e e do RM e a
-    // impressao e feita pelo RM (ULTIMAS VENDAS), igual ao cupom manual.
-    if (!imprimirPeloSistema) {
-      avisar({
-        titulo: "CUPOM FISCAL EMITIDO",
-        mensagem: `NFC-e nº ${nota.numero} da garantia nº ${idGarantia} emitida no RM e garantia marcada LANÇADO. `
-          + "Imprima pelo RM em ÚLTIMAS VENDAS (a impressão pelo sistema está desligada). NÃO emita de novo.",
-        tom: "sucesso",
-      });
-      return;
-    }
-    try {
-      const dados = await chamar("GET", `/v1/pdv/vendas/${encodeURIComponent(nota.idVenda)}/cupom-dados`);
-      if (dados.status !== 200 || !dados.dados || !dados.dados.data) throw new Error(`o RM respondeu ${dados.status}`);
-      await imprimir(dados.dados.data);
-    } catch (erro) {
-      registrarLog("WARN", `[rm] garantia ${idGarantia}: NFC-e ${nota.numero} nao impressa: ${erro && erro.message}`);
-      avisar({
-        titulo: "CUPOM EMITIDO, MAS NÃO IMPRIMIU",
-        mensagem: `A NFC-e nº ${nota.numero} foi emitida, mas não saiu na impressora (${erro && erro.message}). `
-          + "Imprima pelo RM em ÚLTIMAS VENDAS. NÃO emita o cupom de novo.",
-        tom: "atencao",
-      });
-    }
+    // REGRA PERMANENTE (usuario, 2026-11-19): o sistema NUNCA desenha nem imprime nota ou
+    // cupom fiscal. So manda a requisicao ao RM; o documento e a impressao sao do RM.
+    avisar({
+      titulo: "CUPOM FISCAL EMITIDO",
+      mensagem: `NFC-e nº ${nota.numero} da garantia nº ${idGarantia} emitida pelo RM e garantia marcada LANÇADO. `
+        + "Imprima pelo RM em ÚLTIMAS VENDAS. NÃO emita de novo.",
+      tom: "sucesso",
+    });
   }
 
   return {

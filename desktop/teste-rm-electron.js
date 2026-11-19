@@ -155,7 +155,6 @@ async function principal() {
   const portaApi = await portaLivre();
   process.env.FINDESK_RM_APP = `http://127.0.0.1:${portaApp}`;
   process.env.FINDESK_RM_API = `http://127.0.0.1:${portaApi}`;
-  process.env.FINDESK_RM_PDF_DIR = PASTA_PDF;
   process.env.FINDESK_RM_ESPERA_MS = "6000";
   const registro = [];
   const sApp = servidorApp(portaApi).listen(portaApp, "127.0.0.1");
@@ -211,7 +210,8 @@ async function principal() {
     teste("venda em dinheiro, produto achado pela palavra, valor da garantia",
       Boolean(venda && venda.corpo.pagamento.meio === "01" && venda.corpo.itens[0].produtoId === "p-canivete"
         && venda.corpo.itens[0].valorUnitario === 120 && venda.corpo.tabelaPrecoId === "tabela-1" && venda.corpo.companyId === "empresa-1"));
-    teste("o sistema NAO imprime o cupom (a impressao e pelo RM)", await esperar(1500).then(() => !fs.existsSync(path.join(PASTA_PDF, "nfce-262.pdf"))));
+    teste("o sistema NAO imprime nem desenha o cupom (a impressao e do RM)", await esperar(1500).then(() => !fs.existsSync(PASTA_PDF)
+      && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP))));
     teste("tudo certo: um aviso so, CUPOM FISCAL EMITIDO com o numero da NFC-e",
       avisos.length === 1 && avisos[0].titulo === "CUPOM FISCAL EMITIDO" && /262/.test(avisos[0].mensagem), JSON.stringify(avisos));
     teste("pop-up da automacao: mostra as etapas ate a emissao",
