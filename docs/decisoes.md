@@ -184,3 +184,6 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-19 — Impressão automática DESLIGADA (até decidir)
 - Na loja o "apertar IMPRIMIR" simulando o teclado (PowerShell AppActivate/SendKeys) abriu janelas do Windows e não imprimiu: a impressora PADRÃO do Windows é a Brother DCP-1610NW (pausada), e a janela de impressão abriu nela. Simular teclado pode apertar Enter na janela errada: código removido.
 - Agora o RM só emite; aviso "CUPOM FISCAL EMITIDO — IMPRIMA PELO RM" (ÚLTIMAS VENDAS, botão CUPOM). O fluxo de apertar o CUPOM do RM continua no código, mas só roda com `apertarImprimir` (testes).
+
+## 2026-11-19 — Modo quiosque com o cupom DO RM (autorizado pelo usuário)
+- "Pode fazer esse modo quiosque, mas tem que usar o cupom dos caras." Na janela escondida do RM: ÚLTIMAS VENDAS → CUPOM da venda; o RM busca `/cupom-dados`, monta o cupom dele e chama `window.print()`; essa chamada vira um aviso (o cupom do RM fica na página) e a página do RM vai para a **Daruma DR700** com `webContents.print({ silent: true, deviceName })` (margens nenhuma, escala 100). Nenhuma janela aparece; nada de teclado simulado. Teste: o PDF de teste tem o texto do cupom do RM falso.

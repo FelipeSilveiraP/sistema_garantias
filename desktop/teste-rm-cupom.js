@@ -143,7 +143,8 @@ function rmFalso(opcoes = {}) {
     assert.ok(!fs.existsSync(path.join(__dirname, "cupom-impressao.js")), "sem gerador de cupom no sistema");
     const rmJs = fs.readFileSync(path.join(__dirname, "rm.js"), "utf8");
     assert.ok(!/montarHtml|data:text\/html|qrcode/i.test(rmJs), "rm.js nao monta cupom");
-    assert.ok(!/silent|printToPDF|getPrintersAsync|\.print\(/.test(rmJs), "rm.js nunca manda nada para a impressora: so aperta IMPRIMIR na janela do navegador");
+    // modo quiosque: so imprime a pagina do RM DEPOIS de o proprio RM pedir a impressao
+    assert.ok(/window\.print = \(\) =>/.test(rmJs) && /__garantiasImpressao === "pronto"/.test(rmJs), "imprime so quando o RM pede");
   });
 
   console.log(`\n${ok} ok, ${falhas} falha(s)`);

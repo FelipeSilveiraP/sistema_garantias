@@ -177,6 +177,8 @@ async function principal() {
   process.env.FINDESK_RM_APP = `http://127.0.0.1:${portaApp}`;
   process.env.FINDESK_RM_API = `http://127.0.0.1:${portaApi}`;
   process.env.FINDESK_RM_ESPERA_MS = "6000";
+  // no teste o cupom DO RM vai para um PDF em vez da Daruma
+  process.env.FINDESK_RM_PDF_DIR = PASTA_PDF;
   const registro = [];
   const sApp = servidorApp(portaApi).listen(portaApp, "127.0.0.1");
   let sApi = servidorApi(process.env.FINDESK_RM_APP, registro).listen(portaApi, "127.0.0.1");
@@ -192,7 +194,6 @@ async function principal() {
   };
   const avisos = [];
   const situacoes = [];
-  let apertos = 0;
   const { criarRm } = require("./rm");
   let encerrando = false;
   const rm = criarRm({
@@ -201,15 +202,6 @@ async function principal() {
     avisar: (a) => avisos.push(a),
     encerrando: () => encerrando,
     aoMudar: (situacao) => situacoes.push(situacao),
-    // no teste: "apertar IMPRIMIR" na janela de impressao do navegador falso
-    apertarImprimir: async () => {
-      const w = janelaRm();
-      const abriu = await ate(async () => (await w.webContents.executeJavaScript("window.__dialogoImpressao === 'aberto'")) === true, 10000);
-      if (!abriu) return false;
-      apertos++;
-      await w.webContents.executeJavaScript("window.__dialogoImpressao = 'impresso'; window.dispatchEvent(new Event('afterprint')); true");
-      return true;
-    },
   });
   const janelaRm = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP));
 
@@ -243,11 +235,14 @@ async function principal() {
         && venda.corpo.itens[0].valorUnitario === 120 && venda.corpo.tabelaPrecoId === "tabela-1" && venda.corpo.companyId === "empresa-1"));
     teste("impressao PELO RM: abre ULTIMAS VENDAS e aperta o CUPOM da venda #279 (o RM pede o cupom-dados)",
       await ate(() => registro.some((r) => r.caminho.endsWith("/cupom-dados")), 15000), JSON.stringify(registro.map((r) => r.caminho).slice(-4)));
-    teste("o RM abre a janela de impressao do navegador e o sistema so aperta IMPRIMIR",
-      await ate(() => apertos === 1, 15000), String(apertos));
-    teste("o sistema nao monta cupom nem imprime por conta propria: so existe a janela do RM, nenhum arquivo",
-      !fs.existsSync(PASTA_PDF) && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
-    teste("depois de imprimir a janela do RM some de novo", await ate(() => !janelaRm().isVisible(), 10000));
+    const pdfCupom = path.join(PASTA_PDF, "cupom-rm-venda-279.pdf");
+    teste("modo quiosque: o cupom sai sozinho", await ate(() => fs.existsSync(pdfCupom), 15000));
+    let textoPdf = "";
+    try { textoPdf = require("child_process").execFileSync("pdftotext", [pdfCupom, "-"], { encoding: "utf8" }); } catch { /* sem pdftotext */ }
+    teste("o que sai e o cupom MONTADO PELO RM (nada inventado pelo sistema)", textoPdf.includes("CUPOM MONTADO PELO RM"), textoPdf.slice(0, 80));
+    teste("nenhuma janela aparece (nem do RM, nem de impressao)", !janelaRm().isVisible());
+    teste("o sistema nao monta cupom: so existe a janela do RM",
+      BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
     teste("a janela do RM tem o titulo fixo (para achar a janela de impressao)", janelaRm().getTitle() === "RM SOFTWARE - SISTEMA DE GARANTIAS", janelaRm().getTitle());
     const prefs = JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "Partitions", "rm", "Preferences"), "utf8"));
     teste("navegador do RM lembra a Daruma DR700 como impressora",
