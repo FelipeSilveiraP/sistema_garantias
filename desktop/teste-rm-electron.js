@@ -61,6 +61,19 @@ function paginaRm(portaApi) {
         if (r.status !== 200) { localStorage.removeItem("tk"); history.replaceState(null, "", "/login"); return; }
         fetch(API + "/v1/notificacoes?companyId=empresa-1", { headers: h });
         fetch(API + "/v1/produtos?pageSize=20&tabelaPrecoId=tabela-1&companyId=empresa-1&mixDoPdv=true", { headers: h });
+        // como o PDV do RM: botao "Ultimas vendas" abre a lista com o botao CUPOM de cada venda,
+        // que pede os dados do cupom ao RM e abre a impressao (aqui: so dispara o afterprint)
+        const ultimas = document.createElement("button");
+        ultimas.textContent = " Últimas vendas";
+        ultimas.onclick = () => {
+          const cupom = document.createElement("button");
+          cupom.setAttribute("aria-label", "Cupom: item 1 — venda #279");
+          cupom.textContent = "Cupom";
+          cupom.onclick = () => fetch(API + "/v1/pdv/vendas/venda-x/cupom-dados", { headers: h })
+            .then(() => setTimeout(() => window.dispatchEvent(new Event("afterprint")), 300));
+          document.body.appendChild(cupom);
+        };
+        document.body.appendChild(ultimas);
       }).catch(() => {});
     }
   </script></body></html>`;
@@ -114,7 +127,7 @@ function servidorApi(origem, registro) {
       if (url.pathname === "/v1/pdv/vendas") return responder(201, { id: "venda-" + b.vendaUuid.slice(0, 8), status: "rascunho" });
       const m = /^\/v1\/pdv\/vendas\/([^/]+)\/(emitir|cupom-dados)$/.exec(url.pathname);
       if (m && m[2] === "emitir") {
-        return responder(200, { id: m[1], status: "autorizada", numero: 262, chaveAcesso: "35261168244470000134650010000002629148690252" });
+        return responder(200, { id: m[1], status: "autorizada", numero: 262, vendaNumero: 279, chaveAcesso: "35261168244470000134650010000002629148690252" });
       }
       if (m) {
         return responder(200, {
@@ -210,12 +223,14 @@ async function principal() {
     teste("venda em dinheiro, produto achado pela palavra, valor da garantia",
       Boolean(venda && venda.corpo.pagamento.meio === "01" && venda.corpo.itens[0].produtoId === "p-canivete"
         && venda.corpo.itens[0].valorUnitario === 120 && venda.corpo.tabelaPrecoId === "tabela-1" && venda.corpo.companyId === "empresa-1"));
-    teste("o sistema NAO imprime nem desenha o cupom (a impressao e do RM)", await esperar(1500).then(() => !fs.existsSync(PASTA_PDF)
-      && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP))));
-    teste("tudo certo: um aviso so, CUPOM FISCAL EMITIDO com o numero da NFC-e",
-      avisos.length === 1 && avisos[0].titulo === "CUPOM FISCAL EMITIDO" && /262/.test(avisos[0].mensagem), JSON.stringify(avisos));
-    teste("pop-up da automacao: mostra as etapas ate a emissao",
-      ["conectando", "produtos", "total", "venda", "emitindo", "emitida"].every((e) => situacoes.some((x) => x.etapa === e)), JSON.stringify(situacoes.map((x) => x.etapa)));
+    teste("impressao PELO RM: abre ULTIMAS VENDAS e aperta o CUPOM da venda #279 (o RM pede o cupom-dados)",
+      await ate(() => registro.some((r) => r.caminho.endsWith("/cupom-dados")), 15000), JSON.stringify(registro.map((r) => r.caminho).slice(-4)));
+    teste("o sistema NAO desenha nem imprime nada (so janelas do RM; nenhum arquivo de cupom)",
+      !fs.existsSync(PASTA_PDF) && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
+    teste("depois de imprimir a janela do RM se esconde de novo", await ate(() => !janelaRm().isVisible(), 10000));
+    teste("tudo certo: nenhum pop-up de problema", avisos.length === 0, JSON.stringify(avisos));
+    teste("pop-up da automacao: mostra as etapas ate a impressao",
+      ["conectando", "produtos", "total", "venda", "emitindo", "emitida", "imprimindo"].every((e) => situacoes.some((x) => x.etapa === e)), JSON.stringify(situacoes.map((x) => x.etapa)));
 
     // 4) mandar de novo a mesma garantia nao cria outra venda
     rm.emitir(g1.id);

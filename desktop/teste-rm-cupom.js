@@ -61,7 +61,7 @@ function rmFalso(opcoes = {}) {
       if (emitirFalhas-- > 0) return { status: 0, dados: null };
       return {
         status: 200,
-        dados: { ok: true, data: { id: "venda-1", status: "autorizada", numero: 262, chaveAcesso: "35261168244470000134650010000002629148690252" } },
+        dados: { ok: true, data: { id: "venda-1", status: "autorizada", numero: 262, vendaNumero: 279, chaveAcesso: "35261168244470000134650010000002629148690252" } },
       };
     }
     return { status: 404, dados: { ok: false, message: "rota desconhecida" } };
@@ -75,7 +75,7 @@ function rmFalso(opcoes = {}) {
   await caso("emite como o operador: produtos pela palavra, dinheiro, total conferido", async () => {
     const rm = rmFalso();
     const nota = await emitirNoRm(PEDIDO, rm.chamar, CONTEXTO, {});
-    assert.deepStrictEqual(nota, { numero: "262", chave: "35261168244470000134650010000002629148690252", status: "autorizada", idVenda: "venda-1" });
+    assert.deepStrictEqual(nota, { numero: "262", chave: "35261168244470000134650010000002629148690252", status: "autorizada", idVenda: "venda-1", vendaNumero: 279 });
     const buscas = rm.pedidos.filter((p) => p.caminho.startsWith("/v1/produtos"));
     assert.ok(buscas.every((b) => !/[?&]q=\d+(&|$)/.test(b.caminho)), "nunca pesquisa por codigo");
     assert.ok(buscas[0].caminho.includes("tabelaPrecoId=tabela-1") && buscas[0].caminho.includes("companyId=empresa-1"));

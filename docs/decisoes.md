@@ -163,3 +163,8 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 ## 2026-11-19 — REGRA PERMANENTE: nunca gerar nem imprimir documento fiscal
 - Ordem do usuário: os nossos sistemas só mandam a requisição ao sistema fiscal (RM): produto, quantidade, valor, pagamento. Emitir, desenhar e imprimir é do RM. Apagados `desktop/cupom-impressao.js`, a impressão silenciosa na DARUMA, o PDF de teste e a dependência `qrcode-generator`. Um teste (`teste-rm-cupom.js`) garante que o gerador não volta e que `rm.js` não imprime. Regra também no CLAUDE.md e no AGENTS.md dos dois sistemas.
+
+## 2026-11-19 — Cupom impresso PELO RM (botão CUPOM de ÚLTIMAS VENDAS)
+- Lido o programa da página do RM (app.rmsoftware.dev.br liberado no ambiente): no PDV, ÚLTIMAS VENDAS tem para cada venda o botão "Cupom" (`aria-label="Cupom: item N — venda #<vendaNumero>"`), que pede `/cupom-dados`, monta o cupom na página do RM e chama `window.print()` (a janela de impressão de sempre).
+- Depois de emitir, `rm.js` (`imprimirPeloRm`) faz isso na janela do RM: abre ÚLTIMAS VENDAS, acha a venda pelo número (`vendaNumero` devolvido pelo `/emitir`), mostra a janela do RM e aperta CUPOM. O RM abre a janela de impressão; a pessoa escolhe a DARUMA e imprime. Ao fechar a impressão (`afterprint`) a janela do RM some e o PDV recarrega. Nada é desenhado nem impresso em silêncio pelo nosso sistema. Se o botão não aparecer em 20 s: aviso "CUPOM EMITIDO — IMPRIMA PELO RM".
+- O pop-up da automação ganhou a etapa "Imprimindo pelo RM (escolha a DARUMA e clique IMPRIMIR)".

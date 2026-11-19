@@ -241,6 +241,66 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     }
   }
 
+  /** Pergunta a pagina do RM (sem travar se ela estiver ocupada, ex.: janela de impressao aberta). */
+  async function perguntar(codigo, ms = 1500) {
+    if (!janelaRm || janelaRm.isDestroyed()) return null;
+    let tempo;
+    const r = await Promise.race([
+      janelaRm.webContents.executeJavaScript(codigo, true).catch(() => null),
+      new Promise((ok) => { tempo = setTimeout(() => ok(null), ms); }),
+    ]);
+    clearTimeout(tempo);
+    return r;
+  }
+
+  async function esperarPagina(codigo, ms) {
+    const fim = Date.now() + ms;
+    while (Date.now() < fim) {
+      if (await perguntar(codigo)) return true;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    return false;
+  }
+
+  /**
+   * IMPRESSAO PELO PROPRIO RM (regra permanente: o sistema nunca monta nem imprime cupom).
+   * Faz o que o operador faz: no PDV do RM abre ULTIMAS VENDAS e aperta o botao CUPOM da
+   * venda (achada pelo numero "#279"). E o RM que monta o cupom e abre a JANELA DE IMPRESSAO
+   * dele; a janela do RM aparece para o operador escolher a DARUMA e imprimir. Nada e
+   * impresso em silencio.
+   */
+  async function imprimirPeloRm(vendaNumero) {
+    if (vendaNumero === null || vendaNumero === undefined) throw new Error("o RM não devolveu o número da venda");
+    if (!janelaRm || janelaRm.isDestroyed()) throw new Error("a janela do RM foi fechada");
+    if (!janelaRm.webContents.getURL().startsWith(`${RM_APP}/app/pdv`)) {
+      await janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    }
+    const abriuLista = await esperarPagina(`(() => {
+      const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim().endsWith("Últimas vendas"));
+      if (!b) return false;
+      window.__garantiasImpressao = "aguardando";
+      window.addEventListener("afterprint", () => { window.__garantiasImpressao = "feita"; }, { once: true });
+      b.click();
+      return true;
+    })()`, 20000);
+    if (!abriuLista) throw new Error("o botão ÚLTIMAS VENDAS do RM não apareceu");
+    const botao = `button[aria-label^="Cupom:"][aria-label$="venda #${Number(vendaNumero)}"]`;
+    const achou = await esperarPagina(`!!document.querySelector(${JSON.stringify(botao)})`, 20000);
+    if (!achou) throw new Error(`a venda #${vendaNumero} não apareceu em ÚLTIMAS VENDAS`);
+    // a janela de impressao do RM aparece na frente, como no Chrome
+    janelaRm.show();
+    janelaRm.focus();
+    await perguntar(`(() => { document.querySelector(${JSON.stringify(botao)}).click(); return true; })()`);
+    // espera a pessoa imprimir (ou fechar a janela de impressao), ate 5 minutos
+    const feita = await esperarPagina(`window.__garantiasImpressao === "feita"`, 5 * 60 * 1000);
+    if (!janelaRm.isDestroyed()) {
+      janelaRm.hide();
+      // volta o PDV do RM ao normal (fecha a lista)
+      janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    }
+    if (!feita) throw new Error("a janela de impressão do RM não foi fechada em 5 minutos");
+  }
+
   function moeda(valor) {
     return `R$ ${Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
@@ -348,13 +408,20 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       });
     }
     // REGRA PERMANENTE (usuario, 2026-11-19): o sistema NUNCA desenha nem imprime nota ou
-    // cupom fiscal. So manda a requisicao ao RM; o documento e a impressao sao do RM.
-    avisar({
-      titulo: "CUPOM FISCAL EMITIDO",
-      mensagem: `NFC-e nº ${nota.numero} da garantia nº ${idGarantia} emitida pelo RM e garantia marcada LANÇADO. `
-        + "Imprima pelo RM em ÚLTIMAS VENDAS. NÃO emita de novo.",
-      tom: "sucesso",
-    });
+    // cupom fiscal. So aperta o botao CUPOM do proprio RM; o cupom e a impressao sao do RM.
+    mudarEtapa("imprimindo");
+    try {
+      await imprimirPeloRm(nota.vendaNumero);
+      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom da NFC-e ${nota.numero} mandado imprimir pelo RM`);
+    } catch (erro) {
+      registrarLog("WARN", `[rm] garantia ${idGarantia}: impressao pelo RM nao aconteceu: ${erro && erro.message}`);
+      avisar({
+        titulo: "CUPOM EMITIDO — IMPRIMA PELO RM",
+        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida pelo RM, mas a impressão não abriu `
+          + `(${erro && erro.message}). Imprima pelo RM em ÚLTIMAS VENDAS, botão CUPOM. NÃO emita de novo.`,
+        tom: "atencao",
+      });
+    }
   }
 
   return {
@@ -370,7 +437,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     /** CANCELAR (pop-up da automacao): o cupom atual e os da fila nao saem; os proximos saem normalmente. */
     cancelar() {
       if (!emitindo && naFila === 0) return null;
-      const jaEnviado = etapa === "emitindo" || etapa === "emitida";
+      const jaEnviado = etapa === "emitindo" || etapa === "emitida" || etapa === "imprimindo";
       cancelarFila = true;
       registrarLog("WARN", `[rm] CANCELAR apertado (garantia ${emitindo || "-"}, etapa ${etapa || "-"}, ${naFila} na fila)`);
       publicar();

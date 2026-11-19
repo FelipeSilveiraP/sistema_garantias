@@ -107,7 +107,14 @@ async function emitirNoRm(pedido, chamar, contexto, memoria = {}) {
   if (!nota || nota.numero === null || nota.numero === undefined || !nota.chaveAcesso) {
     throw new ErroDefinitivo(`a NFC-e não foi emitida (situação: ${nota && nota.status})`);
   }
-  return { numero: String(nota.numero), chave: String(nota.chaveAcesso), status: String(nota.status || ""), idVenda: memoria.idVenda };
+  return {
+    numero: String(nota.numero),
+    chave: String(nota.chaveAcesso),
+    status: String(nota.status || ""),
+    idVenda: memoria.idVenda,
+    // numero da venda no RM ("#279" em ULTIMAS VENDAS): e por ele que o botao CUPOM do RM e achado
+    vendaNumero: nota.vendaNumero === null || nota.vendaNumero === undefined ? null : Number(nota.vendaNumero),
+  };
 }
 
 module.exports = { emitirNoRm, normalizar, ErroTemporario, ErroDefinitivo };

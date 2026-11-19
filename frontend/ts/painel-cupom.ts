@@ -11,6 +11,7 @@ const ETAPAS: [string, string][] = [
   ["total", "Conferindo o total"],
   ["venda", "Criando a venda em dinheiro"],
   ["emitindo", "Emitindo a NFC-e no RM"],
+  ["imprimindo", "Imprimindo pelo RM (na janela do RM: escolha a DARUMA e clique IMPRIMIR)"],
 ];
 
 let atual: SituacaoCupom | null = null;
@@ -84,7 +85,7 @@ function desenharModal(s: SituacaoCupom): void {
   const indice = ETAPAS.findIndex(([chave]) => chave === s.etapa);
   ETAPAS.forEach(([chave, texto], i) => {
     const li = criar("li", "automacao-etapa");
-    const feita = s.etapa === "emitida" || (indice >= 0 && i < indice);
+    const feita = indice >= 0 && i < indice;
     const agora = chave === s.etapa;
     li.classList.toggle("automacao-etapa--feita", feita);
     li.classList.toggle("automacao-etapa--agora", agora);
@@ -92,7 +93,7 @@ function desenharModal(s: SituacaoCupom): void {
     lista.appendChild(li);
   });
   corpo.appendChild(lista);
-  const jaEnviado = s.etapa === "emitindo" || s.etapa === "emitida";
+  const jaEnviado = s.etapa === "emitindo" || s.etapa === "emitida" || s.etapa === "imprimindo";
   corpo.appendChild(criar("p", "dialogo__detalhes", jaEnviado
     ? "A nota já foi enviada ao RM: daqui em diante não dá mais para cancelar."
     : "CANCELAR para tudo agora: nenhuma nota é emitida e a garantia fica NÃO LANÇADO."));
