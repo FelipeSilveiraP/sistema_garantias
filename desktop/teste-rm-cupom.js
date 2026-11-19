@@ -119,6 +119,24 @@ function rmFalso(opcoes = {}) {
     assert.ok(!rm.pedidos.some((p) => p.caminho === "/v1/pdv/vendas"));
   });
 
+  await caso("impressora lembrada pelo navegador do RM = Daruma DR700 (sem margens, sem cabecalho), sem apagar o resto", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { lembrarImpressoraDoCupom } = require("./impressora-navegador");
+    const pasta = fs.mkdtempSync(path.join(os.tmpdir(), "prefs-rm-"));
+    fs.writeFileSync(path.join(pasta, "Preferences"), JSON.stringify({ outra: { coisa: 1 }, printing: { x: 2 } }));
+    assert.ok(lembrarImpressoraDoCupom(pasta));
+    const prefs = JSON.parse(fs.readFileSync(path.join(pasta, "Preferences"), "utf8"));
+    const estado = JSON.parse(prefs.printing.print_preview_sticky_settings.appState);
+    assert.strictEqual(estado.recentDestinations[0].id, "Daruma DR700");
+    assert.strictEqual(estado.marginsType, 1);
+    assert.strictEqual(estado.isHeaderFooterEnabled, false);
+    assert.deepStrictEqual(prefs.outra, { coisa: 1 });
+    assert.strictEqual(prefs.printing.x, 2);
+    fs.rmSync(pasta, { recursive: true, force: true });
+  });
+
   await caso("o sistema NUNCA desenha nem imprime cupom (regra permanente): so manda a requisicao ao RM", () => {
     const fs = require("fs");
     const path = require("path");

@@ -247,7 +247,11 @@ async function principal() {
       await ate(() => apertos === 1, 15000), String(apertos));
     teste("o sistema nao monta cupom nem imprime por conta propria: so existe a janela do RM, nenhum arquivo",
       !fs.existsSync(PASTA_PDF) && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
-    teste("a janela do RM NUNCA aparece (tudo por tras)", !janelaRm().isVisible());
+    teste("depois de imprimir a janela do RM some de novo", await ate(() => !janelaRm().isVisible(), 10000));
+    teste("a janela do RM tem o titulo fixo (para achar a janela de impressao)", janelaRm().getTitle() === "RM SOFTWARE - SISTEMA DE GARANTIAS", janelaRm().getTitle());
+    const prefs = JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "Partitions", "rm", "Preferences"), "utf8"));
+    teste("navegador do RM lembra a Daruma DR700 como impressora",
+      JSON.parse(prefs.printing.print_preview_sticky_settings.appState).recentDestinations[0].id === "Daruma DR700");
     teste("tudo certo: nenhum pop-up de problema", avisos.length === 0, JSON.stringify(avisos));
     teste("pop-up da automacao: mostra as etapas ate a impressao",
       ["conectando", "produtos", "total", "venda", "emitindo", "emitida", "imprimindo"].every((e) => situacoes.some((x) => x.etapa === e)), JSON.stringify(situacoes.map((x) => x.etapa)));

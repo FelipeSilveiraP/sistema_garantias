@@ -8,13 +8,17 @@
 //   memoria, para os pedidos do cupom; nunca vai para arquivo ou log.
 // - Os pedidos ao RM rodam DENTRO da pagina do RM (fetch na janela escondida): mesma
 //   origem, mesmo navegador, o RM ve o mesmo que veria do operador.
-const { BrowserWindow, session } = require("electron");
+const { app, BrowserWindow, session } = require("electron");
+const path = require("path");
+const { lembrarImpressoraDoCupom } = require("./impressora-navegador");
 const { spawn } = require("child_process");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
 const RM_API = process.env.FINDESK_RM_API || "https://api.rmsoftware.dev.br";
 const PARTICAO = "persist:rm";
+// titulo fixo da janela do RM: e por ele que a janela de impressao e achada para apertar IMPRIMIR
+const TITULO_JANELA_RM = "RM SOFTWARE - SISTEMA DE GARANTIAS";
 const ESPERA_CONEXAO_MS = Number(process.env.FINDESK_RM_ESPERA_MS) || 30000;
 const ESPERA_PEDIDO_MS = 30000;
 // FREIO DE SEGURANCA (pedido do usuario, 2026-11-19): mais de 3 NFC-e em 5 minutos e
@@ -33,15 +37,16 @@ const FREIO_JANELA_MS = 5 * 60 * 1000;
 class Cancelado extends ErroDefinitivo {}
 
 /**
- * Aperta IMPRIMIR na janela de impressao do navegador (Windows: "Imprimir"/"Print"), como
- * o operador apertaria Enter. Espera a janela aparecer por ate 20 s. true = apertou.
+ * Aperta IMPRIMIR na janela de impressao do navegador, que abre DENTRO da janela do RM
+ * (titulo TITULO_JANELA_RM): traz a janela para a frente, espera a impressao carregar e
+ * aperta Enter UMA vez (o botao Imprimir ja vem selecionado). true = apertou.
  */
 function apertarImprimirNoWindows() {
   return new Promise((resolver) => {
     if (process.platform !== "win32") return resolver(false);
     const script = "$w = New-Object -ComObject WScript.Shell; "
-      + "for ($i = 0; $i -lt 80; $i++) { "
-      + "if ($w.AppActivate('Imprimir') -or $w.AppActivate('Print')) { Start-Sleep -Milliseconds 400; $w.SendKeys('~'); exit 0 } "
+      + "for ($i = 0; $i -lt 60; $i++) { "
+      + `if ($w.AppActivate('${TITULO_JANELA_RM}')) { Start-Sleep -Milliseconds 3000; [void]$w.AppActivate('${TITULO_JANELA_RM}'); Start-Sleep -Milliseconds 200; $w.SendKeys('~'); exit 0 } `
       + "Start-Sleep -Milliseconds 250 }; exit 1";
     const proc = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], { windowsHide: true, stdio: "ignore" });
     proc.on("error", () => resolver(false));
@@ -103,6 +108,12 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   function prepararSessao() {
     if (sessaoPronta) return;
     sessaoPronta = true;
+    // impressora lembrada pelo navegador do RM = Daruma DR700 (antes de a sessao abrir)
+    try {
+      lembrarImpressoraDoCupom(path.join(app.getPath("userData"), "Partitions", PARTICAO.replace(/^persist:/, "")));
+    } catch {
+      // sem permissao: a janela de impressao abre com a ultima impressora usada
+    }
     const ses = session.fromPartition(PARTICAO);
     ses.webRequest.onBeforeSendHeaders((det, responder) => {
       if (det.url.startsWith(RM_API)) {
@@ -134,7 +145,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       height: 720,
       show: false,
       center: true,
-      title: "RM Software — entre para o cupom fiscal sair sozinho",
+      title: TITULO_JANELA_RM,
       autoHideMenuBar: true,
       webPreferences: {
         partition: PARTICAO,
@@ -145,6 +156,8 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       },
     });
     janelaRm.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    // titulo fixo (a pagina do RM nao troca): a janela de impressao e achada por ele
+    janelaRm.on("page-title-updated", (evento) => evento.preventDefault());
     // so paginas do proprio RM
     janelaRm.webContents.on("will-navigate", (evento, url) => {
       if (!url.startsWith(RM_APP)) evento.preventDefault();
@@ -305,12 +318,17 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     const botao = `button[aria-label^="Cupom:"][aria-label$="venda #${Number(vendaNumero)}"]`;
     const achou = await esperarPagina(`!!document.querySelector(${JSON.stringify(botao)})`, 20000);
     if (!achou) throw new Error(`a venda #${vendaNumero} não apareceu em ÚLTIMAS VENDAS`);
-    // 1. botao CUPOM do RM (o RM abre a janela de impressao do navegador)
+    // a janela de impressao do navegador aparece por cima (so enquanto imprime)
+    janelaRm.show();
+    // 1. botao CUPOM do RM (o RM abre a janela de impressao do navegador, ja na Daruma DR700)
     await perguntar(`(() => { document.querySelector(${JSON.stringify(botao)}).click(); return true; })()`);
     // 2. botao IMPRIMIR da janela de impressao do navegador
     const apertou = await apertarImprimir();
     const feita = await esperarPagina(`window.__garantiasImpressao === "feita"`, 60000);
-    if (!janelaRm.isDestroyed()) janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    if (!janelaRm.isDestroyed()) {
+      janelaRm.hide();
+      janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    }
     if (!apertou) throw new Error("a janela de impressão do navegador não apareceu para apertar IMPRIMIR");
     if (!feita) throw new Error("a impressão do navegador não terminou");
   }
