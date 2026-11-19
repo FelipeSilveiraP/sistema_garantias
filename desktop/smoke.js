@@ -170,8 +170,8 @@ async function executar() {
   teste("Técnico: Enter escolhe o técnico", await js("document.getElementById('tecnico').value === 'RENATO' && document.getElementById('tecnico_busca').value === 'RENATO'"));
   await js("(() => { const c = document.getElementById('tecnico_busca'); c.focus(); c.value = 'xyz'; c.dispatchEvent(new Event('input')); c.blur(); })()");
   teste("Técnico: texto que não é da lista não escolhe nada (campo apagado)", await js("document.getElementById('tecnico').value === '' && document.getElementById('tecnico_busca').value === ''"));
-  // volta ao tecnico do perfil (como a tela abriu) para os testes seguintes
-  await js("(() => { const s = document.getElementById('tecnico'); s.value = 'FELIPE'; s.dispatchEvent(new Event('change')); })()");
+  // volta ao tecnico vazio (como a tela abre) para os testes seguintes
+  await js("(() => { const s = document.getElementById('tecnico'); s.value = ''; s.dispatchEvent(new Event('change')); })()");
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
   await js("document.querySelector('#produtos .produto-mais').click()");
   teste("Botão + acrescenta uma linha de produto", (await js("document.querySelectorAll('#produtos > li').length")) === 2);
@@ -209,7 +209,7 @@ async function executar() {
   await js("document.querySelector('[data-dialogo-acao=confirmar]').click()");
   teste("Ao fechar o pop-up, os erros ficam nos campos",
     await esperarPredicado("!document.querySelector('[data-dialogo]') && !document.querySelector('[data-erro-campo=placa]').classList.contains('hidden')", 3000));
-  teste("Técnico já vem com o perfil", (await js("document.getElementById('tecnico').value")) === "FELIPE" && (await js("document.getElementById('tecnico_busca').value")) === "FELIPE");
+  teste("Técnico começa VAZIO (técnico não é quem está logado)", (await js("document.getElementById('tecnico').value")) === "" && (await js("document.getElementById('tecnico_busca').value")) === "");
   teste("CPF travado até marcar carro sem placa", await js("document.getElementById('cpf').disabled"));
   await js("document.getElementById('sem_placa').click()");
   teste("Carro sem placa libera o CPF", await js("!document.getElementById('cpf').disabled && document.getElementById('placa').disabled"));
@@ -461,6 +461,23 @@ async function executar() {
   await js("document.getElementById('pin-campo').value = '5678'");
   await enter("#pin-campo");
   teste("Enter no PIN = ENTRAR: Renato entra com o PIN dele", await telaPronta("menu") && await esperarPredicado("document.body.dataset.perfil === 'RENATO'"));
+  // conta comum (Renato): ve TODOS os tecnicos no cadastro e usa a Pesquisar Garantia
+  await ir("cadastrar-garantia");
+  await esperarPredicado("document.querySelectorAll('#tecnico option').length > 3", 8000);
+  const totalTecnicos = await js("[...document.querySelectorAll('#tecnico option')].filter(o => o.value).length");
+  teste("Conta comum: técnico começa vazio", await js("document.getElementById('tecnico').value === '' && document.getElementById('tecnico_busca').value === ''"));
+  await js("(() => { const c = document.getElementById('tecnico_busca'); c.focus(); c.dispatchEvent(new Event('focus')); })()");
+  teste("Conta comum: a lista de técnicos mostra TODOS os técnicos", await esperarPredicado(`document.querySelectorAll('#tecnico_busca').length && [...document.getElementById('tecnico_busca').closest('.caixa-busca').querySelectorAll('.caixa-busca__opcao')].length === ${totalTecnicos}`, 3000),
+    await js("[...document.getElementById('tecnico_busca').closest('.caixa-busca').querySelectorAll('.caixa-busca__opcao')].map(o => o.textContent).join(',')"));
+  await js("(() => { const s = document.getElementById('tecnico'); s.value = 'FELIPE'; s.dispatchEvent(new Event('change')); document.getElementById('tecnico_busca').blur(); })()");
+  await esperar(200);
+  await js("(() => { const c = document.getElementById('tecnico_busca'); c.focus(); c.dispatchEvent(new Event('focus')); })()");
+  teste("Com um técnico escolhido, abrir a lista mostra TODOS de novo (não fica travado)", await esperarPredicado(`[...document.getElementById('tecnico_busca').closest('.caixa-busca').querySelectorAll('.caixa-busca__opcao')].length === ${totalTecnicos}`, 3000));
+  await js("document.getElementById('tecnico_busca').blur()");
+  await ir("pesquisar-garantias");
+  await esperarPredicado("document.body.dataset.garantiasCarregadas !== undefined", 8000);
+  await js("document.querySelector('[data-filter=TODOS]').click()");
+  teste("Conta comum: PESQUISAR GARANTIA abre e mostra as garantias", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length > 0", 5000));
   await ir("contas");
   await esperar(1200);
   teste("Usuário comum não vê a administração de contas", await js("document.getElementById('area-admin').classList.contains('hidden')") && (await texto("#minha-conta")).includes("RENATO"));

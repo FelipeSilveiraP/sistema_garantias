@@ -187,3 +187,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 ## 2026-11-19 — Modo quiosque com o cupom DO RM (autorizado pelo usuário)
 - "Pode fazer esse modo quiosque, mas tem que usar o cupom dos caras." Na janela escondida do RM: ÚLTIMAS VENDAS → CUPOM da venda; o RM busca `/cupom-dados`, monta o cupom dele e chama `window.print()`; essa chamada vira um aviso (o cupom do RM fica na página) e a página do RM vai para a **Daruma DR700** com `webContents.print({ silent: true, deviceName })` (margens nenhuma, escala 100). Nenhuma janela aparece; nada de teclado simulado. Teste: o PDF de teste tem o texto do cupom do RM falso.
+
+## 2026-11-19 — Técnico que realizou o serviço ≠ conta logada
+- Bug: o cadastro preenchia o TÉCNICO com o nome de quem entrou e a caixa filtrava a lista por esse texto (só aparecia ele). Contas (quem usa o sistema) e técnicos (quem fez o serviço) são pessoas diferentes. Agora o técnico começa VAZIO para qualquer conta e a lista mostra TODOS os técnicos ativos; caixa com um item já escolhido mostra a lista inteira ao abrir (`caixa-busca.ts`, vale para modelo e produto). "Cadastrada por" continua vindo da sessão.
+- Pesquisar Garantia: nenhuma trava por conta (conferido no código e no smoke com conta comum).

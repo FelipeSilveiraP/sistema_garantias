@@ -71,7 +71,9 @@ export function ligarCaixaBusca(
   }
 
   function abrir(todos = false): void {
-    visiveis = todos ? itens : filtrarItens(itens, campo.value);
+    // texto igual a um item ja escolhido: mostra TODOS (para poder trocar sem apagar antes)
+    const escolhido = itens.some((i) => normalizar(i.rotulo) === normalizar(campo.value));
+    visiveis = todos || escolhido ? itens : filtrarItens(itens, campo.value);
     lista.replaceChildren();
     let grupoAnterior: string | undefined;
     visiveis.forEach((item, i) => {

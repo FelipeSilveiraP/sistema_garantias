@@ -300,7 +300,7 @@ function limpar(): void {
   sujo = false;
   abrirObservacao(false);
   trocarModeloOutro(false);
-  tecnicoDoPerfil();
+  caixaTecnico?.sincronizar();
   atualizarSemPlaca();
   reiniciarProdutos();
   mostrarErros({});
@@ -397,13 +397,9 @@ function opcao(valor: string, rotulo: string): HTMLOptionElement {
   return o;
 }
 
-/** O tecnico ja vem com o perfil em uso (tela "Quem esta usando?"); pode ser trocado. */
-function tecnicoDoPerfil(): void {
-  const perfil = perfilAtual();
-  const sel = el<HTMLSelectElement>("tecnico");
-  if (perfil && [...sel.options].some((o) => o.value === perfil.nome)) sel.value = perfil.nome;
-  caixaTecnico?.sincronizar();
-}
+// TECNICO QUE REALIZOU O SERVICO e quem fez o servico, NAO quem esta logado (contas e
+// tecnicos sao pessoas diferentes): o campo comeca vazio, com TODOS os tecnicos na lista,
+// para qualquer conta. Quem cadastrou fica em "cadastrada por" (sessao), separado.
 
 async function carregarListas(): Promise<void> {
   try {
@@ -415,7 +411,6 @@ async function carregarListas(): Promise<void> {
     const selTecnico = el<HTMLSelectElement>("tecnico");
     for (const t of tecnicos.filter((t) => t.ativo)) selTecnico.appendChild(opcao(t.nome, t.nome));
     caixaTecnico?.atualizarItens();
-    tecnicoDoPerfil();
     // modelos agrupados por marca (catalogo de CONTROLE > VEICULOS)
     const selModelo = el<HTMLSelectElement>("modelo");
     const porMarca = new Map<string, HTMLOptGroupElement>();
