@@ -19,6 +19,8 @@ const TOKEN_RM = "cracha-de-teste";
 let atrasoProdutos = 0;
 // false = o login do RM "venceu": a API recusa tudo e a pagina volta para o login
 let loginValido = true;
+// tokens de acesso que a API aceita (o refresh troca o vencido por um novo)
+const tokensAceitos = new Set(["cracha-de-teste"]);
 let resultados = 0;
 let falhas = 0;
 
@@ -58,8 +60,17 @@ function paginaRm(portaApi) {
       if (!location.pathname.startsWith("/login")) history.replaceState(null, "", "/login");
       document.body.textContent = "Entrar no sistema";
     } else {
-      const h = { authorization: "Bearer " + tk };
-      fetch(API + "/v1/auth/me", { headers: h }).then((r) => {
+      let h = { authorization: "Bearer " + tk };
+      // como o PDV do RM: acesso vencido (401) -> renova com o refresh token -> repete
+      const renovar = () => localStorage.getItem("rt")
+        ? fetch(API + "/v1/auth/refresh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ refreshToken: localStorage.getItem("rt") }) })
+          .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.data) { localStorage.setItem("tk", j.data.accessToken); return true; } return false; })
+        : Promise.resolve(false);
+      fetch(API + "/v1/auth/me", { headers: h }).then(async (r) => {
+        if (r.status === 401 && await renovar()) {
+          h = { authorization: "Bearer " + localStorage.getItem("tk") };
+          r = await fetch(API + "/v1/auth/me", { headers: h });
+        }
         if (r.status !== 200) { localStorage.removeItem("tk"); history.replaceState(null, "", "/login"); return; }
         fetch(API + "/v1/notificacoes?companyId=empresa-1", { headers: h });
         fetch(API + "/v1/produtos?pageSize=20&tabelaPrecoId=tabela-1&companyId=empresa-1&mixDoPdv=true", { headers: h });
@@ -122,7 +133,13 @@ function servidorApi(origem, registro) {
         res.writeHead(status, { ...cors, "Content-Type": "application/json" });
         res.end(JSON.stringify(status < 300 ? { ok: true, data } : { ok: false, message: data }));
       };
-      if (!loginValido || req.headers.authorization !== `Bearer ${TOKEN_RM}`) return responder(401, "nao autenticado");
+      if (url.pathname === "/v1/auth/refresh") {
+        const b = corpo ? JSON.parse(corpo) : {};
+        if (!loginValido || b.refreshToken !== "refresh-de-teste") return responder(401, "refresh invalido");
+        tokensAceitos.add("cracha-renovado");
+        return responder(200, { accessToken: "cracha-renovado", refreshToken: "refresh-de-teste" });
+      }
+      if (!loginValido || ![...tokensAceitos].some((t) => req.headers.authorization === `Bearer ${t}`)) return responder(401, "nao autenticado");
       if (url.pathname === "/v1/auth/me") return responder(200, { companies: [{ id: "empresa-1" }] });
       if (url.pathname === "/v1/notificacoes") return responder(200, []);
       if (url.pathname === "/v1/produtos") {
@@ -214,7 +231,7 @@ async function principal() {
     teste("sem login: a janela do RM aparece para alguem entrar", Boolean(janelaRm() && janelaRm().isVisible()));
 
     // 2) alguem entra no RM (na pagina do RM): a janela some sozinha
-    await janelaRm().webContents.executeJavaScript(`localStorage.setItem("tk", "${TOKEN_RM}"); location.href = "/app/pdv";`);
+    await janelaRm().webContents.executeJavaScript(`localStorage.setItem("tk", "${TOKEN_RM}"); localStorage.setItem("rt", "refresh-de-teste"); location.href = "/app/pdv";`);
     teste("depois do login a janela do RM se esconde", await ate(() => !janelaRm().isVisible(), 10000));
 
     // 3) garantia salva -> cupom sai sozinho
@@ -316,6 +333,28 @@ async function principal() {
     rm.emitir(g9.id);
     teste("depois do CANCELAR o cupom seguinte sai normalmente", await ate(async () => (await status(g9)) === "LANCADO", 30000));
     rm.retomar(); // zera o freio para o resto do teste
+
+    // ACESSO VENCIDO (o login vale): o RM renova sozinho; NAO pode pedir login nem mandar fazer a mao
+    tokensAceitos.clear();
+    tokensAceitos.add("cracha-novo-so-por-refresh");
+    const g11 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    avisos.length = 0;
+    situacoes.length = 0;
+    rm.emitir(g11.id);
+    teste("acesso vencido: o RM renova sozinho, o cupom sai e a garantia vira LANÇADO",
+      await ate(async () => (await status(g11)) === "LANCADO", 40000), JSON.stringify({ avisos, etapas: situacoes.map((x) => x.etapa) }));
+    teste("acesso vencido: nunca pediu login (janela do RM fechada, sem pop-up de entrar)",
+      !situacoes.some((x) => x.etapa === "login") && !janelaRm().isVisible() && !avisos.some((a) => /ENTRE|FAÇA/.test(a.titulo)), JSON.stringify(avisos));
+    rm.retomar();
+    // MANTER A SESSAO: parado entre garantias, o sistema reabre o PDV do RM e o acesso e renovado
+    tokensAceitos.clear();
+    tokensAceitos.add("cracha-renovado");
+    await esperar(1200);
+    const meAntes = registro.filter((r) => r.caminho === "/v1/auth/me").length;
+    const mantida = await rm.manterSessao();
+    teste("manter sessao: reabre o RM escondido e o acesso segue valido (sem login)",
+      mantida === "conectado" && registro.filter((r) => r.caminho === "/v1/auth/me").length > meAntes && !janelaRm().isVisible(), String(mantida));
+    tokensAceitos.add(TOKEN_RM);
 
     // LOGIN VENCIDO no meio de uma garantia: a janela do RM abre, alguem entra e o cupom
     // continua SOZINHO (sem "faca a mao")

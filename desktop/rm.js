@@ -21,6 +21,11 @@ const PARTICAO = "persist:rm";
 const TITULO_JANELA_RM = "RM SOFTWARE - SISTEMA DE GARANTIAS";
 const ESPERA_CONEXAO_MS = Number(process.env.FINDESK_RM_ESPERA_MS) || 30000;
 const ESPERA_PEDIDO_MS = 30000;
+// o PDV do RM renova o acesso sozinho quando ele vence (401 -> /auth/refresh -> repete): so e
+// "entrar de novo" de verdade se o /auth/me nao voltar 200 logo depois
+const TEMPO_RENOVAR_MS = Number(process.env.FINDESK_RM_RENOVAR_MS) || 8000;
+// mantem a sessao do RM viva enquanto o sistema esta aberto (o RM renova o acesso a cada abertura da pagina)
+const MANTER_SESSAO_MS = 10 * 60 * 1000;
 // FREIO DE SEGURANCA (pedido do usuario, 2026-11-19): mais de 3 NFC-e em 5 minutos e
 // estranho para a loja; o 4o cupom NAO sai e o cupom automatico para ate alguem religar.
 const FREIO_QUANTIDADE = Number(process.env.FINDESK_RM_FREIO) || 3;
@@ -42,6 +47,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   const contexto = { companyId: null, tabelaPrecoId: null };
   let estado = "desconectado";
   let esperando = [];
+  let relogioSessao = null;
   let fila = Promise.resolve();
   let sessaoPronta = false;
   // PARAR TUDO / freio: nenhum cupom novo sai ate alguem religar (LIGAR DE NOVO)
@@ -112,10 +118,22 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       }
       responder({ requestHeaders: det.requestHeaders });
     });
+    let esperaRenovar = null;
     ses.webRequest.onCompleted((det) => {
       if (det.method !== "GET" || !det.url.startsWith(`${RM_API}/v1/auth/me`)) return;
-      if (det.statusCode === 200) definirEstado("conectado");
-      else if (det.statusCode === 401 || det.statusCode === 403) definirEstado("login");
+      if (det.statusCode === 200) {
+        clearTimeout(esperaRenovar);
+        esperaRenovar = null;
+        definirEstado("conectado");
+      } else if (det.statusCode === 401 || det.statusCode === 403) {
+        // acesso vencido: a pagina do RM tenta renovar sozinha; so e login se nao voltar 200
+        if (!esperaRenovar) {
+          esperaRenovar = setTimeout(() => {
+            esperaRenovar = null;
+            if (estado !== "conectado") definirEstado("login");
+          }, TEMPO_RENOVAR_MS);
+        }
+      }
     });
   }
 
@@ -506,8 +524,29 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       publicar();
     },
     /** Ao abrir o sistema: conecta escondido e so avisa se houver problema. */
+    /**
+     * Mantem a sessao do RM viva: com o sistema parado (sem cupom saindo) reabre o PDV do RM
+     * escondido; a propria pagina do RM renova o acesso. Nunca mexe enquanto um cupom sai.
+     */
+    async manterSessao() {
+      if (encerrando() || parado || emitindo || naFila > 0) return null;
+      if (!janelaRm || janelaRm.isDestroyed() || janelaRm.isVisible() || estado !== "conectado") return null;
+      const situacao = await conectar(true);
+      if (situacao === "login") {
+        avisar({
+          titulo: "ENTRE NO RM SOFTWARE",
+          mensagem: "O RM pediu para entrar de novo. Entre na janela do RM que abriu para o cupom fiscal continuar saindo sozinho.",
+          tom: "atencao",
+        });
+      }
+      return situacao;
+    },
     async iniciar() {
       if (parado) return; // desligado: nem conecta (liga ao clicar em LIGAR DE NOVO)
+      if (!relogioSessao) {
+        relogioSessao = setInterval(() => void this.manterSessao().catch(() => {}), MANTER_SESSAO_MS);
+        if (relogioSessao.unref) relogioSessao.unref();
+      }
       const situacao = await conectar();
       if (situacao === "login") {
         avisar({

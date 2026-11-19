@@ -194,3 +194,8 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 ## 2026-11-19 — Login vencido no RM não derruba mais o cupom
 - Na loja o RM pediu para entrar de novo no meio de uma garantia e o cupom foi para "faça à mão". Agora (`rm.js`): o cupom ESPERA (até 5 min), a janela do RM abre para alguém entrar e o pop-up da automação mostra "O RM pediu para ENTRAR DE NOVO"; entrou, o cupom CONTINUA SOZINHO (CANCELAR e PARAR TUDO valem durante a espera). Só depois de 5 min sem login vira "faça o cupom no RM". Teste com RM falso (login vencido no meio).
+
+## 2026-11-19 — "Entrar de novo" falso: o RM renova o acesso sozinho
+- Lido no programa do RM: o acesso fica em `localStorage` (`rm.access`/`rm.refresh`); ao vencer, a página recebe 401 em `/v1/auth/me`, chama `/v1/auth/refresh` e repete. O nosso `rm.js` tratava o PRIMEIRO 401 como "login" e pedia para entrar de novo mesmo com o login válido. Agora o 401 só vira login se o `/auth/me` não voltar 200 em 8 s (ou se a página for para /login).
+- Manter a sessão: com o sistema parado (nenhum cupom saindo) a janela escondida reabre o PDV do RM a cada 10 min, e a própria página renova o acesso. Se o RM pedir login nessa hora, pop-up "ENTRE NO RM".
+- O sistema continua sem guardar e-mail nem senha do RM (decisão do usuário de 2026-11-17).
