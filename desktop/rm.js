@@ -11,7 +11,7 @@
 const { app, BrowserWindow, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom } = require("./impressora-navegador");
+const { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, escolherImpressora } = require("./impressora-navegador");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
@@ -48,6 +48,8 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   let estado = "desconectado";
   let esperando = [];
   let relogioSessao = null;
+  // impressora do cupom (configuracoes.json "impressoraCupom"); em desenvolvimento: "Microsoft Print to PDF"
+  let impressoraCupom = IMPRESSORA_CUPOM;
   let fila = Promise.resolve();
   let sessaoPronta = false;
   // PARAR TUDO / freio: nenhum cupom novo sai ate alguem religar (LIGAR DE NOVO)
@@ -322,9 +324,10 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     let daruma = null;
     if (!process.env.FINDESK_RM_PDF_DIR) {
       const impressoras = await janelaRm.webContents.getPrintersAsync();
-      daruma = impressoras.find((p) => p.name === IMPRESSORA_CUPOM)
-        || impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`));
-      if (!daruma) throw new Error(`impressora ${IMPRESSORA_CUPOM} não encontrada no Windows`);
+      daruma = escolherImpressora(impressoras, impressoraCupom);
+      if (!daruma) {
+        throw new Error(`impressora "${impressoraCupom}" não encontrada no Windows (existem: ${impressoras.map((p) => p.name).join(", ") || "nenhuma"})`);
+      }
     }
     const abriuLista = await esperarPagina(`(() => {
       const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim().endsWith("Últimas vendas"));
@@ -357,7 +360,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
         await new Promise((ok, falha) => {
           janelaRm.webContents.print(
             { silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" }, scaleFactor: 100 },
-            (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || "a Daruma não imprimiu"))),
+            (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || `a impressora ${daruma.name} não imprimiu`))),
           );
         });
       }
@@ -485,7 +488,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     mudarEtapa("imprimindo");
     try {
       await imprimirPeloRm(nota.vendaNumero);
-      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom do RM da NFC-e ${nota.numero} impresso na ${IMPRESSORA_CUPOM}`);
+      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom do RM da NFC-e ${nota.numero} impresso na ${impressoraCupom}`);
     } catch (erro) {
       registrarLog("WARN", `[rm] garantia ${idGarantia}: impressao pelo RM nao aconteceu: ${erro && erro.message}`);
       avisar({
@@ -499,6 +502,10 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
 
   return {
     situacao,
+    /** Impressora do cupom (do configuracoes.json). */
+    definirImpressora(nome) {
+      if (typeof nome === "string" && nome.trim()) impressoraCupom = nome.trim();
+    },
     /** PARAR TUDO: nenhum cupom novo sai; os da fila ficam NAO LANCADO. */
     parar(motivo = "botão PARAR TUDO") {
       const estava = emitindo;

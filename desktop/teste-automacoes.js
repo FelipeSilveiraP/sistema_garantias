@@ -235,6 +235,9 @@ function spawnFalso() {
   teste("Cupom automatico no RM ligado por padrao; configuracoes.json com false o deixa PARADO",
     a.PADRAO.cupomAutomaticoRm === true && /config\.cupomAutomaticoRm === false\) rm\.parar\(/.test(fs.readFileSync(path.join(__dirname, "main.js"), "utf8")));
 
+  teste("Impressora do cupom: padrao Daruma DR700 (configuracoes.json 'impressoraCupom' troca para PDF no PC de desenvolvimento)",
+    a.PADRAO.impressoraCupom === "Daruma DR700" && /rm\.definirImpressora\(config\.impressoraCupom\)/.test(fs.readFileSync(path.join(__dirname, "main.js"), "utf8")));
+
   console.log(`\n=== RESULTADO AUTOMACOES: ${ok}/${total} verificacoes passaram ===`);
   process.exit(ok === total ? 0 : 1);
 })();

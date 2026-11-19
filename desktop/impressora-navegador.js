@@ -46,4 +46,23 @@ function lembrarImpressoraDoCupom(pastaSessao, impressora = IMPRESSORA_CUPOM) {
   }
 }
 
-module.exports = { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, estadoImpressao };
+/** "Daruma  DR700" == "daruma dr700": compara sem acento, caixa ou espaco duplo. */
+function normalizarNome(texto) {
+  return String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Impressora do Windows em que o cupom do RM sai: a configurada em `configuracoes.json`
+ * ("impressoraCupom"; padrao Daruma DR700). No computador de desenvolvimento use
+ * "Microsoft Print to PDF" (o "Salvar como PDF" do Windows). Devolve a impressora ou null.
+ */
+function escolherImpressora(impressoras, alvo = IMPRESSORA_CUPOM) {
+  const n = normalizarNome(alvo);
+  const exata = impressoras.find((p) => normalizarNome(p.name) === n || normalizarNome(p.displayName) === n);
+  if (exata) return exata;
+  // so a Daruma (padrao) aceita o nome parecido (ex.: "Daruma DR700 (Copiar 1)")
+  if (n === normalizarNome(IMPRESSORA_CUPOM)) return impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`)) || null;
+  return null;
+}
+
+module.exports = { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, estadoImpressao, escolherImpressora };

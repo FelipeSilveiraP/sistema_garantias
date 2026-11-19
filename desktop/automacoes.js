@@ -35,6 +35,9 @@ const PADRAO = {
   // cupom fiscal automatico no RM ao salvar a garantia. false = desliga (cupom feito a mao,
   // como antes), sem precisar de versao nova se o RM mudar ou der problema
   cupomAutomaticoRm: true,
+  // impressora do Windows em que o cupom do RM sai. Neste computador de desenvolvimento
+  // (sem Daruma) troque por "Microsoft Print to PDF" (Salvar como PDF).
+  impressoraCupom: "Daruma DR700",
 };
 
 /** configuracoes.json ao lado do banco: o usuario pode mudar sem reinstalar. */

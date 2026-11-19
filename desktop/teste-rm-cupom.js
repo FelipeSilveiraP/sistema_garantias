@@ -137,6 +137,18 @@ function rmFalso(opcoes = {}) {
     fs.rmSync(pasta, { recursive: true, force: true });
   });
 
+  await caso("impressora do cupom: Daruma DR700 por padrao; no PC de desenvolvimento, Microsoft Print to PDF (so o nome exato)", () => {
+    const { escolherImpressora } = require("./impressora-navegador");
+    const lista = [{ name: "Brother DCP-1610NW series" }, { name: "Daruma DR700" }, { name: "Microsoft Print to PDF" }, { name: "Fax" }];
+    assert.strictEqual(escolherImpressora(lista).name, "Daruma DR700");
+    assert.strictEqual(escolherImpressora(lista, "microsoft print to pdf").name, "Microsoft Print to PDF");
+    assert.strictEqual(escolherImpressora(lista, "Impressora que nao existe"), null);
+    // nunca cai na Brother nem em outra por engano
+    assert.strictEqual(escolherImpressora([{ name: "Brother DCP-1610NW series" }]), null);
+    assert.strictEqual(escolherImpressora([{ name: "Daruma DR700 (Copiar 1)" }]).name, "Daruma DR700 (Copiar 1)");
+    assert.strictEqual(escolherImpressora([{ name: "Daruma DR700" }], "Microsoft Print to PDF"), null);
+  });
+
   await caso("o sistema NUNCA desenha nem imprime cupom (regra permanente): so manda a requisicao ao RM", () => {
     const fs = require("fs");
     const path = require("path");

@@ -640,6 +640,8 @@ function iniciarInstancia() {
       try {
         const config = automacoes.lerConfiguracoes(path.dirname(caminhoBanco()), registrarLog);
         if (config.cupomAutomaticoRm === false) rm.parar("desligado no configuracoes.json");
+        rm.definirImpressora(config.impressoraCupom);
+        registrarLog("INFO", `[rm] impressora do cupom: ${config.impressoraCupom}`);
         automacoes.configurarInicioComWindows(app, config, registrarLog);
         automacoes.abrirEmailSeInicioAutomatico(process.argv, config, shell, registrarLog);
       } catch (erro) {

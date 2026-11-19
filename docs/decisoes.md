@@ -199,3 +199,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - Lido no programa do RM: o acesso fica em `localStorage` (`rm.access`/`rm.refresh`); ao vencer, a página recebe 401 em `/v1/auth/me`, chama `/v1/auth/refresh` e repete. O nosso `rm.js` tratava o PRIMEIRO 401 como "login" e pedia para entrar de novo mesmo com o login válido. Agora o 401 só vira login se o `/auth/me` não voltar 200 em 8 s (ou se a página for para /login).
 - Manter a sessão: com o sistema parado (nenhum cupom saindo) a janela escondida reabre o PDV do RM a cada 10 min, e a própria página renova o acesso. Se o RM pedir login nessa hora, pop-up "ENTRE NO RM".
 - O sistema continua sem guardar e-mail nem senha do RM (decisão do usuário de 2026-11-17).
+
+## 2026-11-19 — Impressora do cupom configurável (PC de desenvolvimento = Salvar como PDF)
+- `configuracoes.json` ganhou `impressoraCupom` (padrão "Daruma DR700"). No PC de desenvolvimento, sem Daruma, usa-se "Microsoft Print to PDF" (o "Salvar como PDF" do Windows): o fluxo é o mesmo (cupom do RM → impressora escolhida), só muda o destino. Só o nome exato é aceito (nunca cai na Brother nem em outra). `docs/desenvolvimento-no-pc.md` explica como instalar e rodar.
+- Impressão = sempre o modo quiosque (o navegador manda a página do RM, com o cupom do RM, para a impressora escolhida). Apertar IMPRIMIR numa janela do Windows não é feito (exigiria simular teclado, proibido).
