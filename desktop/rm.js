@@ -202,6 +202,17 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     return final;
   }
 
+  /** Espera alguem entrar no RM na janela que abriu (ate `ms`); respeita CANCELAR / PARAR TUDO. */
+  async function esperarEntrarNoRm(ms) {
+    const fim = Date.now() + ms;
+    while (Date.now() < fim) {
+      if (cancelarFila || parado) throw new Cancelado("cancelado");
+      if (estado === "conectado") return true;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return false;
+  }
+
   /** Pedido ao RM feito pela pagina do RM. Devolve { status, dados } (status 0 = sem resposta). */
   async function chamar(metodo, caminho, corpo) {
     if (!janelaRm || janelaRm.isDestroyed()) return { status: 0, dados: null };
@@ -406,9 +417,16 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       }
       try {
         mudarEtapa("conectando");
-        const situacao = await conectar(tentativa > 1);
-        // login: outra tentativa nao resolve (a janela do RM abriu para alguem entrar)
-        if (situacao === "login") throw new ErroDefinitivo("o RM pediu para entrar de novo; entre na janela do RM que abriu");
+        let situacao = await conectar(tentativa > 1);
+        // login vencido: a janela do RM abre para alguem entrar e o cupom ESPERA (ate 5 min);
+        // entrou, o cupom continua sozinho (a garantia nao fica parada)
+        if (situacao === "login") {
+          registrarLog("WARN", `[rm] garantia ${idGarantia}: o RM pediu login; esperando alguem entrar na janela do RM`);
+          mudarEtapa("login");
+          if (!(await esperarEntrarNoRm(5 * 60 * 1000))) throw new ErroDefinitivo("ninguém entrou no RM em 5 minutos");
+          mudarEtapa("conectando");
+          situacao = await conectar(false);
+        }
         if (situacao !== "conectado") throw new ErroTemporario("sem conexão com o RM");
         nota = await emitirNoRm(pedido, chamarComEtapas, contexto, memoria);
       } catch (erro) {

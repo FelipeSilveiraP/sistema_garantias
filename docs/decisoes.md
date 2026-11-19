@@ -191,3 +191,6 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-19 — Técnico que realizou o serviço ≠ conta logada
 - Bug: o cadastro preenchia o TÉCNICO com o nome de quem entrou e a caixa filtrava a lista por esse texto (só aparecia ele). Contas (quem usa o sistema) e técnicos (quem fez o serviço) são pessoas diferentes. Agora o técnico começa VAZIO para qualquer conta e a lista mostra TODOS os técnicos ativos; caixa com um item já escolhido mostra a lista inteira ao abrir (`caixa-busca.ts`, vale para modelo e produto). "Cadastrada por" continua vindo da sessão.
 - Pesquisar Garantia: nenhuma trava por conta (conferido no código e no smoke com conta comum).
+
+## 2026-11-19 — Login vencido no RM não derruba mais o cupom
+- Na loja o RM pediu para entrar de novo no meio de uma garantia e o cupom foi para "faça à mão". Agora (`rm.js`): o cupom ESPERA (até 5 min), a janela do RM abre para alguém entrar e o pop-up da automação mostra "O RM pediu para ENTRAR DE NOVO"; entrou, o cupom CONTINUA SOZINHO (CANCELAR e PARAR TUDO valem durante a espera). Só depois de 5 min sem login vira "faça o cupom no RM". Teste com RM falso (login vencido no meio).

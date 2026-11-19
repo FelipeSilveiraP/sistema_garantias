@@ -94,6 +94,10 @@ function desenharModal(s: SituacaoCupom): void {
   });
   corpo.appendChild(lista);
   const jaEnviado = s.etapa === "emitindo" || s.etapa === "emitida" || s.etapa === "imprimindo";
+  if (s.etapa === "login") {
+    corpo.appendChild(criar("p", "dialogo__detalhes",
+      "O RM pediu para ENTRAR DE NOVO. Entre na janela do RM que abriu: assim que entrar, o cupom continua sozinho."));
+  }
   corpo.appendChild(criar("p", "dialogo__detalhes", jaEnviado
     ? "A nota já foi enviada ao RM: daqui em diante não dá mais para cancelar."
     : "CANCELAR para tudo agora: nenhuma nota é emitida e a garantia fica NÃO LANÇADO."));

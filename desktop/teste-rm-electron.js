@@ -17,6 +17,8 @@ const JAR = path.join(__dirname, "..", "backend", "target", "garantias-backend-0
 const TOKEN_RM = "cracha-de-teste";
 // atraso na pesquisa de produtos (para dar tempo de apertar CANCELAR no meio)
 let atrasoProdutos = 0;
+// false = o login do RM "venceu": a API recusa tudo e a pagina volta para o login
+let loginValido = true;
 let resultados = 0;
 let falhas = 0;
 
@@ -120,7 +122,7 @@ function servidorApi(origem, registro) {
         res.writeHead(status, { ...cors, "Content-Type": "application/json" });
         res.end(JSON.stringify(status < 300 ? { ok: true, data } : { ok: false, message: data }));
       };
-      if (req.headers.authorization !== `Bearer ${TOKEN_RM}`) return responder(401, "nao autenticado");
+      if (!loginValido || req.headers.authorization !== `Bearer ${TOKEN_RM}`) return responder(401, "nao autenticado");
       if (url.pathname === "/v1/auth/me") return responder(200, { companies: [{ id: "empresa-1" }] });
       if (url.pathname === "/v1/notificacoes") return responder(200, []);
       if (url.pathname === "/v1/produtos") {
@@ -314,6 +316,23 @@ async function principal() {
     rm.emitir(g9.id);
     teste("depois do CANCELAR o cupom seguinte sai normalmente", await ate(async () => (await status(g9)) === "LANCADO", 30000));
     rm.retomar(); // zera o freio para o resto do teste
+
+    // LOGIN VENCIDO no meio de uma garantia: a janela do RM abre, alguem entra e o cupom
+    // continua SOZINHO (sem "faca a mao")
+    const g10 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    avisos.length = 0;
+    situacoes.length = 0;
+    loginValido = false;
+    rm.emitir(g10.id);
+    const abriuLogin = await ate(() => situacoes.some((x) => x.etapa === "login") && Boolean(janelaRm() && janelaRm().isVisible()), 30000);
+    teste("login vencido: o cupom ESPERA e a janela do RM abre para entrar", abriuLogin, JSON.stringify(situacoes.map((x) => x.etapa)));
+    teste("login vencido: nenhum 'faca a mao' enquanto espera", !avisos.some((a) => a.titulo === "FAÇA O CUPOM NO RM"), JSON.stringify(avisos));
+    loginValido = true;
+    await janelaRm().webContents.executeJavaScript(`localStorage.setItem("tk", "${TOKEN_RM}"); location.href = "/app/pdv";`);
+    teste("entrou no RM: o cupom continua sozinho e a garantia vira LANÇADO", await ate(async () => (await status(g10)) === "LANCADO", 40000),
+      JSON.stringify({ avisos, etapas: situacoes.map((x) => x.etapa) }));
+    teste("depois de entrar a janela do RM some", await ate(() => !janelaRm().isVisible(), 15000));
+    rm.retomar();
 
     // 5) produto sem NOME NO RM: pop-up para fazer o cupom manualmente
     const g2 = await nova("80.00", [{ idServico: null, descricao: "CHAVE CODIFICADA", quantidade: 1 }]);
