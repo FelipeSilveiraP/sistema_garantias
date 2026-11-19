@@ -172,3 +172,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-19 — Cupom sai SOZINHO na DARUMA (o cupom é o do RM)
 - Pedido do usuário: salvou a garantia, o cupom sai sem tela do RM e sem clicar em imprimir. Na janela ESCONDIDA do RM o sistema abre ÚLTIMAS VENDAS, aperta CUPOM da venda; o RM monta o cupom dele e chama `window.print()`; o sistema troca essa chamada por um aviso (o cupom do RM fica na página) e manda a página do RM para a DARUMA com `webContents.print({ silent: true })`, margens nenhuma, escala 100. Depois recarrega o PDV. A janela do RM nunca aparece (só para o login).
 - Sem DARUMA no Windows, botão do RM ausente ou falha: aviso "CUPOM EMITIDO — IMPRIMA PELO RM" (nunca emitir de novo). Regra fiscal reescrita: nunca montar cupom; imprimir só o que o RM montou.
+
+## 2026-11-19 — Correção: quem imprime é o RM + navegador; o sistema só aperta os botões
+- A 1.4.35 mandava a página do RM para a DARUMA pelo próprio sistema (impressão silenciosa). O usuário recusou: "é você que está imprimindo". Agora (`imprimirPeloRm`): na janela escondida do RM aperta CUPOM em ÚLTIMAS VENDAS; o RM chama a impressão do navegador, que abre a janela "Imprimir"; o sistema aperta IMPRIMIR nela (Enter, via WScript.Shell `AppActivate('Imprimir'|'Print')` + `SendKeys('~')`). Impressora = a padrão do Windows (deixar a DARUMA como padrão, como o próprio RM orienta).
+- Removidos `webContents.print`, `printToPDF` e a escolha de impressora do código. `teste-rm-cupom.js` falha se voltarem. Regra fiscal reescrita nos dois sistemas.

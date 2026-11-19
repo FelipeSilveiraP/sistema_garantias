@@ -9,8 +9,7 @@
 // - Os pedidos ao RM rodam DENTRO da pagina do RM (fetch na janela escondida): mesma
 //   origem, mesmo navegador, o RM ve o mesmo que veria do operador.
 const { BrowserWindow, session } = require("electron");
-const fs = require("fs");
-const path = require("path");
+const { spawn } = require("child_process");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
@@ -33,7 +32,24 @@ const FREIO_JANELA_MS = 5 * 60 * 1000;
 /** CANCELAR apertado no pop-up da automacao: nada mais e mandado ao RM. */
 class Cancelado extends ErroDefinitivo {}
 
-function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false }) {
+/**
+ * Aperta IMPRIMIR na janela de impressao do navegador (Windows: "Imprimir"/"Print"), como
+ * o operador apertaria Enter. Espera a janela aparecer por ate 20 s. true = apertou.
+ */
+function apertarImprimirNoWindows() {
+  return new Promise((resolver) => {
+    if (process.platform !== "win32") return resolver(false);
+    const script = "$w = New-Object -ComObject WScript.Shell; "
+      + "for ($i = 0; $i -lt 80; $i++) { "
+      + "if ($w.AppActivate('Imprimir') -or $w.AppActivate('Print')) { Start-Sleep -Milliseconds 400; $w.SendKeys('~'); exit 0 } "
+      + "Start-Sleep -Milliseconds 250 }; exit 1";
+    const proc = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], { windowsHide: true, stdio: "ignore" });
+    proc.on("error", () => resolver(false));
+    proc.on("exit", (codigo) => resolver(codigo === 0));
+  });
+}
+
+function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false, apertarImprimir = apertarImprimirNoWindows }) {
   let janelaRm = null;
   let autorizacao = null;
   const contexto = { companyId: null, tabelaPrecoId: null };
@@ -263,12 +279,13 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   }
 
   /**
-   * IMPRESSAO AUTOMATICA DO CUPOM DO PROPRIO RM (pedido do usuario, 2026-11-19: salvou a
-   * garantia, o cupom sai sozinho na DARUMA, sem tela do RM e sem clicar em imprimir).
-   * O sistema NAO monta o cupom: na janela ESCONDIDA do RM abre ULTIMAS VENDAS e aperta o
-   * botao CUPOM da venda (achada pelo numero "#279"); o RM monta o cupom dele e chama a
-   * impressao do navegador. Nesse momento o sistema manda ESSA pagina do RM direto para a
-   * DARUMA (sem a janela de impressao). O papel e o do RM.
+   * IMPRESSAO PELO RM + NAVEGADOR (pedido do usuario, 2026-11-19): o sistema faz o que o
+   * operador faz e NADA alem disso:
+   *   1. na janela escondida do RM, abre ULTIMAS VENDAS e aperta o botao CUPOM da venda
+   *      (achada pelo numero "#279"); o RM monta o cupom dele e abre a impressao do navegador;
+   *   2. na janela de impressao do navegador, aperta IMPRIMIR (como apertar Enter).
+   * Quem imprime e o navegador, com o cupom do RM, na impressora padrao do Windows (a DARUMA).
+   * O sistema nunca manda pagina nenhuma para a impressora por conta propria.
    */
   async function imprimirPeloRm(vendaNumero) {
     if (vendaNumero === null || vendaNumero === undefined) throw new Error("o RM não devolveu o número da venda");
@@ -276,22 +293,11 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     if (!janelaRm.webContents.getURL().startsWith(`${RM_APP}/app/pdv`)) {
       await janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
     }
-    // impressora: a DARUMA do Windows (teste: PDF da pagina do RM numa pasta)
-    let daruma = null;
-    if (!process.env.FINDESK_RM_PDF_DIR) {
-      const impressoras = await janelaRm.webContents.getPrintersAsync();
-      daruma = impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`));
-      if (!daruma) throw new Error("impressora DARUMA não encontrada no Windows");
-    }
     const abriuLista = await esperarPagina(`(() => {
       const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim().endsWith("Últimas vendas"));
       if (!b) return false;
-      // quando o RM pedir a impressao, o cupom dele fica na tela e o sistema imprime na DARUMA
       window.__garantiasImpressao = "aguardando";
-      window.print = () => {
-        window.__garantiasImpressao = "pronto";
-        throw new Error("cupom do RM sendo impresso pelo Sistema de Garantias na DARUMA");
-      };
+      window.addEventListener("afterprint", () => { window.__garantiasImpressao = "feita"; }, { once: true });
       b.click();
       return true;
     })()`, 20000);
@@ -299,27 +305,14 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     const botao = `button[aria-label^="Cupom:"][aria-label$="venda #${Number(vendaNumero)}"]`;
     const achou = await esperarPagina(`!!document.querySelector(${JSON.stringify(botao)})`, 20000);
     if (!achou) throw new Error(`a venda #${vendaNumero} não apareceu em ÚLTIMAS VENDAS`);
+    // 1. botao CUPOM do RM (o RM abre a janela de impressao do navegador)
     await perguntar(`(() => { document.querySelector(${JSON.stringify(botao)}).click(); return true; })()`);
-    const pronto = await esperarPagina(`window.__garantiasImpressao === "pronto"`, 30000);
-    try {
-      if (!pronto) throw new Error("o RM não preparou o cupom para imprimir");
-      await new Promise((r) => setTimeout(r, 500)); // logo e QR Code do RM terminam de aparecer
-      if (process.env.FINDESK_RM_PDF_DIR) {
-        const pdf = await janelaRm.webContents.printToPDF({ margins: { marginType: "none" } });
-        fs.mkdirSync(process.env.FINDESK_RM_PDF_DIR, { recursive: true });
-        fs.writeFileSync(path.join(process.env.FINDESK_RM_PDF_DIR, `cupom-rm-venda-${vendaNumero}.pdf`), pdf);
-      } else {
-        await new Promise((ok, falha) => {
-          janelaRm.webContents.print(
-            { silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" }, scaleFactor: 100 },
-            (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || "a DARUMA não imprimiu"))),
-          );
-        });
-      }
-    } finally {
-      // volta o PDV do RM ao normal (fecha a lista e o cupom)
-      if (!janelaRm.isDestroyed()) janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
-    }
+    // 2. botao IMPRIMIR da janela de impressao do navegador
+    const apertou = await apertarImprimir();
+    const feita = await esperarPagina(`window.__garantiasImpressao === "feita"`, 60000);
+    if (!janelaRm.isDestroyed()) janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    if (!apertou) throw new Error("a janela de impressão do navegador não apareceu para apertar IMPRIMIR");
+    if (!feita) throw new Error("a impressão do navegador não terminou");
   }
 
   function moeda(valor) {
@@ -429,16 +422,16 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       });
     }
     // REGRA PERMANENTE (usuario, 2026-11-19): o sistema NUNCA desenha nem imprime nota ou
-    // cupom fiscal. Aperta o botao CUPOM do proprio RM e manda o cupom DO RM para a DARUMA.
+    // cupom fiscal. Aperta o botao CUPOM do RM e o IMPRIMIR da janela do navegador.
     mudarEtapa("imprimindo");
     try {
       await imprimirPeloRm(nota.vendaNumero);
-      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom do RM da NFC-e ${nota.numero} impresso na DARUMA`);
+      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom do RM da NFC-e ${nota.numero} impresso pelo navegador`);
     } catch (erro) {
       registrarLog("WARN", `[rm] garantia ${idGarantia}: impressao pelo RM nao aconteceu: ${erro && erro.message}`);
       avisar({
         titulo: "CUPOM EMITIDO — IMPRIMA PELO RM",
-        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida pelo RM, mas o cupom não saiu na DARUMA `
+        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida pelo RM, mas o cupom não foi impresso `
           + `(${erro && erro.message}). Imprima pelo RM em ÚLTIMAS VENDAS, botão CUPOM. NÃO emita de novo.`,
         tom: "atencao",
       });
