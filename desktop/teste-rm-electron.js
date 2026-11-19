@@ -69,8 +69,14 @@ function paginaRm(portaApi) {
           const cupom = document.createElement("button");
           cupom.setAttribute("aria-label", "Cupom: item 1 — venda #279");
           cupom.textContent = "Cupom";
-          cupom.onclick = () => fetch(API + "/v1/pdv/vendas/venda-x/cupom-dados", { headers: h })
-            .then(() => setTimeout(() => window.dispatchEvent(new Event("afterprint")), 300));
+          // como o RM: pede os dados, monta o cupom DELE na pagina e chama a impressao
+          cupom.onclick = () => fetch(API + "/v1/pdv/vendas/venda-x/cupom-dados", { headers: h }).then(() => {
+            const papel = document.createElement("div");
+            papel.id = "cupom-do-rm";
+            papel.textContent = "CUPOM MONTADO PELO RM";
+            document.body.appendChild(papel);
+            setTimeout(() => { window.print(); papel.remove(); }, 0);
+          });
           document.body.appendChild(cupom);
         };
         document.body.appendChild(ultimas);
@@ -169,6 +175,8 @@ async function principal() {
   process.env.FINDESK_RM_APP = `http://127.0.0.1:${portaApp}`;
   process.env.FINDESK_RM_API = `http://127.0.0.1:${portaApi}`;
   process.env.FINDESK_RM_ESPERA_MS = "6000";
+  // no teste o cupom DO RM vira PDF em vez de ir para a DARUMA
+  process.env.FINDESK_RM_PDF_DIR = PASTA_PDF;
   const registro = [];
   const sApp = servidorApp(portaApi).listen(portaApp, "127.0.0.1");
   let sApi = servidorApi(process.env.FINDESK_RM_APP, registro).listen(portaApi, "127.0.0.1");
@@ -225,9 +233,10 @@ async function principal() {
         && venda.corpo.itens[0].valorUnitario === 120 && venda.corpo.tabelaPrecoId === "tabela-1" && venda.corpo.companyId === "empresa-1"));
     teste("impressao PELO RM: abre ULTIMAS VENDAS e aperta o CUPOM da venda #279 (o RM pede o cupom-dados)",
       await ate(() => registro.some((r) => r.caminho.endsWith("/cupom-dados")), 15000), JSON.stringify(registro.map((r) => r.caminho).slice(-4)));
-    teste("o sistema NAO desenha nem imprime nada (so janelas do RM; nenhum arquivo de cupom)",
-      !fs.existsSync(PASTA_PDF) && BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
-    teste("depois de imprimir a janela do RM se esconde de novo", await ate(() => !janelaRm().isVisible(), 10000));
+    teste("cupom DO RM impresso sozinho (no teste, PDF da pagina do RM)",
+      await ate(() => fs.existsSync(path.join(PASTA_PDF, "cupom-rm-venda-279.pdf")), 15000));
+    teste("o sistema nao monta cupom: so existe a janela do RM", BrowserWindow.getAllWindows().every((w) => w.webContents.getURL().startsWith(process.env.FINDESK_RM_APP)));
+    teste("a janela do RM NUNCA aparece (tudo por tras)", !janelaRm().isVisible());
     teste("tudo certo: nenhum pop-up de problema", avisos.length === 0, JSON.stringify(avisos));
     teste("pop-up da automacao: mostra as etapas ate a impressao",
       ["conectando", "produtos", "total", "venda", "emitindo", "emitida", "imprimindo"].every((e) => situacoes.some((x) => x.etapa === e)), JSON.stringify(situacoes.map((x) => x.etapa)));

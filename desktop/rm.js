@@ -263,11 +263,12 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   }
 
   /**
-   * IMPRESSAO PELO PROPRIO RM (regra permanente: o sistema nunca monta nem imprime cupom).
-   * Faz o que o operador faz: no PDV do RM abre ULTIMAS VENDAS e aperta o botao CUPOM da
-   * venda (achada pelo numero "#279"). E o RM que monta o cupom e abre a JANELA DE IMPRESSAO
-   * dele; a janela do RM aparece para o operador escolher a DARUMA e imprimir. Nada e
-   * impresso em silencio.
+   * IMPRESSAO AUTOMATICA DO CUPOM DO PROPRIO RM (pedido do usuario, 2026-11-19: salvou a
+   * garantia, o cupom sai sozinho na DARUMA, sem tela do RM e sem clicar em imprimir).
+   * O sistema NAO monta o cupom: na janela ESCONDIDA do RM abre ULTIMAS VENDAS e aperta o
+   * botao CUPOM da venda (achada pelo numero "#279"); o RM monta o cupom dele e chama a
+   * impressao do navegador. Nesse momento o sistema manda ESSA pagina do RM direto para a
+   * DARUMA (sem a janela de impressao). O papel e o do RM.
    */
   async function imprimirPeloRm(vendaNumero) {
     if (vendaNumero === null || vendaNumero === undefined) throw new Error("o RM não devolveu o número da venda");
@@ -275,11 +276,22 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     if (!janelaRm.webContents.getURL().startsWith(`${RM_APP}/app/pdv`)) {
       await janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
     }
+    // impressora: a DARUMA do Windows (teste: PDF da pagina do RM numa pasta)
+    let daruma = null;
+    if (!process.env.FINDESK_RM_PDF_DIR) {
+      const impressoras = await janelaRm.webContents.getPrintersAsync();
+      daruma = impressoras.find((p) => /daruma/i.test(`${p.name} ${p.displayName || ""}`));
+      if (!daruma) throw new Error("impressora DARUMA não encontrada no Windows");
+    }
     const abriuLista = await esperarPagina(`(() => {
       const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim().endsWith("Últimas vendas"));
       if (!b) return false;
+      // quando o RM pedir a impressao, o cupom dele fica na tela e o sistema imprime na DARUMA
       window.__garantiasImpressao = "aguardando";
-      window.addEventListener("afterprint", () => { window.__garantiasImpressao = "feita"; }, { once: true });
+      window.print = () => {
+        window.__garantiasImpressao = "pronto";
+        throw new Error("cupom do RM sendo impresso pelo Sistema de Garantias na DARUMA");
+      };
       b.click();
       return true;
     })()`, 20000);
@@ -287,18 +299,27 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     const botao = `button[aria-label^="Cupom:"][aria-label$="venda #${Number(vendaNumero)}"]`;
     const achou = await esperarPagina(`!!document.querySelector(${JSON.stringify(botao)})`, 20000);
     if (!achou) throw new Error(`a venda #${vendaNumero} não apareceu em ÚLTIMAS VENDAS`);
-    // a janela de impressao do RM aparece na frente, como no Chrome
-    janelaRm.show();
-    janelaRm.focus();
     await perguntar(`(() => { document.querySelector(${JSON.stringify(botao)}).click(); return true; })()`);
-    // espera a pessoa imprimir (ou fechar a janela de impressao), ate 5 minutos
-    const feita = await esperarPagina(`window.__garantiasImpressao === "feita"`, 5 * 60 * 1000);
-    if (!janelaRm.isDestroyed()) {
-      janelaRm.hide();
-      // volta o PDV do RM ao normal (fecha a lista)
-      janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
+    const pronto = await esperarPagina(`window.__garantiasImpressao === "pronto"`, 30000);
+    try {
+      if (!pronto) throw new Error("o RM não preparou o cupom para imprimir");
+      await new Promise((r) => setTimeout(r, 500)); // logo e QR Code do RM terminam de aparecer
+      if (process.env.FINDESK_RM_PDF_DIR) {
+        const pdf = await janelaRm.webContents.printToPDF({ margins: { marginType: "none" } });
+        fs.mkdirSync(process.env.FINDESK_RM_PDF_DIR, { recursive: true });
+        fs.writeFileSync(path.join(process.env.FINDESK_RM_PDF_DIR, `cupom-rm-venda-${vendaNumero}.pdf`), pdf);
+      } else {
+        await new Promise((ok, falha) => {
+          janelaRm.webContents.print(
+            { silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" }, scaleFactor: 100 },
+            (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || "a DARUMA não imprimiu"))),
+          );
+        });
+      }
+    } finally {
+      // volta o PDV do RM ao normal (fecha a lista e o cupom)
+      if (!janelaRm.isDestroyed()) janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {});
     }
-    if (!feita) throw new Error("a janela de impressão do RM não foi fechada em 5 minutos");
   }
 
   function moeda(valor) {
@@ -408,16 +429,16 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       });
     }
     // REGRA PERMANENTE (usuario, 2026-11-19): o sistema NUNCA desenha nem imprime nota ou
-    // cupom fiscal. So aperta o botao CUPOM do proprio RM; o cupom e a impressao sao do RM.
+    // cupom fiscal. Aperta o botao CUPOM do proprio RM e manda o cupom DO RM para a DARUMA.
     mudarEtapa("imprimindo");
     try {
       await imprimirPeloRm(nota.vendaNumero);
-      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom da NFC-e ${nota.numero} mandado imprimir pelo RM`);
+      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom do RM da NFC-e ${nota.numero} impresso na DARUMA`);
     } catch (erro) {
       registrarLog("WARN", `[rm] garantia ${idGarantia}: impressao pelo RM nao aconteceu: ${erro && erro.message}`);
       avisar({
         titulo: "CUPOM EMITIDO — IMPRIMA PELO RM",
-        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida pelo RM, mas a impressão não abriu `
+        mensagem: `A NFC-e nº ${nota.numero} da garantia nº ${idGarantia} foi emitida pelo RM, mas o cupom não saiu na DARUMA `
           + `(${erro && erro.message}). Imprima pelo RM em ÚLTIMAS VENDAS, botão CUPOM. NÃO emita de novo.`,
         tom: "atencao",
       });

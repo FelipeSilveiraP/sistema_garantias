@@ -11,7 +11,7 @@ const ETAPAS: [string, string][] = [
   ["total", "Conferindo o total"],
   ["venda", "Criando a venda em dinheiro"],
   ["emitindo", "Emitindo a NFC-e no RM"],
-  ["imprimindo", "Imprimindo pelo RM (na janela do RM: escolha a DARUMA e clique IMPRIMIR)"],
+  ["imprimindo", "Imprimindo o cupom do RM na DARUMA"],
 ];
 
 let atual: SituacaoCupom | null = null;
