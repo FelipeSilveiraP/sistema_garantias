@@ -422,6 +422,24 @@ async function executar() {
   teste("ATUALIZAR PREÇOS lista a tabela", await esperarPredicado("Number(document.body.dataset.precosCarregados) >= 11"));
   await esperar(300);
   teste("ATUALIZAR PREÇOS: altura de 5 linhas e rolagem por dentro", await js("(() => { const caixa = document.getElementById('corpoPrecos').closest('.tabela-rolagem'); return !!caixa && caixa.scrollHeight > caixa.clientHeight && !document.querySelector('[data-expandir-tabela]'); })()"));
+  // bug da loja (2026-11-19): digitar varias linhas e salvar uma apagava as outras
+  const linhaP = (nome) => `[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.cells[0].textContent === '${nome}')`;
+  for (const [nome, v] of [["TROCA BOLACHA", "71,00"], ["TROCA CARCAÇA", "72,00"]]) {
+    await js(`(() => { const i = (${linhaP(nome)}).querySelector('input'); i.value = '${v}'; i.dispatchEvent(new Event('input')); })()`);
+  }
+  teste("Atualizar preços: digitar o preço liga o SALVAR de cada linha", await js(`[${linhaP("TROCA BOLACHA")}, ${linhaP("TROCA CARCAÇA")}].every(tr => !tr.querySelector('button').disabled)`));
+  await js(`(${linhaP("TROCA BOLACHA")}).querySelector('button').click()`);
+  await esperarPredicado(`(${linhaP("TROCA BOLACHA")}).querySelector('button').disabled`, 5000);
+  teste("Atualizar preços: salvar uma linha NÃO apaga o que foi digitado nas outras", await js(`(() => { const c = ${linhaP("TROCA CARCAÇA")};
+    return c.querySelector('input').value === '72,00' && !c.querySelector('button').disabled && (${linhaP("TROCA BOLACHA")}).querySelector('input').value === '71,00'; })()`),
+    await js(`(${linhaP("TROCA CARCAÇA")}).querySelector('input').value`));
+  await js(`(${linhaP("TROCA CARCAÇA")}).querySelector('button').click()`);
+  teste("Atualizar preços: depois salva a outra (as duas gravadas)", await esperarPredicado(`(async () => { const cfg = await window.finDesk.config();
+    const r = await fetch('http://127.0.0.1:' + cfg.port + '/api/servicos', { headers: { 'X-FinDesk-Token': cfg.token } }); const l = await r.json();
+    return l.find(x => x.nome === 'TROCA BOLACHA').preco === 71 && l.find(x => x.nome === 'TROCA CARCAÇA').preco === 72; })()`, 5000));
+  await js(`(() => { const i = (${linhaP("TROCA GAIOLA")}).querySelectorAll('input')[2]; i.value = 'gaiola'; i.dispatchEvent(new Event('input')); })()`);
+  teste("Atualizar preços: mudar só o NOME NO RM também liga o SALVAR", await js(`!(${linhaP("TROCA GAIOLA")}).querySelector('button').disabled`));
+  await js(`(() => { const i = (${linhaP("TROCA GAIOLA")}).querySelectorAll('input')[2]; i.value = 'GAIOLA'; })()`);
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); i.id = 'preco-gaiola'; })()`);
   await enter("#preco-gaiola");

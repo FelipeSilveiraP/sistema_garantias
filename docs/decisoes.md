@@ -131,3 +131,6 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - Na loja o programa não reabria após atualizar. Causas possíveis: (1) o jeito padrão do NSIS abre pelo atalho do Menu Iniciar via Explorer (`ExecShellAsUser`), que pode falhar calado; (2) o programa novo abria enquanto o antigo ainda fechava e, sem a "instância única", fechava sozinho.
 - Agora: `instalador.nsh` (customInstall, só em atualização) abre o exe DIRETO com `--reabrir-depois-da-atualizacao`; com essa marca o programa tenta a instância única a cada 0,5 s por até 40 s em vez de desistir (`desktop/main.js`). Se o atalho também abrir, um dos dois fica e o outro sai quieto.
 - Ensaio do GitHub: além do processo, exige a JANELA aberta e ainda aberta 15 s depois.
+
+## 2026-11-19 — Atualizar preços: salvar uma linha não apaga as outras
+- Antes o SALVAR de uma linha recarregava a tabela inteira e apagava o que estava digitado (e não salvo) nas outras. Agora troca só a linha salva (com o que o servidor devolveu). Mudar só o NOME NO RM também liga o SALVAR. O REAJUSTE geral avisa quantas linhas digitadas e não salvas vai descartar.
