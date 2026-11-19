@@ -78,10 +78,11 @@ public class CupomRepository {
     }
 
     public boolean registrarEmitido(long idGarantia, String nfce, String chave, String quando) throws SQLException {
-        String sql = "UPDATE garantias SET cupom_status = 'LANCADO', cupom_lancado_em = ?, cupom_nfce = ?, cupom_chave = ?"
-                + " WHERE id_garantia = ?";
         return conexao.emTransacao(conn -> {
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            // SQL fixo escrito aqui mesmo (o SpotBugs nao segue a variavel para dentro do lambda)
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE garantias SET cupom_status = 'LANCADO', cupom_lancado_em = ?, cupom_nfce = ?, cupom_chave = ?"
+                    + " WHERE id_garantia = ?")) {
                 stmt.setString(1, quando);
                 stmt.setString(2, nfce);
                 stmt.setString(3, chave);
