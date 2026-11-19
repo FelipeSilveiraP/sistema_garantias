@@ -128,3 +128,20 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - `frontend/ts/dicas.ts` (igual ao Contas a Pagar): todo botão/link ganha a dica do Windows (`title`); as telas principais têm explicação no main.ts.
 - `tabela-recolhivel.ts` (do Contas a Pagar): Todos os técnicos/veículos/produtos, Atualizar preços, usuários e históricos de acesso mostram 5 linhas + EXPANDIR TABELA (Pesquisar garantia já tinha).
 - v8 (main): `servicos.nome_rm` + correlação com os produtos do RM. Editável em Cadastrar produto, Todos os produtos e Atualizar preços (o CÓDIGO NO CUPOM continua). O ramo cupom-rm passa a usar a v9 para as colunas do cupom.
+
+## 2026-11-18 — Tabelas com rolagem por dentro, pop-ups grandes e rolagem automática (2 sistemas)
+- Tabelas: sem o botão EXPANDIR TABELA. Altura fixa de 5 linhas e rolagem DENTRO da tabela, cabeçalho parado no topo (`tabela-recolhivel.ts`, `.tabela-rolagem`; igual nos dois sistemas). Todas as linhas ficam na página (pesquisa, totais e impressão valem para todas).
+- Pop-ups: todos maiores. Confirmações, exclusões e alertas de risco no MEIO da tela; avisos de "deu certo" (notificações) GRANDES no canto INFERIOR DIREITO (substitui a decisão de 2026-11-16 de tudo no meio).
+- `rolagem.ts` (igual nos dois): clicar num registro leva a tela até "Alterar um campo" (não à nota fiscal); abrir uma caixa de seleção perto do pé da tela sobe a tela para a lista aparecer inteira.
+- `docs/analise-banco.md`: tabelas e colunas usadas e mortas dos dois sistemas; nada apagado sem aprovação.
+
+## 2026-11-19 — Correção da rolagem das caixas de seleção
+- O `<body>` (altura 100%) é quem rola nas telas, não a janela. A versão anterior punha um marcador na JANELA: criava uma 2ª rolagem por fora, empurrava a tela e deixava faixa branca embaixo (Cadastrar Garantia, MODELO e PRODUTO). Agora `rolagem.ts` rola só a área que já rola e, no fim da página, põe o espaço extra DENTRO dela (some ao sair do campo). Smoke do Garantias reproduz as fotos do usuário.
+
+## 2026-11-19 — Programa reabre sozinho depois da atualização
+- Na loja o programa não reabria após atualizar. Causas possíveis: (1) o jeito padrão do NSIS abre pelo atalho do Menu Iniciar via Explorer (`ExecShellAsUser`), que pode falhar calado; (2) o programa novo abria enquanto o antigo ainda fechava e, sem a "instância única", fechava sozinho.
+- Agora: `instalador.nsh` (customInstall, só em atualização) abre o exe DIRETO com `--reabrir-depois-da-atualizacao`; com essa marca o programa tenta a instância única a cada 0,5 s por até 40 s em vez de desistir (`desktop/main.js`). Se o atalho também abrir, um dos dois fica e o outro sai quieto.
+- Ensaio do GitHub: além do processo, exige a JANELA aberta e ainda aberta 15 s depois.
+
+## 2026-11-19 — Atualizar preços: salvar uma linha não apaga as outras
+- Antes o SALVAR de uma linha recarregava a tabela inteira e apagava o que estava digitado (e não salvo) nas outras. Agora troca só a linha salva (com o que o servidor devolveu). Mudar só o NOME NO RM também liga o SALVAR. O REAJUSTE geral avisa quantas linhas digitadas e não salvas vai descartar.

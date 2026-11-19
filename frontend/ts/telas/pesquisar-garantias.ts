@@ -26,6 +26,7 @@ import { montarNavbar } from "../navbar";
 import { formatarCPF, formatarDataBR, formatarMoedaBR, parseDataBR } from "../mascaras";
 import { correspondeBusca, hojeIso } from "../filtros";
 import { criarAvatar } from "../perfil";
+import { recolherTabela } from "../tabela-recolhivel";
 
 type Filtro = "MES" | "ANO" | "TODOS" | "SEMCUPOM";
 
@@ -111,20 +112,13 @@ function cadastradaPor(g: GarantiaDados): HTMLTableCellElement {
   return c;
 }
 
-/** Tabela recolhida (pedido do usuario, 2026-11-16): so as 5 garantias mais recentes; o botao
- * EXPANDIR TABELA mostra todas (a pesquisa e os filtros continuam valendo para todas). */
-const LINHAS_RECOLHIDA = 5;
-let tabelaExpandida = false;
+/** Tabela com altura de 5 garantias e rolagem por dentro (tabela-recolhivel.ts). */
 
 function renderTabela(): void {
   const corpo = el("tableBody");
   corpo.replaceChildren();
   const lista = filtradas();
-  const visiveis = tabelaExpandida ? lista : lista.slice(0, LINHAS_RECOLHIDA);
-  // a garantia aberta na edicao continua visivel mesmo se, depois da alteracao, sair das 5 primeiras
-  const aberta = lista.find((g) => g.id === selecionadoId);
-  if (aberta && !visiveis.includes(aberta)) visiveis.push(aberta);
-  for (const g of visiveis) {
+  for (const g of lista) {
     const tr = document.createElement("tr");
     tr.className = "linha-garantia cursor-pointer transition-colors hover:bg-[#fff9d6]";
     tr.dataset.id = String(g.id);
@@ -158,22 +152,8 @@ function renderTabela(): void {
     corpo.appendChild(tr);
   }
   const total = lista.reduce((s, g) => s + centavos(g), 0);
-  const escondidas = lista.length - visiveis.length;
-  el("contador").textContent = escondidas > 0
-    ? `Mostrando ${visiveis.length} de ${lista.length} garantia(s) · ${formatarMoedaBR(total)}`
-    : `${lista.length} garantia(s) · ${formatarMoedaBR(total)}`;
-  const botao = el<HTMLButtonElement>("btnExpandirTabela");
-  botao.classList.toggle("hidden", lista.length <= LINHAS_RECOLHIDA);
-  botao.setAttribute("aria-expanded", String(tabelaExpandida));
-  botao.replaceChildren();
-  const icone = document.createElement("span");
-  icone.className = "material-symbols-outlined text-xl font-bold";
-  icone.setAttribute("aria-hidden", "true");
-  icone.textContent = tabelaExpandida ? "keyboard_arrow_up" : "keyboard_arrow_down";
-  const rotulo = document.createElement("span");
-  rotulo.textContent = tabelaExpandida ? "RECOLHER TABELA" : `EXPANDIR TABELA (MAIS ${escondidas})`;
-  botao.append(icone, rotulo);
-  document.body.dataset.linhasVisiveis = String(visiveis.length);
+  el("contador").textContent = `${lista.length} garantia(s) · ${formatarMoedaBR(total)}`;
+  recolherTabela("garantias", corpo, undefined, selecionadoId);
   el("selectionEmptyState").classList.toggle("hidden", selecionadoId !== null);
 }
 
@@ -477,10 +457,6 @@ function iniciar(): void {
   editor = montarEditor();
   el("btnClearSelection").addEventListener("click", fecharEdicao);
   el("btnApplyChange").addEventListener("click", () => void aplicarAlteracao());
-  el("btnExpandirTabela").addEventListener("click", () => {
-    tabelaExpandida = !tabelaExpandida;
-    renderTabela();
-  });
   el("btnExcluir").addEventListener("click", () => void excluir());
   el("btnCupomLancado").addEventListener("click", () => void cupom("LANCADO"));
   el("btnCupomDispensado").addEventListener("click", () => void cupom("DISPENSADO"));

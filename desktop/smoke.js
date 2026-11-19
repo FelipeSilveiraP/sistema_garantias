@@ -244,8 +244,29 @@ async function executar() {
   teste("Enter no pop-up GARANTIA SALVA = OK (fecha)", await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário limpo também limpa o modelo digitado", await js("document.getElementById('modelo_busca').value === '' && document.getElementById('modelo').value === ''"));
-  teste("Avisos curtos (notificações) aparecem no meio da tela", await js(`(() => { const d = document.createElement('div'); d.className = 'notificacoes'; d.style.width = '200px'; d.style.height = '40px'; document.body.appendChild(d);
-    const r = d.getBoundingClientRect(); d.remove(); return Math.abs(r.left + r.width / 2 - innerWidth / 2) < 4 && Math.abs(r.top + r.height / 2 - innerHeight / 2) < 4; })()`));
+  // caixas MODELO e PRODUTO abertas perto do pe da tela (fotos do usuario, 2026-11-19): a area
+  // do formulario sobe, a lista aparece inteira, nada de segunda rolagem nem tela branca
+  for (const [nome, seletor] of [["MODELO", "#modelo_busca"], ["PRODUTO", ".produto-busca .caixa-busca__campo"]]) {
+    await js("document.activeElement && document.activeElement.blur()");
+    await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); const rol = document.body;
+      rol.scrollTop += c.getBoundingClientRect().bottom - innerHeight + 30; })()`);
+    await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); c.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); c.focus(); })()`);
+    await esperar(250);
+    const v = await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); const lista = c.closest('.caixa-busca').querySelector('.caixa-busca__lista');
+      const l = lista.getBoundingClientRect(); const rc = c.getBoundingClientRect(); const html = document.documentElement;
+      return { listaAberta: !lista.classList.contains('hidden'), listaInteira: l.bottom <= innerHeight + 1, campoVisivel: rc.top >= 0,
+        semRolagemDeFora: html.scrollTop === 0 && html.scrollHeight <= innerHeight + 1 }; })()`);
+    teste(`Caixa ${nome} perto do pé da tela: a tela sobe, a lista aparece inteira e não surge rolagem de fora`,
+      v.listaAberta && v.listaInteira && v.campoVisivel && v.semRolagemDeFora, JSON.stringify(v));
+    if (nome === "PRODUTO") await capturar("cadastrar-garantia-produto-aberto-1366x820");
+    await js("document.activeElement && document.activeElement.blur()");
+    await esperar(150);
+    teste(`Caixa ${nome}: ao sair do campo o espaço extra some e dá para subir até o topo`, await js(`(() => {
+      document.body.scrollTop = 0; const h = document.querySelector('h1').getBoundingClientRect();
+      return !document.getElementById('espaco-lista-aberta') && h.top >= 0 && h.top < 300 && document.documentElement.scrollTop === 0; })()`));
+  }
+  teste("Avisos curtos (notificações) aparecem grandes no canto inferior direito", await js(`(() => { const d = document.createElement('div'); d.className = 'notificacoes'; d.style.height = '60px'; document.body.appendChild(d);
+    const r = d.getBoundingClientRect(); d.remove(); return r.right > innerWidth - 40 && r.bottom > innerHeight - 40 && r.width >= 400; })()`));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
   await js(`(() => { const c = document.querySelectorAll('#produtos .produto-caixa'); const s = c[c.length - 1]; s.value = [...s.options].find(o => o.textContent === 'TROCA CARCAÇA').value; s.dispatchEvent(new Event('change')); })()`);
   await js("document.querySelector('#produtos .produto-mais').click()");
@@ -334,19 +355,19 @@ async function executar() {
   await ir("pesquisar-garantias");
   await esperarPredicado("document.body.dataset.garantiasCarregadas !== undefined");
   await js("document.querySelector('[data-filter=TODOS]').click()");
-  teste("Pesquisa mostra só 5 garantias com a tabela recolhida",
-    await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 5", 4000), await js("document.querySelectorAll('#tableBody tr.linha-garantia').length"));
-  teste("Botão EXPANDIR TABELA com a flecha para baixo aparece embaixo da tabela",
-    await js("(() => { const b = document.getElementById('btnExpandirTabela'); return !b.classList.contains('hidden') && b.textContent.includes('EXPANDIR TABELA') && b.textContent.includes('keyboard_arrow_down') && b.getBoundingClientRect().top >= document.getElementById('tabela').getBoundingClientRect().bottom; })()"));
-  teste("Contador avisa quantas aparecem de quantas", (await texto("#contador")).startsWith("Mostrando 5 de "), await texto("#contador"));
-  await capturar("pesquisar-garantias-recolhida-1366x820");
-  await js("document.getElementById('btnExpandirTabela').click()");
-  teste("EXPANDIR TABELA mostra todas as garantias", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length >= 8", 3000));
-  teste("Depois de expandir o botão vira RECOLHER TABELA (flecha para cima)", (await texto("#btnExpandirTabela")).includes("RECOLHER TABELA") && (await texto("#btnExpandirTabela")).includes("keyboard_arrow_up"));
-  await js("document.getElementById('btnExpandirTabela').click()");
-  teste("RECOLHER TABELA volta a mostrar só 5", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 5", 3000));
+  // altura de 5 linhas com rolagem por dentro (sem botao EXPANDIR TABELA)
+  const rolagem = `(() => { const corpo = document.getElementById('tableBody'); const caixa = corpo.closest('.tabela-rolagem'); if (!caixa) return null;
+    const c = caixa.getBoundingClientRect(); const cab = corpo.closest('table').tHead.getBoundingClientRect().height; const linhas = [...corpo.querySelectorAll('tr.linha-garantia')];
+    return { total: linhas.length, dentro: linhas.filter(tr => { const r = tr.getBoundingClientRect(); return r.top >= c.top + cab - 1 && r.bottom <= c.bottom + 1; }).length,
+      rola: caixa.scrollHeight > caixa.clientHeight, botao: !!document.getElementById('btnExpandirTabela') }; })()`;
+  await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length >= 8", 4000);
+  await esperar(300);
+  const rg = await js(rolagem);
+  teste("Pesquisar: todas as garantias na tabela, altura de 5 e rolagem por dentro (sem EXPANDIR)",
+    !!rg && rg.total >= 8 && rg.dentro === 5 && rg.rola && !rg.botao, JSON.stringify(rg));
+  await capturar("pesquisar-garantias-rolagem-1366x820");
   await js("(() => { const i = document.getElementById('searchInput'); i.value = 'EXP1A21'; i.dispatchEvent(new Event('input')); })()");
-  teste("A pesquisa procura em TODAS (não só nas 5 visíveis)", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 1 && document.getElementById('btnExpandirTabela').classList.contains('hidden')", 3000));
+  teste("A pesquisa procura em TODAS (não só nas 5 visíveis)", await esperarPredicado("document.querySelectorAll('#tableBody tr.linha-garantia').length === 1", 3000));
   await js("(() => { const i = document.getElementById('searchInput'); i.value = ''; i.dispatchEvent(new Event('input')); })()");
   await js(`(async () => { const cfg = await window.finDesk.config();
     for (const id of ${JSON.stringify(ids)}) await fetch('http://127.0.0.1:' + cfg.port + '/api/garantias/' + id, { method: 'DELETE', headers: { 'X-FinDesk-Token': cfg.token } }); })()`);
@@ -365,11 +386,11 @@ async function executar() {
   await ir("todos-produtos");
   await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
   teste("Todos os produtos: colunas CÓDIGO NO CUPOM e NOME NO RM (CUPOM)", await js("(() => { const th = [...document.querySelectorAll('#tabela thead th')].map(t => t.textContent); return th.includes('CÓDIGO NO CUPOM') && th.includes('NOME NO RM (CUPOM)'); })()"));
-  teste("Todos os produtos: tabela mostra só as 5 primeiras + EXPANDIR TABELA", await js(`(() => { const vis = [...document.querySelectorAll('#tableBody tr')].filter(t => !t.classList.contains('hidden')).length;
-    const b = document.querySelector('[data-expandir-tabela=cadastros]'); return vis === 5 && !!b && b.offsetParent !== null && b.textContent.includes('EXPANDIR TABELA'); })()`));
-  await js("document.querySelector('[data-expandir-tabela=cadastros]').click()");
-  teste("Todos os produtos: EXPANDIR mostra todos e TROCA CARCAÇA = CARCAÇA CANIVETE no RM", await js(`(() => { const linhas = [...document.querySelectorAll('#tableBody tr')];
-    const t = linhas.find(l => l.textContent.includes('TROCA CARCAÇA')); return linhas.every(l => !l.classList.contains('hidden')) && !!t && t.textContent.includes('CARCAÇA CANIVETE'); })()`));
+  await esperar(300);
+  teste("Todos os produtos: altura de 5 linhas e rolagem por dentro (sem EXPANDIR)", await js(`(() => { const caixa = document.querySelector('#tableBody').closest('.tabela-rolagem');
+    return !!caixa && caixa.scrollHeight > caixa.clientHeight && !document.querySelector('[data-expandir-tabela]'); })()`));
+  teste("Todos os produtos: TROCA CARCAÇA = CARCAÇA CANIVETE no RM", await js(`(() => { const linhas = [...document.querySelectorAll('#tableBody tr')];
+    const t = linhas.find(l => l.textContent.includes('TROCA CARCAÇA')); return !!t && t.textContent.includes('CARCAÇA CANIVETE'); })()`));
   await js("[...document.querySelectorAll('#tableBody tr')].find(l => l.textContent.includes('TROCA CILINDRO')).click()");
   await js("(() => { const s = document.getElementById('fieldSelect'); s.value = 'nomeRm'; s.dispatchEvent(new Event('change')); const i = document.getElementById('newValueInput'); i.value = 'cilindro ignicao'; document.getElementById('btnApplyChange').click(); })()");
   teste("Todos os produtos: editar o NOME NO RM grava em maiúsculas", await esperarPredicado("[...document.querySelectorAll('#tableBody tr')].some(l => l.textContent.includes('TROCA CILINDRO') && l.textContent.includes('CILINDRO IGNICAO'))", 5000));
@@ -399,8 +420,26 @@ async function executar() {
   await capturar("graficos-1366x820");
   await ir("atualizar-precos");
   teste("ATUALIZAR PREÇOS lista a tabela", await esperarPredicado("Number(document.body.dataset.precosCarregados) >= 11"));
-  teste("ATUALIZAR PREÇOS: só 5 linhas + EXPANDIR TABELA", await js("[...document.querySelectorAll('#corpoPrecos tr')].filter(t => !t.classList.contains('hidden')).length === 5 && !!document.querySelector('[data-expandir-tabela=precos]')"));
-  await js("document.querySelector('[data-expandir-tabela=precos]').click()");
+  await esperar(300);
+  teste("ATUALIZAR PREÇOS: altura de 5 linhas e rolagem por dentro", await js("(() => { const caixa = document.getElementById('corpoPrecos').closest('.tabela-rolagem'); return !!caixa && caixa.scrollHeight > caixa.clientHeight && !document.querySelector('[data-expandir-tabela]'); })()"));
+  // bug da loja (2026-11-19): digitar varias linhas e salvar uma apagava as outras
+  const linhaP = (nome) => `[...document.querySelectorAll('#corpoPrecos tr')].find(t => t.cells[0].textContent === '${nome}')`;
+  for (const [nome, v] of [["TROCA BOLACHA", "71,00"], ["TROCA CARCAÇA", "72,00"]]) {
+    await js(`(() => { const i = (${linhaP(nome)}).querySelector('input'); i.value = '${v}'; i.dispatchEvent(new Event('input')); })()`);
+  }
+  teste("Atualizar preços: digitar o preço liga o SALVAR de cada linha", await js(`[${linhaP("TROCA BOLACHA")}, ${linhaP("TROCA CARCAÇA")}].every(tr => !tr.querySelector('button').disabled)`));
+  await js(`(${linhaP("TROCA BOLACHA")}).querySelector('button').click()`);
+  await esperarPredicado(`(${linhaP("TROCA BOLACHA")}).querySelector('button').disabled`, 5000);
+  teste("Atualizar preços: salvar uma linha NÃO apaga o que foi digitado nas outras", await js(`(() => { const c = ${linhaP("TROCA CARCAÇA")};
+    return c.querySelector('input').value === '72,00' && !c.querySelector('button').disabled && (${linhaP("TROCA BOLACHA")}).querySelector('input').value === '71,00'; })()`),
+    await js(`(${linhaP("TROCA CARCAÇA")}).querySelector('input').value`));
+  await js(`(${linhaP("TROCA CARCAÇA")}).querySelector('button').click()`);
+  teste("Atualizar preços: depois salva a outra (as duas gravadas)", await esperarPredicado(`(async () => { const cfg = await window.finDesk.config();
+    const r = await fetch('http://127.0.0.1:' + cfg.port + '/api/servicos', { headers: { 'X-FinDesk-Token': cfg.token } }); const l = await r.json();
+    return l.find(x => x.nome === 'TROCA BOLACHA').preco === 71 && l.find(x => x.nome === 'TROCA CARCAÇA').preco === 72; })()`, 5000));
+  await js(`(() => { const i = (${linhaP("TROCA GAIOLA")}).querySelectorAll('input')[2]; i.value = 'gaiola'; i.dispatchEvent(new Event('input')); })()`);
+  teste("Atualizar preços: mudar só o NOME NO RM também liga o SALVAR", await js(`!(${linhaP("TROCA GAIOLA")}).querySelector('button').disabled`));
+  await js(`(() => { const i = (${linhaP("TROCA GAIOLA")}).querySelectorAll('input')[2]; i.value = 'GAIOLA'; })()`);
   await js(`(() => { const tr = [...document.querySelectorAll('#corpoPrecos tr')].find(t => t.textContent.includes('TROCA GAIOLA'));
     const i = tr.querySelector('input'); i.value = '85,00'; i.dispatchEvent(new Event('input')); i.id = 'preco-gaiola'; })()`);
   await enter("#preco-gaiola");

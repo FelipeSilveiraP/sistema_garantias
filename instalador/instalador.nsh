@@ -7,6 +7,11 @@
 
 !macro customInstall
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Garantias - Chaveiro Universal"
+  ; ATUALIZACAO: abre o programa direto, sem depender do atalho do Menu Iniciar (o jeito
+  ; padrao, pelo Explorer, as vezes nao abria nada). O programa espera o antigo fechar.
+  ${if} ${isUpdated}
+    Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" --reabrir-depois-da-atualizacao'
+  ${endIf}
 !macroend
 
 !macro customUnInstall

@@ -97,6 +97,7 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   };
   preco.addEventListener("input", mudou);
   codigo.addEventListener("input", mudou);
+  nomeRm.addEventListener("input", mudou);
   ativo.addEventListener("change", mudou);
   salvar.addEventListener("click", () => {
     void (async () => {
@@ -106,9 +107,11 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
         return;
       }
       try {
-        await salvarServico(await window.finDesk!.config(), { ...s, preco: p, codigoCupom: codigo.value.trim() || null, nomeRm: nomeRm.value.trim() || null, ativo: ativo.checked });
+        const salvo = await salvarServico(await window.finDesk!.config(), { ...s, preco: p, codigoCupom: codigo.value.trim() || null, nomeRm: nomeRm.value.trim() || null, ativo: ativo.checked });
         notificar(`${s.nome}: preço salvo.`);
-        await carregarPrecos();
+        // troca SO esta linha: as outras continuam com o que ja foi digitado e ainda nao salvo
+        // (antes a tabela inteira era recarregada e apagava os valores das outras linhas)
+        tr.replaceWith(linhaServico(salvo));
       } catch (erro) {
         notificar(primeiroErro(erro, "Não foi possível salvar. Tente de novo."), "erro");
       }
@@ -116,6 +119,11 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   });
   tr.append(nome, tipo, precoTd, codigoTd, nomeRmTd, ativoTd, acaoTd);
   return tr;
+}
+
+/** Linhas com algo digitado e ainda nao salvo (o SALVAR delas esta ligado). */
+function naoSalvas(): number {
+  return [...document.querySelectorAll<HTMLButtonElement>("#corpoPrecos button")].filter((b) => b.textContent === "SALVAR" && !b.disabled).length;
 }
 
 async function carregarPrecos(): Promise<void> {
@@ -140,7 +148,8 @@ async function reajustar(): Promise<void> {
     titulo: "REAJUSTAR PREÇOS?",
     mensagem: `Todos os preços ativos${pecas ? "" : " (menos as peças)"} vão ${percentual > 0 ? "subir" : "baixar"} `
       + `${emReais ? formatarMoedaBR(Math.round(Math.abs(percentual) * 100)) : `${Math.abs(percentual)}%`}`
-      + `${emReais && percentual < 0 ? " (nenhum fica abaixo de R$ 0,00)" : ""}. A mudança fica registrada na auditoria.`,
+      + `${emReais && percentual < 0 ? " (nenhum fica abaixo de R$ 0,00)" : ""}. A mudança fica registrada na auditoria.`
+      + (naoSalvas() ? ` ATENÇÃO: ${naoSalvas()} linha(s) com valores digitados e ainda NÃO salvos serão descartadas.` : ""),
     textoConfirmar: "REAJUSTAR",
     tom: "atencao",
   });
