@@ -149,6 +149,27 @@ function rmFalso(opcoes = {}) {
     assert.strictEqual(escolherImpressora([{ name: "Daruma DR700" }], "Microsoft Print to PDF"), null);
   });
 
+  await caso("modo quiosque imprime como o Chrome: folha DA IMPRESSORA (bobina), sem margens, escala 100, sem fundo", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const { opcoesImpressaoCupom, estadoImpressao } = require("./impressora-navegador");
+    const o = opcoesImpressaoCupom("Daruma DR700");
+    assert.strictEqual(o.silent, true);
+    assert.strictEqual(o.deviceName, "Daruma DR700");
+    // sem isto o Electron imprime em A4 e o cupom do RM sai com outro formato na termica
+    assert.strictEqual(o.usePrinterDefaultPageSize, true);
+    assert.ok(!("pageSize" in o), "nunca forcar tamanho de pagina: o cupom do RM usa a folha do driver");
+    assert.ok(!("dpi" in o), "DPI = o da impressora (igual ao Chrome)");
+    assert.deepStrictEqual(o.margins, { marginType: "none" });
+    assert.strictEqual(o.scaleFactor, 100);
+    // mesmas escolhas da janela de impressao do Chrome (estadoImpressao)
+    const chrome = estadoImpressao("Daruma DR700");
+    assert.strictEqual(o.printBackground, chrome.isCssBackgroundEnabled);
+    assert.strictEqual(String(o.scaleFactor), chrome.scaling);
+    const rmJs = fs.readFileSync(path.join(__dirname, "rm.js"), "utf8");
+    assert.ok(/webContents\.print\(\s*opcoesImpressaoCupom\(/.test(rmJs), "rm.js usa as opcoes do Chrome");
+  });
+
   await caso("o sistema NUNCA desenha nem imprime cupom (regra permanente): so manda a requisicao ao RM", () => {
     const fs = require("fs");
     const path = require("path");

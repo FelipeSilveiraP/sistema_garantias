@@ -11,7 +11,7 @@
 const { app, BrowserWindow, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, escolherImpressora } = require("./impressora-navegador");
+const { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, escolherImpressora, opcoesImpressaoCupom } = require("./impressora-navegador");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
@@ -359,7 +359,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       } else {
         await new Promise((ok, falha) => {
           janelaRm.webContents.print(
-            { silent: true, deviceName: daruma.name, printBackground: false, margins: { marginType: "none" }, scaleFactor: 100 },
+            opcoesImpressaoCupom(daruma.name),
             (sucesso, motivo) => (sucesso ? ok() : falha(new Error(motivo || `a impressora ${daruma.name} não imprimiu`))),
           );
         });

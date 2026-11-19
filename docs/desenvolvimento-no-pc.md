@@ -22,3 +22,9 @@ O Windows pede o nome do arquivo PDF a cada cupom (é o "Salvar como PDF"). Para
 
 ## Testes
 `npm run test:frontend`, `npx electron desktop/teste-rm-electron.js` (RM falso, sem nota de verdade), `npx electron desktop/smoke.js`, `mvn -f backend/pom.xml test`.
+
+## Conferir o cupom (sistema = Chrome, mesma venda)
+Gera NFC-e de verdade: combine antes a venda de teste.
+1. Com `"impressoraCupom": "Microsoft Print to PDF"`, salve a garantia de teste; o Windows pede o nome: `sistema.pdf`.
+2. No Chrome, entre no RM → PDV → ÚLTIMAS VENDAS → botão CUPOM da MESMA venda → destino "Microsoft Print to PDF", margens Nenhuma, sem cabeçalhos e rodapés → `chrome.pdf`.
+3. Abra os dois lado a lado: mesmo tamanho de folha (Propriedades do PDF), mesma largura do cupom (72 mm, no canto esquerdo), mesmas linhas (inclusive "Não permite aproveitamento de crédito de ICMS", "Valor dos produtos", QR Code e protocolo). Na loja, a folha é a bobina da Daruma nos dois.

@@ -65,4 +65,25 @@ function escolherImpressora(impressoras, alvo = IMPRESSORA_CUPOM) {
   return null;
 }
 
-module.exports = { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, estadoImpressao, escolherImpressora };
+/**
+ * Opcoes do modo quiosque = as MESMAS da janela de impressao do Chrome quando o operador
+ * imprime o cupom do RM a mao (estadoImpressao: margens Nenhuma, sem cabecalho/rodape,
+ * sem fundo, escala 100). O ponto principal e o PAPEL: o cupom do RM nao declara tamanho
+ * de pagina ("@page { margin: 0 }", de proposito: "a pagina E a folha" do driver), e o
+ * Chrome usa a folha da impressora (bobina de 80 mm na Daruma). O Electron, sem
+ * usePrinterDefaultPageSize, manda uma folha A4 (210 x 297 mm) — o cupom saia com outro
+ * formato, devagar e falhado na termica (2026-11-19). DPI: sem "dpi", o Electron ja usa o
+ * da impressora, igual ao Chrome.
+ */
+function opcoesImpressaoCupom(deviceName) {
+  return {
+    silent: true,
+    deviceName,
+    usePrinterDefaultPageSize: true,
+    printBackground: false,
+    margins: { marginType: "none" },
+    scaleFactor: 100,
+  };
+}
+
+module.exports = { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, estadoImpressao, escolherImpressora, opcoesImpressaoCupom };

@@ -2,7 +2,7 @@
 
 > Máximo 30 linhas. **Reescreva** este arquivo a cada entrega (sem histórico — decisões vão em `decisoes.md`).
 
-**Atualizado em:** 2026-11-17 — **1.4.x** na `main`; instalador gerado pelo GitHub em **Releases** a cada envio (versão automática); o sistema se atualiza sozinho pelo GitHub (botão ATUALIZAR)
+**Atualizado em:** 2026-11-19 — **1.4.x** na `main`; instalador gerado pelo GitHub em **Releases** a cada envio (versão automática); o sistema se atualiza sozinho pelo GitHub (botão ATUALIZAR)
 
 ## Situação
 - Projeto irmão do Sistema de Contas a Pagar (Electron + TS puro + Spring Boot 3.5/Java 21 + SQLite WAL), substitui a planilha `GARANTIAS-AAAA.xlsm`.
@@ -18,7 +18,7 @@
 - Instalar na loja a 1ª versão baixada de Releases (depois disso as próximas chegam pelo botão ATUALIZAR).
 - Assinar o `versao.json` das atualizações pelo Drive (risco médio, `docs/seguranca.md` §6).
 - electron-builder 25 → 26 (só ferramentas de build) com teste do instalador no Windows.
-- Cupom no RM: 1ª emissão real com o usuário na loja; conferir na DARUMA o tamanho do cupom; mostrar o nº da NFC-e na Pesquisa.
+- **Cupom do RM (2026-11-19):** o modo quiosque saía em folha A4 (padrão do Electron); agora usa a folha da impressora, igual ao Chrome. Falta conferir: PDF do sistema × PDF do Chrome da mesma venda (`docs/desenvolvimento-no-pc.md`) e um cupom na DARUMA da loja; mostrar o nº da NFC-e na Pesquisa.
 - Adaptar do Contas a Pagar os testes `smoke-real`, `smoke-dev`, CRUD real, hambúrguer e layout.
 
 ## Pendências do usuário
