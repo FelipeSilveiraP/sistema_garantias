@@ -11,7 +11,6 @@
 const { app, BrowserWindow, session } = require("electron");
 const path = require("path");
 const { lembrarImpressoraDoCupom } = require("./impressora-navegador");
-const { spawn } = require("child_process");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
@@ -36,25 +35,7 @@ const FREIO_JANELA_MS = 5 * 60 * 1000;
 /** CANCELAR apertado no pop-up da automacao: nada mais e mandado ao RM. */
 class Cancelado extends ErroDefinitivo {}
 
-/**
- * Aperta IMPRIMIR na janela de impressao do navegador, que abre DENTRO da janela do RM
- * (titulo TITULO_JANELA_RM): traz a janela para a frente, espera a impressao carregar e
- * aperta Enter UMA vez (o botao Imprimir ja vem selecionado). true = apertou.
- */
-function apertarImprimirNoWindows() {
-  return new Promise((resolver) => {
-    if (process.platform !== "win32") return resolver(false);
-    const script = "$w = New-Object -ComObject WScript.Shell; "
-      + "for ($i = 0; $i -lt 60; $i++) { "
-      + `if ($w.AppActivate('${TITULO_JANELA_RM}')) { Start-Sleep -Milliseconds 3000; [void]$w.AppActivate('${TITULO_JANELA_RM}'); Start-Sleep -Milliseconds 200; $w.SendKeys('~'); exit 0 } `
-      + "Start-Sleep -Milliseconds 250 }; exit 1";
-    const proc = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], { windowsHide: true, stdio: "ignore" });
-    proc.on("error", () => resolver(false));
-    proc.on("exit", (codigo) => resolver(codigo === 0));
-  });
-}
-
-function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false, apertarImprimir = apertarImprimirNoWindows }) {
+function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false, apertarImprimir = null }) {
   let janelaRm = null;
   let autorizacao = null;
   const contexto = { companyId: null, tabelaPrecoId: null };
@@ -441,6 +422,18 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     }
     // REGRA PERMANENTE (usuario, 2026-11-19): o sistema NUNCA desenha nem imprime nota ou
     // cupom fiscal. Aperta o botao CUPOM do RM e o IMPRIMIR da janela do navegador.
+    // IMPRESSAO AUTOMATICA DESLIGADA (2026-11-19): o jeito de apertar IMPRIMIR simulando o
+    // teclado abriu janelas do Windows na loja. Ate decidir o jeito certo, a impressao e feita
+    // a mao no RM. (`apertarImprimir` so existe nos testes.)
+    if (!apertarImprimir) {
+      avisar({
+        titulo: "CUPOM FISCAL EMITIDO — IMPRIMA PELO RM",
+        mensagem: `NFC-e nº ${nota.numero} da garantia nº ${idGarantia} emitida pelo RM e garantia marcada LANÇADO. `
+          + "Imprima no RM: ÚLTIMAS VENDAS, botão CUPOM. NÃO emita de novo.",
+        tom: "sucesso",
+      });
+      return;
+    }
     mudarEtapa("imprimindo");
     try {
       await imprimirPeloRm(nota.vendaNumero);

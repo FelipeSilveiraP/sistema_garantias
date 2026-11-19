@@ -180,3 +180,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-19 — Janela de impressão abre na Daruma DR700 e o IMPRIMIR é apertado de verdade
 - Foto da loja: a impressão do navegador (prévia do Chromium, DENTRO da janela do RM) abria com outra impressora e ficava parada: o sistema procurava uma janela chamada "Imprimir", que não existe.
 - Agora: `impressora-navegador.js` grava nas preferências do navegador da janela do RM (`<dados>/Partitions/rm/Preferences`, `printing.print_preview_sticky_settings`) a **Daruma DR700** como última impressora usada, margens Nenhuma e sem cabeçalho/rodapé — o mesmo que o operador faz uma vez no Chrome. A janela do RM tem título fixo "RM SOFTWARE - SISTEMA DE GARANTIAS"; durante a impressão ela aparece, o sistema a traz para a frente, espera 3 s e aperta Enter (Imprimir) uma vez; depois some. Nome da impressora trocável por `FINDESK_IMPRESSORA_CUPOM`.
+
+## 2026-11-19 — Impressão automática DESLIGADA (até decidir)
+- Na loja o "apertar IMPRIMIR" simulando o teclado (PowerShell AppActivate/SendKeys) abriu janelas do Windows e não imprimiu: a impressora PADRÃO do Windows é a Brother DCP-1610NW (pausada), e a janela de impressão abriu nela. Simular teclado pode apertar Enter na janela errada: código removido.
+- Agora o RM só emite; aviso "CUPOM FISCAL EMITIDO — IMPRIMA PELO RM" (ÚLTIMAS VENDAS, botão CUPOM). O fluxo de apertar o CUPOM do RM continua no código, mas só roda com `apertarImprimir` (testes).
