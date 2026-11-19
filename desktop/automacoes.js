@@ -32,6 +32,9 @@ const PADRAO = {
   abrirAoLigarComputador: false,
   abrirEmailAoLigar: false,
   enderecoEmail: "https://mail.google.com/",
+  // cupom fiscal automatico no RM ao salvar a garantia. false = desliga (cupom feito a mao,
+  // como antes), sem precisar de versao nova se o RM mudar ou der problema
+  cupomAutomaticoRm: true,
 };
 
 /** configuracoes.json ao lado do banco: o usuario pode mudar sem reinstalar. */

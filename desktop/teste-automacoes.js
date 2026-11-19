@@ -232,6 +232,9 @@ function spawnFalso() {
   teste("Programa reaberto espera o antigo fechar (tenta a instancia unica de novo)",
     mainJs.includes('const ARG_REABRIR = "--reabrir-depois-da-atualizacao"') && /process\.argv\.includes\(ARG_REABRIR\)[\s\S]*app\.requestSingleInstanceLock\(\)[\s\S]*setTimeout\(tentar, 500\)/.test(mainJs));
 
+  teste("Cupom automatico no RM ligado por padrao e com chave para desligar (configuracoes.json)",
+    a.PADRAO.cupomAutomaticoRm === true && /config\.cupomAutomaticoRm === false[\s\S]{0,40}RM_LIGADO = false/.test(fs.readFileSync(path.join(__dirname, "main.js"), "utf8")));
+
   console.log(`\n=== RESULTADO AUTOMACOES: ${ok}/${total} verificacoes passaram ===`);
   process.exit(ok === total ? 0 : 1);
 })();

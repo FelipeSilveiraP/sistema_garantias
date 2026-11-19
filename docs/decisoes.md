@@ -145,3 +145,8 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 ## 2026-11-19 — Atualizar preços: salvar uma linha não apaga as outras
 - Antes o SALVAR de uma linha recarregava a tabela inteira e apagava o que estava digitado (e não salvo) nas outras. Agora troca só a linha salva (com o que o servidor devolveu). Mudar só o NOME NO RM também liga o SALVAR. O REAJUSTE geral avisa quantas linhas digitadas e não salvas vai descartar.
+
+## 2026-11-19 — Cupom fiscal automático no RM entra na versão oficial (main)
+- Pedido do usuário: o ramo `cupom-rm` foi juntado à `main` e publicado pelo ATUALIZAR. Banco v9 (`cupom_venda_uuid`, `cupom_nfce`, `cupom_chave`) por cima da v8 (NOME NO RM).
+- Chave de segurança: `"cupomAutomaticoRm": false` no `configuracoes.json` (pasta de dados) desliga a automação sem versão nova; aí o cupom volta a ser feito à mão e marcado LANÇADO em Pesquisar Garantia.
+- Primeira vez na loja: ao abrir, a janela do RM aparece; a pessoa entra com e-mail e senha NA PÁGINA DO RM, uma vez (o sistema não lê nem guarda). Produtos sem NOME NO RM (ex.: TROCA CILINDRO IGNIÇÃO) dão o pop-up FAÇA O CUPOM NO RM até alguém preencher em Atualizar preços.

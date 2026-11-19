@@ -314,7 +314,8 @@ function liberarAplicativo() {
 // ===== Cupom fiscal automatico no RM Software (desktop/rm.js) =====
 // Avisos do RM ficam numa fila ate a tela buscar (a tela pode estar trocando de pagina).
 // Desligado nos testes (banco temporario), a nao ser com um RM falso (FINDESK_RM_APP).
-const RM_LIGADO = !process.env.FINDESK_DB_PATH || Boolean(process.env.FINDESK_RM_APP);
+// Tambem desligado com "cupomAutomaticoRm": false no configuracoes.json (lido ao abrir).
+let RM_LIGADO = !process.env.FINDESK_DB_PATH || Boolean(process.env.FINDESK_RM_APP);
 const avisosRm = [];
 const rm = criarRm({
   registrarLog,
@@ -613,6 +614,10 @@ function iniciarInstancia() {
       // automatico, abrir o Chrome no e-mail da firma (configuracoes.json)
       try {
         const config = automacoes.lerConfiguracoes(path.dirname(caminhoBanco()), registrarLog);
+        if (config.cupomAutomaticoRm === false) {
+          RM_LIGADO = false;
+          registrarLog("INFO", "[rm] cupom automatico desligado no configuracoes.json");
+        }
         automacoes.configurarInicioComWindows(app, config, registrarLog);
         automacoes.abrirEmailSeInicioAutomatico(process.argv, config, shell, registrarLog);
       } catch (erro) {
