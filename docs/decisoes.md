@@ -123,3 +123,6 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - Pop-ups: todos maiores. Confirmações, exclusões e alertas de risco no MEIO da tela; avisos de "deu certo" (notificações) GRANDES no canto INFERIOR DIREITO (substitui a decisão de 2026-11-16 de tudo no meio).
 - `rolagem.ts` (igual nos dois): clicar num registro leva a tela até "Alterar um campo" (não à nota fiscal); abrir uma caixa de seleção perto do pé da tela sobe a tela para a lista aparecer inteira.
 - `docs/analise-banco.md`: tabelas e colunas usadas e mortas dos dois sistemas; nada apagado sem aprovação.
+
+## 2026-11-19 — Correção da rolagem das caixas de seleção
+- O `<body>` (altura 100%) é quem rola nas telas, não a janela. A versão anterior punha um marcador na JANELA: criava uma 2ª rolagem por fora, empurrava a tela e deixava faixa branca embaixo (Cadastrar Garantia, MODELO e PRODUTO). Agora `rolagem.ts` rola só a área que já rola e, no fim da página, põe o espaço extra DENTRO dela (some ao sair do campo). Smoke do Garantias reproduz as fotos do usuário.

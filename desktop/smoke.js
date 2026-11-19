@@ -244,6 +244,27 @@ async function executar() {
   teste("Enter no pop-up GARANTIA SALVA = OK (fecha)", await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário limpo também limpa o modelo digitado", await js("document.getElementById('modelo_busca').value === '' && document.getElementById('modelo').value === ''"));
+  // caixas MODELO e PRODUTO abertas perto do pe da tela (fotos do usuario, 2026-11-19): a area
+  // do formulario sobe, a lista aparece inteira, nada de segunda rolagem nem tela branca
+  for (const [nome, seletor] of [["MODELO", "#modelo_busca"], ["PRODUTO", ".produto-busca .caixa-busca__campo"]]) {
+    await js("document.activeElement && document.activeElement.blur()");
+    await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); const rol = document.body;
+      rol.scrollTop += c.getBoundingClientRect().bottom - innerHeight + 30; })()`);
+    await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); c.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); c.focus(); })()`);
+    await esperar(250);
+    const v = await js(`(() => { const c = document.querySelector(${JSON.stringify(seletor)}); const lista = c.closest('.caixa-busca').querySelector('.caixa-busca__lista');
+      const l = lista.getBoundingClientRect(); const rc = c.getBoundingClientRect(); const html = document.documentElement;
+      return { listaAberta: !lista.classList.contains('hidden'), listaInteira: l.bottom <= innerHeight + 1, campoVisivel: rc.top >= 0,
+        semRolagemDeFora: html.scrollTop === 0 && html.scrollHeight <= innerHeight + 1 }; })()`);
+    teste(`Caixa ${nome} perto do pé da tela: a tela sobe, a lista aparece inteira e não surge rolagem de fora`,
+      v.listaAberta && v.listaInteira && v.campoVisivel && v.semRolagemDeFora, JSON.stringify(v));
+    if (nome === "PRODUTO") await capturar("cadastrar-garantia-produto-aberto-1366x820");
+    await js("document.activeElement && document.activeElement.blur()");
+    await esperar(150);
+    teste(`Caixa ${nome}: ao sair do campo o espaço extra some e dá para subir até o topo`, await js(`(() => {
+      document.body.scrollTop = 0; const h = document.querySelector('h1').getBoundingClientRect();
+      return !document.getElementById('espaco-lista-aberta') && h.top >= 0 && h.top < 300 && document.documentElement.scrollTop === 0; })()`));
+  }
   teste("Avisos curtos (notificações) aparecem grandes no canto inferior direito", await js(`(() => { const d = document.createElement('div'); d.className = 'notificacoes'; d.style.height = '60px'; document.body.appendChild(d);
     const r = d.getBoundingClientRect(); d.remove(); return r.right > innerWidth - 40 && r.bottom > innerHeight - 40 && r.width >= 400; })()`));
   // mesma placa, mesmo dia e mesmo servico: pede confirmacao
