@@ -15,6 +15,8 @@ const PASTA = fs.mkdtempSync(path.join(os.tmpdir(), "garantias-rm-"));
 const PASTA_PDF = path.join(PASTA, "cupons");
 const JAR = path.join(__dirname, "..", "backend", "target", "garantias-backend-0.1.0.jar");
 const TOKEN_RM = "cracha-de-teste";
+// atraso na pesquisa de produtos (para dar tempo de apertar CANCELAR no meio)
+let atrasoProdutos = 0;
 let resultados = 0;
 let falhas = 0;
 
@@ -102,7 +104,8 @@ function servidorApi(origem, registro) {
       if (url.pathname === "/v1/notificacoes") return responder(200, []);
       if (url.pathname === "/v1/produtos") {
         const q = (url.searchParams.get("q") || "").toUpperCase();
-        return responder(200, { items: produtos.filter((p) => p.descricao.includes(q)) });
+        setTimeout(() => responder(200, { items: produtos.filter((p) => p.descricao.includes(q)) }), atrasoProdutos);
+        return undefined;
       }
       const b = corpo ? JSON.parse(corpo) : {};
       if (url.pathname === "/v1/pdv/totais") {
@@ -208,8 +211,11 @@ async function principal() {
     teste("venda em dinheiro, produto achado pela palavra, valor da garantia",
       Boolean(venda && venda.corpo.pagamento.meio === "01" && venda.corpo.itens[0].produtoId === "p-canivete"
         && venda.corpo.itens[0].valorUnitario === 120 && venda.corpo.tabelaPrecoId === "tabela-1" && venda.corpo.companyId === "empresa-1"));
-    teste("cupom impresso (PDF no teste)", await ate(() => fs.existsSync(path.join(PASTA_PDF, "nfce-262.pdf")), 10000));
-    teste("nenhum pop-up quando tudo da certo", avisos.length === 0, JSON.stringify(avisos));
+    teste("o sistema NAO imprime o cupom (a impressao e pelo RM)", await esperar(1500).then(() => !fs.existsSync(path.join(PASTA_PDF, "nfce-262.pdf"))));
+    teste("tudo certo: um aviso so, CUPOM FISCAL EMITIDO com o numero da NFC-e",
+      avisos.length === 1 && avisos[0].titulo === "CUPOM FISCAL EMITIDO" && /262/.test(avisos[0].mensagem), JSON.stringify(avisos));
+    teste("pop-up da automacao: mostra as etapas ate a emissao",
+      ["conectando", "produtos", "total", "venda", "emitindo", "emitida"].every((e) => situacoes.some((x) => x.etapa === e)), JSON.stringify(situacoes.map((x) => x.etapa)));
 
     // 4) mandar de novo a mesma garantia nao cria outra venda
     rm.emitir(g1.id);
@@ -255,6 +261,25 @@ async function principal() {
         && (await status(g7)) === "NAO_LANCADO" && (await status(g8)) === "NAO_LANCADO" && rm.situacao().parado && rm.situacao().naFila === 0,
       JSON.stringify({ parou, avisos, vendas: vendas() - antesParar }));
     rm.retomar();
+
+    // CANCELAR no meio (procurando os produtos): nada vai ao RM e a garantia fica NAO LANCADO
+    const g9 = await nova("120.00", [{ idServico: carcaca.id, quantidade: 1 }]);
+    avisos.length = 0;
+    situacoes.length = 0;
+    atrasoProdutos = 1500;
+    const vendasAntes = registro.filter((r) => r.caminho === "/v1/pdv/vendas").length;
+    rm.emitir(g9.id);
+    await ate(() => situacoes.some((x) => x.etapa === "produtos"), 15000);
+    const cancelou = rm.cancelar();
+    const avisouCancel = await ate(() => avisos.some((a) => a.titulo === "CUPOM CANCELADO"), 15000);
+    atrasoProdutos = 0;
+    teste("CANCELAR no meio: nenhuma venda no RM, garantia NAO LANÇADO, aviso CUPOM CANCELADO",
+      avisouCancel && cancelou && cancelou.jaEnviado === false && registro.filter((r) => r.caminho === "/v1/pdv/vendas").length === vendasAntes
+        && (await status(g9)) === "NAO_LANCADO" && !rm.situacao().parado, JSON.stringify({ cancelou, avisos }));
+    // depois do CANCELAR, a proxima garantia sai normalmente (nao fica parado)
+    rm.emitir(g9.id);
+    teste("depois do CANCELAR o cupom seguinte sai normalmente", await ate(async () => (await status(g9)) === "LANCADO", 30000));
+    rm.retomar(); // zera o freio para o resto do teste
 
     // 5) produto sem NOME NO RM: pop-up para fazer o cupom manualmente
     const g2 = await nova("80.00", [{ idServico: null, descricao: "CHAVE CODIFICADA", quantidade: 1 }]);

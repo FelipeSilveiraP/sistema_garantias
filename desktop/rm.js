@@ -31,7 +31,10 @@ const FREIO_JANELA_MS = 5 * 60 * 1000;
  * @param {(aviso: object) => void} o.avisar  pop-up na tela do sistema
  * @param {() => boolean} o.encerrando  o sistema esta fechando
  */
-function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false }) {
+/** CANCELAR apertado no pop-up da automacao: nada mais e mandado ao RM. */
+class Cancelado extends ErroDefinitivo {}
+
+function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}, paradoNoInicio = false, imprimirPeloSistema = false }) {
   let janelaRm = null;
   let autorizacao = null;
   const contexto = { companyId: null, tabelaPrecoId: null };
@@ -45,10 +48,19 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   let naFila = 0;
   let pulados = [];
   let emitidas = [];
+  // CANCELAR do pop-up da automacao: o cupom atual e os da fila nao saem
+  let cancelarFila = false;
+  // etapa do cupom atual (pop-up da automacao): conectando, produtos, total, venda, emitindo, emitida
+  let etapa = null;
 
-  /** Situacao do cupom para o painel da tela (emitindo, fila, parado). */
+  /** Situacao do cupom para a tela (pop-up da automacao e painel de parado). */
   function situacao() {
-    return { parado, emitindo, naFila };
+    return { parado, emitindo, naFila, etapa };
+  }
+  function mudarEtapa(nova) {
+    if (etapa === nova) return;
+    etapa = nova;
+    publicar();
   }
   function publicar() {
     try {
@@ -302,31 +314,53 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
 
     const memoria = {};
     let nota = null;
+    // cada pedido ao RM passa por aqui: mostra a etapa no pop-up e respeita o CANCELAR
+    // (que so vale ANTES de mandar emitir a NFC-e)
+    const chamarComEtapas = (metodo, caminho, corpo) => {
+      if (cancelarFila || parado) return Promise.reject(new Cancelado("cancelado"));
+      if (caminho.startsWith("/v1/produtos")) mudarEtapa("produtos");
+      else if (caminho === "/v1/pdv/totais") mudarEtapa("total");
+      else if (caminho === "/v1/pdv/vendas") mudarEtapa("venda");
+      else if (caminho.endsWith("/emitir")) mudarEtapa("emitindo");
+      return chamar(metodo, caminho, corpo);
+    };
     let ultimoErro = null;
     // 1a tentativa; se falhar por conexao/login, reconecta e tenta mais UMA vez
     for (let tentativa = 1; tentativa <= 2 && !nota; tentativa++) {
       // PARAR TUDO apertado enquanto conectava: nao manda nada ao RM
-      if (parado) {
+      if (parado || cancelarFila) {
         pulados.push(idGarantia);
         return;
       }
       try {
+        mudarEtapa("conectando");
         const situacao = await conectar(tentativa > 1);
         // login: outra tentativa nao resolve (a janela do RM abriu para alguem entrar)
         if (situacao === "login") throw new ErroDefinitivo("o RM pediu para entrar de novo; entre na janela do RM que abriu");
         if (situacao !== "conectado") throw new ErroTemporario("sem conexão com o RM");
-        nota = await emitirNoRm(pedido, chamar, contexto, memoria);
+        nota = await emitirNoRm(pedido, chamarComEtapas, contexto, memoria);
       } catch (erro) {
         ultimoErro = erro;
         registrarLog("WARN", `[rm] garantia ${idGarantia}: tentativa ${tentativa} falhou: ${erro && erro.message}`);
         if (erro instanceof ErroDefinitivo) break;
       }
     }
+    if (!nota && ultimoErro instanceof Cancelado) {
+      registrarLog("INFO", `[rm] garantia ${idGarantia}: cupom CANCELADO pelo operador antes de emitir`);
+      avisar({
+        titulo: "CUPOM CANCELADO",
+        mensagem: `A automação do cupom da garantia nº ${idGarantia} foi cancelada: nenhuma NFC-e foi emitida. `
+          + "A garantia está salva como NÃO LANÇADO. Se precisar, faça o cupom no PDV do RM e marque LANÇADO em PESQUISAR GARANTIA.",
+        tom: "atencao",
+      });
+      return;
+    }
     if (!nota) {
       avisarManual(idGarantia, ((ultimoErro && ultimoErro.message) || "erro desconhecido").replace(/\.$/, ""), pedido);
       return;
     }
     emitidas.push(Date.now());
+    mudarEtapa("emitida");
     registrarLog("INFO", `[rm] garantia ${idGarantia}: NFC-e ${nota.numero} emitida (${nota.status})`);
 
     const gravado = await servidor("POST", `/api/garantias/${idGarantia}/cupom-rm/emitido`, { nfce: nota.numero, chave: nota.chave });
@@ -337,6 +371,18 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
           + "marcar a garantia. Marque LANÇADO em PESQUISAR GARANTIA. NÃO emita o cupom de novo.",
         tom: "atencao",
       });
+    }
+    // IMPRESSAO (pedido do usuario, 2026-11-19): o cupom montado pelo sistema saia diferente do
+    // do RM e devagar na DARUMA. Por enquanto o sistema NAO imprime: a NFC-e e do RM e a
+    // impressao e feita pelo RM (ULTIMAS VENDAS), igual ao cupom manual.
+    if (!imprimirPeloSistema) {
+      avisar({
+        titulo: "CUPOM FISCAL EMITIDO",
+        mensagem: `NFC-e nº ${nota.numero} da garantia nº ${idGarantia} emitida no RM e garantia marcada LANÇADO. `
+          + "Imprima pelo RM em ÚLTIMAS VENDAS (a impressão pelo sistema está desligada). NÃO emita de novo.",
+        tom: "sucesso",
+      });
+      return;
     }
     try {
       const dados = await chamar("GET", `/v1/pdv/vendas/${encodeURIComponent(nota.idVenda)}/cupom-dados`);
@@ -362,6 +408,15 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       registrarLog("WARN", `[rm] cupom automatico PARADO (${motivo})${estava ? `; garantia ${estava} estava em andamento` : ""}`);
       publicar();
       return { emAndamento: estava };
+    },
+    /** CANCELAR (pop-up da automacao): o cupom atual e os da fila nao saem; os proximos saem normalmente. */
+    cancelar() {
+      if (!emitindo && naFila === 0) return null;
+      const jaEnviado = etapa === "emitindo" || etapa === "emitida";
+      cancelarFila = true;
+      registrarLog("WARN", `[rm] CANCELAR apertado (garantia ${emitindo || "-"}, etapa ${etapa || "-"}, ${naFila} na fila)`);
+      publicar();
+      return { garantia: emitindo, jaEnviado };
     },
     /** LIGAR DE NOVO: volta a emitir (e zera a contagem do freio). */
     retomar() {
@@ -407,7 +462,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       publicar();
       fila = fila.then(async () => {
         naFila--;
-        if (parado) {
+        if (parado || cancelarFila) {
           pulados.push(id);
         } else {
           emitindo = id;
@@ -416,15 +471,17 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
             await processar(id);
           } finally {
             emitindo = null;
+            etapa = null;
           }
         }
+        if (naFila === 0) cancelarFila = false;
         publicar();
         // terminou a fila depois de um PARAR: um aviso so, com as garantias sem cupom
         if (naFila === 0 && pulados.length) {
           const lista = pulados.splice(0);
           avisar({
-            titulo: "CUPONS NÃO EMITIDOS (PARADO)",
-            mensagem: `Com o cupom automático parado, estas garantias ficaram SEM cupom (NÃO LANÇADO): nº ${lista.join(", nº ")}. `
+            titulo: parado ? "CUPONS NÃO EMITIDOS (PARADO)" : "CUPONS CANCELADOS",
+            mensagem: `${parado ? "Com o cupom automático parado" : "Com a automação cancelada"}, estas garantias ficaram SEM cupom (NÃO LANÇADO): nº ${lista.join(", nº ")}. `
               + "Faça no PDV do RM e marque LANÇADO em PESQUISAR GARANTIA.",
             tom: "atencao",
           });

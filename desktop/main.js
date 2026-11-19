@@ -601,6 +601,8 @@ ipcMain.handle("findesk:cupom-parar", () => {
   lembrarCupomAutomatico(false);
   return r;
 });
+// CANCELAR do pop-up da automacao: so este cupom (e a fila); nao desliga os proximos
+ipcMain.handle("findesk:cupom-cancelar", () => (RM_LIGADO ? rm.cancelar() : null));
 ipcMain.handle("findesk:cupom-retomar", () => {
   if (!RM_LIGADO) return false;
   rm.retomar();

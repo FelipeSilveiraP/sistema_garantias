@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("finDesk", {
   cupomEstado: () => ipcRenderer.invoke("findesk:cupom-estado"),
   cupomParar: () => ipcRenderer.invoke("findesk:cupom-parar"),
   cupomRetomar: () => ipcRenderer.invoke("findesk:cupom-retomar"),
+  cupomCancelar: () => ipcRenderer.invoke("findesk:cupom-cancelar"),
   onEstadoCupom: (callback) => ipcRenderer.on("findesk:estado-cupom", (_evento, situacao) => callback(situacao)),
   onAvisoRm: (callback) => ipcRenderer.on("findesk:aviso-rm", () => callback()),
   onProgressoAtualizacao: (callback) =>

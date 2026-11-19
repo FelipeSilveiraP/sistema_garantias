@@ -345,8 +345,6 @@ async function salvar(): Promise<void> {
       salva = await cadastrarGarantia(cfg, { ...dados, forcar: true });
     }
     document.body.dataset.garantiaSalva = String(salva.id);
-    // cupom fiscal no RM em segundo plano: o atendimento continua (avisa so se der problema)
-    void window.finDesk!.emitirCupom?.(salva.id);
     limpar();
     voltarAoTopo();
     await avisar({
@@ -357,6 +355,9 @@ async function salvar(): Promise<void> {
         + `${formatarMoedaBR(Math.round(salva.valor * 100))} · ${salva.tecnico}`,
       tom: "sucesso",
     });
+    // cupom fiscal no RM DEPOIS do OK (pedido do usuario, 2026-11-19): aparece o pop-up da
+    // automacao com as etapas e o CANCELAR (painel-cupom.ts)
+    void window.finDesk!.emitirCupom?.(salva.id);
     voltarAoTopo();
     el<HTMLInputElement>("placa").focus({ preventScroll: true });
   } catch (erro) {

@@ -156,3 +156,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - Parado = nenhum cupom novo sai; os da fila ficam NÃO LANÇADO (um aviso só lista as garantias); salvar garantia parado avisa para fazer à mão. Só o cupom que já estava sendo enviado ao RM pode terminar.
 - FREIO automático: 3 NFC-e em 5 minutos → o 4º não sai e o cupom automático para até alguém religar (contagem zera ao religar).
 - O estado fica no `configuracoes.json` (`cupomAutomaticoRm`): continua parado depois de fechar e abrir; parado ao abrir nem conecta no RM.
+
+## 2026-11-19 — Cupom: pop-up da automação com CANCELAR; o sistema não imprime mais
+- Na loja o cupom montado pelo sistema (HTML impresso pelo Windows na DARUMA) saiu devagar e com cara diferente do cupom do RM. Pedido do usuário: por enquanto o sistema NÃO imprime; só pede ao RM para emitir a NFC-e. A impressão é pelo RM (ÚLTIMAS VENDAS); o aviso CUPOM FISCAL EMITIDO diz o número. O código de impressão ficou atrás de `imprimirPeloSistema` (desligado).
+- O cupom só começa DEPOIS do OK no GARANTIA SALVA. Aparece o pop-up CUPOM FISCAL AUTOMÁTICO (meio da tela) com a garantia, as etapas (conectando, produtos, total, venda, emitindo) e CANCELAR, que para tudo (o atual e a fila) enquanto a nota não foi mandada ao RM; depois disso o botão vira "NOTA JÁ ENVIADA AO RM". Cancelar não desliga os próximos (para isso existe o parado/LIGAR DE NOVO).

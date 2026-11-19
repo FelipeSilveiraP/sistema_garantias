@@ -1612,3 +1612,15 @@ textarea:not(.sem-maiusculas) {
 .painel-cupom__botao--ligar { background: #ffffff; color: #1c1b1b; }
 .painel-cupom__botao:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #1c1b1b; }
 .painel-cupom__botao:focus-visible { outline: 3px solid #2165ef; outline-offset: 2px; }
+
+/* ===== Pop-up da automacao do cupom (painel-cupom.ts): etapas ===== */
+.automacao-etapas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.automacao-etapa { display: flex; align-items: center; gap: 0.65rem; font-size: 1.125rem; font-weight: 700; color: #7c775f; }
+.automacao-etapa .material-symbols-outlined { font-size: 1.6rem; }
+.automacao-etapa--feita { color: #006c46; }
+.automacao-etapa--agora { color: #1c1b1b; }
+.automacao-etapa--agora .material-symbols-outlined { animation: automacao-girar 1s linear infinite; }
+@keyframes automacao-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .automacao-etapa--agora .material-symbols-outlined { animation: none; } }
+.automacao-cancelar { background: #dc2626 !important; color: #ffffff !important; min-width: 12rem; }
+.automacao-cancelar:disabled { background: #e8e5e4 !important; color: #7c775f !important; cursor: not-allowed; box-shadow: none; transform: none; }

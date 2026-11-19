@@ -2,6 +2,9 @@
 // avisos numa fila e a tela mostra um por vez, sem atropelar outro pop-up aberto.
 import { avisar, dialogoEstaAberto } from "./dialogos";
 
+/** O pop-up da automacao do cupom esta na tela (painel-cupom.ts): os avisos esperam ele fechar. */
+const automacaoNaTela = (): boolean => Boolean(document.getElementById("modal-cupom"));
+
 let mostrando = false;
 
 async function mostrarPendentes(): Promise<void> {
@@ -12,7 +15,7 @@ async function mostrarPendentes(): Promise<void> {
       const avisos = await window.finDesk.avisosRm();
       if (!avisos.length) return;
       for (const aviso of avisos) {
-        while (dialogoEstaAberto()) await new Promise((r) => setTimeout(r, 300));
+        while (dialogoEstaAberto() || automacaoNaTela()) await new Promise((r) => setTimeout(r, 300));
         await avisar({ titulo: aviso.titulo, mensagem: aviso.mensagem, tom: aviso.tom, itens: aviso.itens });
       }
     }

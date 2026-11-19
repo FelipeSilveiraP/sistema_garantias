@@ -57,6 +57,7 @@ interface Window {
     cupomEstado?: () => Promise<SituacaoCupom | null>;
     cupomParar?: () => Promise<{ emAndamento: number | null } | null>;
     cupomRetomar?: () => Promise<boolean>;
+    cupomCancelar?: () => Promise<{ garantia: number | null; jaEnviado: boolean } | null>;
     onEstadoCupom?: (callback: (situacao: SituacaoCupom) => void) => void;
     avisosRm?: () => Promise<AvisoRm[]>;
     onAvisoRm?: (callback: () => void) => void;
@@ -70,4 +71,6 @@ interface SituacaoCupom {
   emitindo: number | null;
   /** quantos cupons esperam na fila */
   naFila: number;
+  /** etapa do cupom atual: conectando, produtos, total, venda, emitindo, emitida */
+  etapa: string | null;
 }
