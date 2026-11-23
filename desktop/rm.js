@@ -13,6 +13,7 @@ const path = require("path");
 const fs = require("fs");
 const { IMPRESSORA_CUPOM, lembrarImpressoraDoCupom, escolherImpressora, opcoesImpressaoCupom } = require("./impressora-navegador");
 const { emitirNoRm, ErroDefinitivo, ErroTemporario } = require("./rm-cupom");
+const { traduzirFalhaDeRede } = require("./rm-rede");
 
 const RM_APP = process.env.FINDESK_RM_APP || "https://app.rmsoftware.dev.br";
 const RM_API = process.env.FINDESK_RM_API || "https://api.rmsoftware.dev.br";
@@ -48,6 +49,10 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
   let estado = "desconectado";
   let esperando = [];
   let relogioSessao = null;
+  let tiquesSessao = 0;
+  // ultima falha de rede vista (pagina ou API do RM): vira o motivo do "RM fora do ar"
+  let falhaRede = null;
+  const motivoFora = () => traduzirFalhaDeRede(falhaRede);
   // impressora do cupom (configuracoes.json "impressoraCupom"); em desenvolvimento: "Microsoft Print to PDF"
   let impressoraCupom = IMPRESSORA_CUPOM;
   let fila = Promise.resolve();
@@ -120,9 +125,13 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       }
       responder({ requestHeaders: det.requestHeaders });
     });
+    ses.webRequest.onErrorOccurred((det) => {
+      if (det.url.startsWith(RM_API)) falhaRede = { origem: "api", erro: det.error };
+    });
     let esperaRenovar = null;
     ses.webRequest.onCompleted((det) => {
       if (det.method !== "GET" || !det.url.startsWith(`${RM_API}/v1/auth/me`)) return;
+      if (det.statusCode >= 500) falhaRede = { origem: "api", status: det.statusCode };
       if (det.statusCode === 200) {
         clearTimeout(esperaRenovar);
         esperaRenovar = null;
@@ -173,8 +182,12 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     };
     janelaRm.webContents.on("did-navigate", conferirEndereco);
     janelaRm.webContents.on("did-navigate-in-page", conferirEndereco);
-    janelaRm.webContents.on("did-fail-load", (_evento, codigo, _descricao, _url, principal) => {
-      if (principal && codigo !== -3) definirEstado("fora");
+    janelaRm.webContents.on("did-fail-load", (_evento, codigo, descricao, _url, principal) => {
+      if (principal && codigo !== -3) {
+        falhaRede = { origem: "pagina", erro: descricao };
+        registrarLog("WARN", `[rm] a pagina do RM nao carregou: ${descricao} (${codigo})`);
+        definirEstado("fora");
+      }
     });
     // fechar a janela do RM so a esconde (o login continua guardado)
     janelaRm.on("close", (evento) => {
@@ -207,6 +220,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
     // alguem esta entrando no RM na janela: nao recarrega por cima
     if (estado === "login" && janelaRm.isVisible()) return "login";
     autorizacao = null;
+    falhaRede = null;
     estado = "conectando";
     janelaRm.loadURL(`${RM_APP}/app/pdv`).catch(() => {
       // a falha chega por did-fail-load
@@ -218,7 +232,10 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
         await new Promise((r) => setTimeout(r, 200));
       }
     }
-    if (final === "fora") estado = "fora";
+    if (final === "fora") {
+      estado = "fora";
+      registrarLog("WARN", `[rm] sem conexao com o RM: ${motivoFora()}`);
+    }
     return final;
   }
 
@@ -448,7 +465,7 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
           mudarEtapa("conectando");
           situacao = await conectar(false);
         }
-        if (situacao !== "conectado") throw new ErroTemporario("sem conexão com o RM");
+        if (situacao !== "conectado") throw new ErroTemporario(`sem conexão com o RM: ${motivoFora()}`);
         nota = await emitirNoRm(pedido, chamarComEtapas, contexto, memoria);
       } catch (erro) {
         ultimoErro = erro;
@@ -548,10 +565,30 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       }
       return situacao;
     },
+    /** Sem conexao com o RM: tenta voltar sozinho (nunca com cupom saindo nem com a janela aberta para login). */
+    async reconectar() {
+      if (encerrando() || parado || emitindo || naFila > 0 || estado !== "fora") return null;
+      if (!janelaRm || janelaRm.isDestroyed() || janelaRm.isVisible()) return null;
+      const situacao = await conectar(true);
+      if (situacao === "conectado") registrarLog("INFO", "[rm] conexao com o RM voltou");
+      if (situacao === "login") {
+        avisar({
+          titulo: "ENTRE NO RM SOFTWARE",
+          mensagem: "O RM voltou, mas pediu para entrar de novo. Entre na janela do RM que abriu para o cupom fiscal continuar saindo sozinho.",
+          tom: "atencao",
+        });
+      }
+      return situacao;
+    },
     async iniciar() {
       if (parado) return; // desligado: nem conecta (liga ao clicar em LIGAR DE NOVO)
       if (!relogioSessao) {
-        relogioSessao = setInterval(() => void this.manterSessao().catch(() => {}), MANTER_SESSAO_MS);
+        // a cada minuto: sem conexao, tenta voltar sozinho; conectado, mantem a sessao viva (a cada 10 min)
+        relogioSessao = setInterval(() => {
+          tiquesSessao++;
+          if (estado === "fora") void this.reconectar().catch(() => {});
+          else if (tiquesSessao % Math.round(MANTER_SESSAO_MS / 60000) === 0) void this.manterSessao().catch(() => {});
+        }, 60 * 1000);
         if (relogioSessao.unref) relogioSessao.unref();
       }
       const situacao = await conectar();
@@ -565,8 +602,8 @@ function criarRm({ registrarLog, backend, avisar, encerrando, aoMudar = () => {}
       } else if (situacao === "fora") {
         avisar({
           titulo: "RM SOFTWARE FORA DO AR",
-          mensagem: "Não foi possível conectar ao RM (sem internet ou o RM está fora do ar). O sistema tenta de novo "
-            + "a cada garantia; se não conseguir, avisa para fazer o cupom manualmente.",
+          mensagem: `Não foi possível conectar ao RM: ${motivoFora()}. O sistema tenta de novo sozinho a cada minuto `
+            + "e também a cada garantia; se não conseguir, avisa para fazer o cupom manualmente.",
           tom: "erro",
         });
       }

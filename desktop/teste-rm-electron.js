@@ -390,6 +390,12 @@ async function principal() {
     teste("RM fora do ar: depois de 2 tentativas, pop-up FAÇA O CUPOM NO RM com os produtos", avisou
       && avisos[0].itens.some((i) => /CARCAÇA CANIVETE/.test(i)), JSON.stringify(avisos));
     teste("RM fora do ar: garantia continua NAO LANÇADO", (await api("GET", `/api/garantias/${g3.id}`)).cupomStatus === "NAO_LANCADO");
+    teste("RM fora do ar: o aviso diz o MOTIVO (recusou/derrubou a conexao)", /servidor do RM recusou ou derrubou a conexão/.test(avisos.map((x) => x.mensagem).join(" ")), JSON.stringify(avisos.map((x) => x.mensagem)));
+    // o RM volta: o sistema reconecta SOZINHO (sem esperar uma garantia nem alguem clicar)
+    sApi = servidorApi(process.env.FINDESK_RM_APP, registro).listen(portaApi, "127.0.0.1");
+    await esperar(300);
+    const voltou = await rm.reconectar();
+    teste("RM voltou: o sistema reconecta sozinho", voltou === "conectado" && rm.situacao().parado === false, String(voltou));
   } finally {
     encerrando = true;
     backend.proc.kill();

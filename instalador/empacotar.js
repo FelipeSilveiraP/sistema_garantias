@@ -107,6 +107,7 @@ await etapa("Instalador (electron-builder / NSIS)", () => {
         // cupom fiscal automatico no RM Software
         "desktop/rm.js",
         "desktop/rm-cupom.js",
+        "desktop/rm-rede.js",
         "desktop/impressora-navegador.js",
         "frontend/html/**",
         "frontend/css/fonts.css",

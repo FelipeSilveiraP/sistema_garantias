@@ -170,6 +170,18 @@ function rmFalso(opcoes = {}) {
     assert.ok(/webContents\.print\(\s*opcoesImpressaoCupom\(/.test(rmJs), "rm.js usa as opcoes do Chrome");
   });
 
+  await caso("falha de rede vira frase que a loja entende (motivo do 'RM fora do ar')", () => {
+    const { traduzirFalhaDeRede: t } = require("./rm-rede");
+    assert.match(t({ origem: "pagina", erro: "ERR_INTERNET_DISCONNECTED" }), /sem internet/);
+    assert.match(t({ origem: "api", erro: "net::ERR_NAME_NOT_RESOLVED" }), /servidor do RM.*DNS/);
+    assert.match(t({ origem: "pagina", erro: "ERR_CONNECTION_TIMED_OUT" }), /site do RM.*demorou/);
+    assert.match(t({ origem: "api", erro: "net::ERR_CERT_DATE_INVALID" }), /data e a hora do Windows/);
+    assert.match(t({ origem: "api", erro: "net::ERR_PROXY_CONNECTION_FAILED" }), /proxy/);
+    assert.match(t({ origem: "api", status: 503 }), /erro 503/);
+    assert.match(t(null), /30 segundos/);
+    assert.match(t({ origem: "api", erro: "net::ERR_ESTRANHO" }), /ERR_ESTRANHO/);
+  });
+
   await caso("o sistema NUNCA desenha nem imprime cupom (regra permanente): so manda a requisicao ao RM", () => {
     const fs = require("fs");
     const path = require("path");
