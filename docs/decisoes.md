@@ -221,3 +221,14 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - O "já visto" fica ao lado do banco (`novidades-vistas.json`: versão + data da última mudança vista). Instalação nova (banco ainda não existia) não mostra nada; na 1ª vez com o recurso, mostra os últimos 30 dias. No máximo 60 itens; ENTENDI marca como visto.
 - No Menu: O QUE MUDOU primeiro, depois as mensagens/aviso de versão nova (um pop-up por vez). O ensaio do ATUALIZAR no CI confere o pop-up e o ENTENDI. Código igual nos dois sistemas: `desktop/novidades.js`, `frontend/ts/novidades.ts`, `desktop/teste-novidades.js`.
 - **Por isso: escrever o assunto dos commits `feat:`/`fix:` em português simples, para a loja entender.**
+
+## 2026-11-23 — Revisão de gatilhos, auditoria e transações (banco v10)
+- Pedido do usuário: revisar triggers, "procedures" e transações nos dois sistemas.
+- **Furo encontrado:** a auditoria de `garantias` e `servicos` era da v1 e não via as colunas criadas depois (técnico, veículo, NOME NO RM, número/chave da NFC-e, peça/"pede"). Recriada completa; `marcas` e `modelos` passam a ser auditados.
+- **NFC-e emitida no RM é documento fiscal:** garantia com `cupom_nfce` não pode ser excluída, número/chave/venda não mudam e o cupom não volta para "não lançado" (a tela mostra o motivo).
+- Teto de valor (R$ 999.999.999,99) em garantias, produtos e itens; linha da planilha antiga imutável (só o vínculo muda); código de "Esqueci o PIN" usado não volta a valer.
+- **Transações (as duas iguais):** trocar o PIN agora grava o PIN novo e o registro no histórico de acessos numa transação só (antes eram duas: o PIN podia mudar sem registro). A primeira conta (admin + e-mail da loja + entrada) e o Gmail + senha de app também gravam juntos (ou nada). As demais gravações de várias etapas já estavam em transações `IMMEDIATE` (levantamento feito em todos os repositories e services).
+- **SQLite não tem "procedures"**: o papel delas fica nos métodos dos repositories com `emTransacao` (várias etapas, tudo ou nada) e nos gatilhos (regras que o próprio banco confere em qualquer gravação).
+- **Erro de gatilho na tela:** `api/RegraDoBanco` (igual nos dois sistemas) transforma o `RAISE(ABORT, 'CODIGO: motivo')` em 409 com mensagem clara, em vez de "erro interno" 500.
+- Auditoria nova usa `json_object` completo (nunca `json_patch`, que apaga do histórico os campos vazios).
+- Regras de UPDATE só disparam quando a coluna MUDA (`NEW.x IS NOT OLD.x`): linhas antigas gravadas antes da regra continuam editáveis.

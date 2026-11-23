@@ -6,6 +6,7 @@ import {
   atualizarGarantia,
   buscarStatus,
   excluirGarantia,
+  motivoDoErro,
   importarPlanilhaLegada,
   listarGarantias,
   listarLista,
@@ -20,6 +21,7 @@ import {
 import { criarEditorCampo, EditorCampo } from "../editor-registro";
 import { confirmar, confirmarExclusao } from "../componentes";
 import { notificar } from "../notificacoes";
+import { avisar } from "../dialogos";
 import { imprimirDocumento, cabecalhoFolha, tabelaCampos, assinaturas, criar } from "../impressao";
 import { ligarExpansaoColunas } from "../tabela-colunas";
 import { montarNavbar } from "../navbar";
@@ -286,7 +288,8 @@ async function cupom(status: GarantiaDados["cupomStatus"]): Promise<void> {
     notificar(status === "LANCADO" ? "Cupom fiscal marcado como lançado." : status === "DISPENSADO"
       ? "Garantia marcada como sem cupom fiscal." : "Cupom fiscal voltou a pendente.");
   } catch (erro) {
-    notificar("Não foi possível atualizar o cupom. Tente de novo.", "erro");
+    // ex.: NFC-e ja emitida no RM: o banco nao deixa o cupom voltar a pendente
+    await avisar({ titulo: "CUPOM NÃO ALTERADO", mensagem: motivoDoErro(erro, "Não foi possível atualizar o cupom. Tente de novo."), tom: "erro" });
     console.error("[Garantias] falha no cupom:", erro);
   }
 }
@@ -301,7 +304,8 @@ async function excluir(): Promise<void> {
     await recarregar();
     notificar("Garantia excluída.");
   } catch (erro) {
-    notificar("Não foi possível excluir a garantia. Tente de novo.", "erro");
+    // ex.: garantia com NFC-e emitida no RM nao pode ser excluida (regra do banco)
+    await avisar({ titulo: "GARANTIA NÃO EXCLUÍDA", mensagem: motivoDoErro(erro, "Não foi possível excluir a garantia. Tente de novo."), tom: "erro" });
     console.error("[Garantias] falha ao excluir:", erro);
   }
 }

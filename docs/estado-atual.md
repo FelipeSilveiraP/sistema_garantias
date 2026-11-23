@@ -7,13 +7,13 @@
 ## Situação
 - Projeto irmão do Sistema de Contas a Pagar (Electron + TS puro + Spring Boot 3.5/Java 21 + SQLite WAL), substitui a planilha `GARANTIAS-AAAA.xlsm`.
 - **1.4.0 = auditoria de segurança** (relatório para leigos em `docs/seguranca.md`): limite real de 5 PINs (antes, em paralelo, passava), bloqueio que dobra, "Esqueci o PIN" com limite de e-mails, tamanho máximo das requisições, foto e planilha conferidas pelo conteúdo, limites contra zip bomb, backup do Drive que só apaga as próprias planilhas, banco **v7** (limites de tamanho + auditoria de itens, contas e configurações).
-- Dependências atualizadas: Spring Boot 3.5.16 (Tomcat 10.1.59, Jackson 2.21.7), sqlite-jdbc 3.54.1.0, Electron 44.10.1, esbuild 0.28.2.
 - **CI no GitHub** (`.github/workflows/testes.yml`): testes no Windows + segurança (npm audit, OSV-Scanner, SpotBugs/FindSecBugs, Semgrep) + CodeQL; a cada envio e toda segunda.
 - **CUPOM FISCAL AUTOMÁTICO NO RM (2026-11-17, banco v8):** ao salvar a garantia o cupom sai sozinho no PDV do RM (produto pelo NOME NO RM, dinheiro, NFC-e, impressão na DARUMA); problema = pop-up para fazer à mão. Login só na página do RM, uma vez. Ver `decisoes.md`.
-- **Testes na nuvem (2026-11-17):** JUnit 79 (78 ok, 1 pulado) · máscaras 74 · filtros 22 · automações 39 · RM falso 6 + ponta a ponta 12/12 · persistência 11/11 · smoke 102/105 no Linux (as 3 falhas de layout são iguais na versão anterior).
 - **Não abre sozinho com o Windows** (desde a 1.4.6): o instalador e o próprio sistema apagam o cadastro de inicialização das versões antigas.
 
 - **O QUE MUDOU (2026-11-23):** depois de cada atualização o Menu mostra o que foi feito (lista dos commits feat/fix). Cupom do RM funcionando na loja (confirmado pelo usuário).
+
+- **Banco v10 (2026-11-23):** revisão de gatilhos, auditoria completa e transações do PIN (ver `decisoes.md`).
 
 ## Próximos passos
 - **Sincronizar com o RM (pedido 2026-11-23):** clientes e produtos nos dois sentidos — aguardando as respostas do usuário (ver conversa).

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 9;
+    private static final int VERSAO_ATUAL = 10;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -128,6 +128,7 @@ public class DatabaseInitializer {
             case 7 -> limitesEAuditoriaSeguranca();
             case 8 -> nomeNoRm();
             case 9 -> cupomNoRm();
+            case 10 -> protecoesV10();
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }
@@ -729,5 +730,105 @@ public class DatabaseInitializer {
                 "ALTER TABLE garantias ADD COLUMN cupom_nfce TEXT CHECK (cupom_nfce IS NULL OR length(cupom_nfce) <= 20)",
                 "ALTER TABLE garantias ADD COLUMN cupom_chave TEXT CHECK (cupom_chave IS NULL OR length(cupom_chave) <= 60)",
                 "CREATE UNIQUE INDEX idx_garantias_cupom_venda_uuid ON garantias(cupom_venda_uuid)");
+    }
+
+    // ---------- v10: revisao de gatilhos e auditoria (pedido do usuario, 2026-11-23) ----------
+
+    /** Teto de valor no proprio banco (R$ 999.999.999,99), igual ao do Contas a Pagar. */
+    static final long VALOR_MAXIMO_CENTAVOS = 99_999_999_999L;
+
+    /** Garantia COMPLETA na auditoria (a v1 nao via as colunas criadas depois: tecnico, veiculo, cupom do RM...). */
+    private static String jsonGarantiaCompleta(String r) {
+        // json_object completo (json_patch apagaria do historico os campos vazios)
+        String base = jsonGarantia(r);
+        return base.substring(0, base.length() - 1) + ", 'codigo_cupom', " + r + ".codigo_cupom,"
+                + " 'cupom_lancado_em', " + r + ".cupom_lancado_em, 'criado_por', " + r + ".criado_por,"
+                + " 'id_veiculo', " + r + ".id_veiculo, 'id_tecnico', " + r + ".id_tecnico,"
+                + " 'cupom_venda_uuid', " + r + ".cupom_venda_uuid, 'cupom_nfce', " + r + ".cupom_nfce,"
+                + " 'cupom_chave', " + r + ".cupom_chave)";
+    }
+
+    /** Produto COMPLETO na auditoria (a v1 nao via peca, "pede" e o NOME NO RM). */
+    private static String jsonServicoCompleto(String r) {
+        String base = jsonServico(r);
+        return base.substring(0, base.length() - 1) + ", 'nome_rm', " + r + ".nome_rm, 'peca', " + r + ".peca,"
+                + " 'pede_carcaca', " + r + ".pede_carcaca, 'pede_botao', " + r + ".pede_botao,"
+                + " 'pede_pilha', " + r + ".pede_pilha, 'pede_itens', " + r + ".pede_itens)";
+    }
+
+    private static String jsonMarca(String r) {
+        return "json_object('id_marca', " + r + ".id_marca, 'nome', " + r + ".nome)";
+    }
+
+    private static String jsonModelo(String r) {
+        return "json_object('id_modelo', " + r + ".id_modelo, 'nome', " + r + ".nome, 'ativo', " + r + ".ativo)";
+    }
+
+    private static void auditoriaCompleta(List<String> sql, String tabela, String prefixo, String id,
+                                          java.util.function.Function<String, String> json) {
+        sql.add("CREATE TRIGGER " + prefixo + "_insert AFTER INSERT ON " + tabela + " BEGIN "
+                + auditar(tabela, "INSERT", "NEW." + id, "NULL", json.apply("NEW")) + " END");
+        sql.add("CREATE TRIGGER " + prefixo + "_update AFTER UPDATE ON " + tabela
+                + " WHEN " + json.apply("OLD") + " IS NOT " + json.apply("NEW") + " BEGIN "
+                + auditar(tabela, "UPDATE", "NEW." + id, json.apply("OLD"), json.apply("NEW")) + " END");
+        sql.add("CREATE TRIGGER " + prefixo + "_delete AFTER DELETE ON " + tabela + " BEGIN "
+                + auditar(tabela, "DELETE", "OLD." + id, json.apply("OLD"), "NULL") + " END");
+    }
+
+    private static String recusa(String mensagem) {
+        return " BEGIN SELECT RAISE(ABORT, '" + mensagem + "'); END";
+    }
+
+    /**
+     * v10 - revisao dos gatilhos (so acrescenta regras; nenhum dado muda):
+     * 1) auditoria COMPLETA: garantias e produtos passam a registrar as colunas criadas
+     *    depois da v1 (tecnico, veiculo, NOME NO RM, numero/chave da NFC-e...); marcas e
+     *    modelos tambem passam a ser auditados;
+     * 2) NFC-e emitida no RM e documento fiscal: a garantia nao pode ser excluida, o numero,
+     *    a chave e a venda nao mudam mais e o cupom nao volta para "nao lancado";
+     * 3) teto de valor (R$ 999.999.999,99) em garantias, produtos e itens;
+     * 4) linha da planilha antiga fica como veio (so o vinculo com a garantia muda);
+     * 5) codigo de "Esqueci o PIN" usado nao volta a valer e as tentativas so sobem.
+     */
+    private static List<String> protecoesV10() {
+        List<String> sql = new ArrayList<>();
+        // 1) auditoria completa
+        for (String t : new String[] {"trg_auditoria_garantia_insert", "trg_auditoria_garantia_update",
+                "trg_auditoria_garantia_delete", "trg_auditoria_servico_insert", "trg_auditoria_servico_update",
+                "trg_auditoria_servico_delete"}) {
+            sql.add("DROP TRIGGER IF EXISTS " + t);
+        }
+        auditoriaCompleta(sql, "garantias", "trg_auditoria_garantia", "id_garantia", DatabaseInitializer::jsonGarantiaCompleta);
+        auditoriaCompleta(sql, "servicos", "trg_auditoria_servico", "id_servico", DatabaseInitializer::jsonServicoCompleto);
+        auditoriaCompleta(sql, "marcas", "trg_auditoria_marca", "id_marca", DatabaseInitializer::jsonMarca);
+        auditoriaCompleta(sql, "modelos", "trg_auditoria_modelo", "id_modelo", DatabaseInitializer::jsonModelo);
+        // 2) NFC-e emitida
+        sql.add("CREATE TRIGGER trg_garantia_nfce_nao_exclui BEFORE DELETE ON garantias WHEN OLD.cupom_nfce IS NOT NULL"
+                + recusa("NFCE_EMITIDA: garantia com NFC-e emitida no RM nao pode ser excluida"));
+        sql.add("CREATE TRIGGER trg_garantia_nfce_imutavel BEFORE UPDATE OF cupom_nfce, cupom_chave, cupom_venda_uuid,"
+                + " cupom_status ON garantias WHEN OLD.cupom_nfce IS NOT NULL AND (NEW.cupom_nfce IS NOT OLD.cupom_nfce"
+                + " OR NEW.cupom_chave IS NOT OLD.cupom_chave OR NEW.cupom_venda_uuid IS NOT OLD.cupom_venda_uuid"
+                + " OR NEW.cupom_status <> 'LANCADO')"
+                + recusa("NFCE_EMITIDA: a NFC-e ja foi emitida no RM; numero, chave e situacao do cupom nao mudam"));
+        // 3) teto de valor
+        String[][] valores = {{"garantias", "valor_centavos", "garantia"}, {"servicos", "preco_centavos", "servico"},
+            {"garantia_itens", "preco_centavos", "item"}};
+        for (String[] v : valores) {
+            String ruim = " WHEN NEW." + v[1] + " > " + VALOR_MAXIMO_CENTAVOS
+                    + recusa("VALOR_INVALIDO: valor acima de R$ 999.999.999,99");
+            sql.add("CREATE TRIGGER trg_" + v[2] + "_valor_maximo_ins BEFORE INSERT ON " + v[0] + ruim);
+            sql.add("CREATE TRIGGER trg_" + v[2] + "_valor_maximo_upd BEFORE UPDATE OF " + v[1] + " ON " + v[0] + ruim);
+        }
+        // 4) planilha antiga: a linha fica como veio
+        sql.add("CREATE TRIGGER trg_legado_nao_altera BEFORE UPDATE OF arquivo_origem, aba_origem, linha_origem, data,"
+                + " placa, modelo, servico, cpf, valor, tecnico, observacao, importado_em ON legado_garantias"
+                + recusa("LEGADO_IMUTAVEL: a linha da planilha antiga fica como foi importada"));
+        // 5) codigos de redefinicao do PIN
+        sql.add("CREATE TRIGGER trg_codigo_nao_reativa BEFORE UPDATE OF usado, tentativas, codigo_hash, expira_em,"
+                + " id_usuario ON codigos_redefinicao WHEN (OLD.usado = 1 AND NEW.usado = 0)"
+                + " OR NEW.tentativas < OLD.tentativas OR NEW.codigo_hash IS NOT OLD.codigo_hash"
+                + " OR NEW.expira_em IS NOT OLD.expira_em OR NEW.id_usuario IS NOT OLD.id_usuario"
+                + recusa("CODIGO_IMUTAVEL: codigo de redefinicao nao pode ser reaproveitado"));
+        return sql;
     }
 }

@@ -93,6 +93,12 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> generico(Exception erro) {
+        // gatilho do banco recusou (ultima linha de defesa): motivo claro, 409
+        var regra = RegraDoBanco.mensagem(erro);
+        if (regra.isPresent()) {
+            log.warn("gravacao recusada por regra do banco: {}", regra.get());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", regra.get()));
+        }
         log.error("erro nao tratado na API", erro);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("erro", "erro interno"));

@@ -133,6 +133,11 @@ export class ErroApi extends Error {
   }
 }
 
+/** Motivo que o servidor mandou (ex.: regra do banco: garantia com NFC-e emitida), ou o texto padrao. */
+export function motivoDoErro(erro: unknown, padrao: string): string {
+  return erro instanceof ErroApi && erro.status === 409 && typeof erro.corpo.erro === "string" ? erro.corpo.erro : padrao;
+}
+
 export class ErroDuplicidadeApi extends Error {
   constructor(public existente: GarantiaDados) {
     super("possivel duplicidade");
@@ -173,7 +178,7 @@ async function enviar<T>(cfg: FinDeskConfig, metodo: string, caminho: string, co
   if (resposta.status === 409) {
     const erro = (await resposta.json().catch(() => ({}))) as { tipo?: string; existente?: GarantiaDados };
     if (erro.tipo === "possivel_duplicata" && erro.existente) throw new ErroDuplicidadeApi(erro.existente);
-    throw new ErroApi(409);
+    throw new ErroApi(409, erro as Record<string, unknown>);
   }
   if (!resposta.ok) throw new ErroApi(resposta.status, await resposta.json().catch(() => ({})));
   return resposta.status === 204 ? (undefined as T) : ((await resposta.json()) as T);
