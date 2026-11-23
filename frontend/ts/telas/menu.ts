@@ -9,6 +9,7 @@ import { hojeIso } from "../filtros";
 import { Tela, irPara } from "../navegacao";
 import { perfilAtual } from "../perfil";
 import { criarBotaoConta } from "../conta-menu";
+import { mostrarNovidades } from "../novidades";
 
 const DESTINOS: Record<string, Tela> = {
   "cadastrar-garantia": "cadastrar-garantia",
@@ -126,7 +127,8 @@ async function iniciar(): Promise<void> {
     document.body.dataset.apiStatus = "ok";
     void mostrarResumoDoDia(cfg).catch(() => undefined);
     void conferirBackupDrive(cfg);
-    void oferecerAtualizacao();
+    // O QUE MUDOU primeiro; o aviso de versao nova espera (um pop-up por vez)
+    void mostrarNovidades().then(() => oferecerAtualizacao());
   } catch (erro) {
     document.body.dataset.apiStatus = "erro";
     console.warn("[Garantias] API indisponível:", erro instanceof Error ? erro.message : erro);

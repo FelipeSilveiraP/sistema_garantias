@@ -92,3 +92,6 @@ build/
 
 # chave de criptografia das contas (fica na pasta de dados, nunca no Git)
 *.key
+
+# O QUE MUDOU: gerado dos commits ao montar o instalador
+desktop/novidades.json

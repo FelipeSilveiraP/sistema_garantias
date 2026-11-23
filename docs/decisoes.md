@@ -214,3 +214,10 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-23 — "RM fora do ar": dizer o motivo e voltar sozinho
 - Foto da loja (v1.4.42): pop-up "RM SOFTWARE FORA DO AR" sem dizer por quê. Conferido: o site do RM foi republicado (arquivo principal novo) mas endereços e passos que usamos (`/v1/auth/me`, `/auth/refresh`, `/pdv/totais`, `/vendas`, `/emitir`, `cupom-dados`, ÚLTIMAS VENDAS) não mudaram, e a página não barra o Electron. Logo é rede do computador (internet, DNS, bloqueio) ou queda do RM.
 - Agora `rm-rede.js` traduz a falha (página ou API do RM: sem internet, DNS, lento/bloqueado, certificado/data do Windows, proxy, erro 5xx) no pop-up, no "FAÇA O CUPOM NO RM" e no log (`[rm] sem conexao com o RM: ...`). Com RM fora do ar, tenta voltar SOZINHO a cada minuto (sem cupom saindo e sem a janela do RM aberta); a sessão viva continua a cada 10 min.
+
+## 2026-11-23 — Pop-up O QUE MUDOU depois de cada atualização (os dois sistemas)
+- Pedido do usuário: depois de atualizar, mostrar o que foi feito (ele fica dias sem ir à loja e esquece).
+- A lista sai dos commits `feat:` (NOVO), `fix:` (CORRIGIDO) e `perf:` (MAIS RÁPIDO); commits de bastidor (testes, CI, SpotBugs) ficam de fora. `instalador/empacotar.js` grava `desktop/novidades.json` (fora do Git) e o CI faz checkout com o histórico inteiro (`fetch-depth: 0`). No `npm run dev`, a lista sai do git na hora.
+- O "já visto" fica ao lado do banco (`novidades-vistas.json`: versão + data da última mudança vista). Instalação nova (banco ainda não existia) não mostra nada; na 1ª vez com o recurso, mostra os últimos 30 dias. No máximo 60 itens; ENTENDI marca como visto.
+- No Menu: O QUE MUDOU primeiro, depois as mensagens/aviso de versão nova (um pop-up por vez). O ensaio do ATUALIZAR no CI confere o pop-up e o ENTENDI. Código igual nos dois sistemas: `desktop/novidades.js`, `frontend/ts/novidades.ts`, `desktop/teste-novidades.js`.
+- **Por isso: escrever o assunto dos commits `feat:`/`fix:` em português simples, para a loja entender.**
