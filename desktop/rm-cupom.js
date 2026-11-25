@@ -64,6 +64,99 @@ async function acharProduto(chamar, contexto, nomeRm) {
   throw new ErroDefinitivo(`o produto "${nomeRm}" não foi encontrado no RM (confira o NOME NO RM em ATUALIZAR PREÇOS)`);
 }
 
+// ---------- produto do CARRO (pedido do usuario, 2026-11-25) ----------
+// Os canivetes/carcacas do RM tem o carro no nome ("CHAVE CANIVETE SECA GOL G5 G6", "CANIVETE
+// CHEVROLET CRUZE E ONIX 3 BOTOES"). Todos sao o mesmo tipo de produto (mesmo NCM), entao o
+// cupom pode sair com o do carro da garantia: 1) o que tem o MODELO no nome; 2) senao o
+// primeiro com a MARCA; 3) senao o NOME NO RM de sempre. Pecas (PILHA, BOTAO) nao mudam.
+// Nada muda na tela nem na emissao: so qual produto do RM entra na venda.
+
+/** Como cada marca pode estar escrita no nome do produto do RM. */
+const APELIDOS_MARCA = {
+  CHEVROLET: ["CHEVROLET", "GM", "CHEV"],
+  VOLKSWAGEN: ["VOLKSWAGEN", "VW"],
+  "MERCEDES-BENZ": ["MERCEDES", "BENZ"],
+  "CAOA CHERY": ["CHERY"],
+  "LAND ROVER": ["LAND ROVER"],
+  CITROEN: ["CITROEN"],
+};
+
+/** Palavras que nao dizem qual e o produto (ficam fora da "familia"). */
+const GENERICAS = new Set(["CHAVE", "TROCA", "COM", "SEM", "PARA", "DE", "DA", "DO", "E"]);
+
+function palavras(texto) {
+  return normalizar(texto).split(/[^A-Z0-9]+/).filter(Boolean);
+}
+
+/** " A B C " contem " B C "? (palavra inteira, nao pedaco: "GOL" nao bate com "GOLF") */
+function temTermo(nome, termo) {
+  const t = palavras(termo).join(" ");
+  return Boolean(t) && ` ${palavras(nome).join(" ")} `.includes(` ${t} `);
+}
+
+/** Palavras do NOME NO RM que dizem o tipo de produto ("CARCACA CANIVETE" -> CARCACA, CANIVETE). */
+function familia(nomeRm) {
+  return palavras(nomeRm).filter((p) => p.length >= 3 && !GENERICAS.has(p));
+}
+
+/** Modelo sem a marca ("FIAT 500" -> "500"; "S-10" -> "S 10" e "S10"). */
+function termosModelo(modelo, apelidos) {
+  const marca = new Set(apelidos.flatMap(palavras));
+  const resto = palavras(modelo).filter((p) => !marca.has(p));
+  if (!resto.length) return [];
+  const junto = resto.join("");
+  return [...new Set([resto.join(" "), junto, resto[0]].filter((t) => t.length >= 2))];
+}
+
+/** Escolhe o produto do carro entre os do RM (ou null). Exportado para teste. */
+function escolherDoCarro(produtos, nomeRm, marca, modelo) {
+  const fam = familia(nomeRm);
+  const apelidos = marca ? (APELIDOS_MARCA[normalizar(marca)] || [marca]) : [];
+  const modelos = modelo ? termosModelo(modelo, apelidos) : [];
+  let melhor = null;
+  let melhorPontos = 0;
+  for (const p of produtos) {
+    if (p.isActive === false) continue;
+    const nome = p.descricao;
+    const deFamilia = fam.filter((f) => temTermo(nome, f)).length;
+    if (!deFamilia) continue;
+    const temModelo = modelos.some((m) => temTermo(nome, m));
+    const temMarca = apelidos.some((a) => temTermo(nome, a));
+    if (!temModelo && !temMarca) continue;
+    const pontos = (temModelo ? 100 : 0) + (temMarca ? 50 : 0) + deFamilia * 10;
+    if (pontos > melhorPontos) { // empate: fica o primeiro que apareceu
+      melhor = p;
+      melhorPontos = pontos;
+    }
+  }
+  return melhor;
+}
+
+/** Produto do carro da garantia no RM: busca pela marca e pelo modelo e escolhe. */
+async function acharProdutoDoCarro(chamar, contexto, item, marca, modelo) {
+  if (item.peca || (!marca && !modelo)) return null;
+  const apelidos = marca ? (APELIDOS_MARCA[normalizar(marca)] || [marca]) : [];
+  const termos = [...(modelo ? termosModelo(modelo, apelidos).slice(0, 1) : []), ...apelidos];
+  const vistos = new Map();
+  for (const termo of termos) {
+    const consulta = new URLSearchParams({
+      pageSize: "100",
+      q: termo,
+      tabelaPrecoId: contexto.tabelaPrecoId,
+      companyId: contexto.companyId,
+      mixDoPdv: "true",
+    });
+    const resposta = await chamar("GET", `/v1/produtos?${consulta}`);
+    // busca do carro e um "a mais": se falhar, o cupom segue com o NOME NO RM
+    if (resposta.status < 200 || resposta.status >= 300) continue;
+    const dados = conferir(resposta, `pesquisar ${termo}`);
+    for (const p of (dados && dados.items) || []) {
+      if (!vistos.has(p.id)) vistos.set(p.id, p);
+    }
+  }
+  return escolherDoCarro([...vistos.values()], item.nomeRm, marca, modelo);
+}
+
 /**
  * Emite a NFC-e do pedido montado pelo servidor (GET /api/garantias/{id}/cupom-rm).
  * `memoria` guarda o que ja deu certo (venda criada), para a nova tentativa nao criar
@@ -76,7 +169,9 @@ async function emitirNoRm(pedido, chamar, contexto, memoria = {}) {
   if (!memoria.idVenda) {
     const itens = [];
     for (const item of pedido.itens) {
-      const produto = await acharProduto(chamar, contexto, item.nomeRm);
+      // o canivete/carcaca do CARRO da garantia; sem achar, o NOME NO RM de sempre
+      const produto = (await acharProdutoDoCarro(chamar, contexto, item, pedido.marca, pedido.modelo))
+        || (await acharProduto(chamar, contexto, item.nomeRm));
       const valor = reais(item.valorUnitario);
       itens.push({ produtoId: produto.id, quantidade: item.quantidade, valorUnitario: valor, valorUnitarioBase: valor, desconto: 0 });
     }
@@ -117,4 +212,4 @@ async function emitirNoRm(pedido, chamar, contexto, memoria = {}) {
   };
 }
 
-module.exports = { emitirNoRm, normalizar, ErroTemporario, ErroDefinitivo };
+module.exports = { emitirNoRm, normalizar, escolherDoCarro, ErroTemporario, ErroDefinitivo };

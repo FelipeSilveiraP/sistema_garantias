@@ -3,7 +3,7 @@
 // a nova tentativa sem segunda venda, os erros e o cupom impresso.
 // Uso: node desktop/teste-rm-cupom.js
 const assert = require("assert");
-const { emitirNoRm, normalizar, ErroTemporario, ErroDefinitivo } = require("./rm-cupom");
+const { emitirNoRm, normalizar, escolherDoCarro, ErroTemporario, ErroDefinitivo } = require("./rm-cupom");
 
 let ok = 0;
 let falhas = 0;
@@ -71,6 +71,55 @@ function rmFalso(opcoes = {}) {
 
 (async () => {
   console.log("cupom fiscal no RM (RM falso):");
+
+  // ----- produto do CARRO (pedido 2026-11-25): nomes como os cadastrados no RM da loja -----
+  const CATALOGO = [
+    { id: "c-generico", descricao: "CARCAÇA CANIVETE", isActive: true },
+    { id: "c-controle-fiat", descricao: "CARCAÇA CONTROLE FIAT AZUL", isActive: true },
+    { id: "c-palio", descricao: "CHAVE CANIVETE FIAT PALIO / UNO E IDEA", isActive: true },
+    { id: "c-gol-seca", descricao: "CHAVE CANIVETE SECA VW GOL G5 G6 SEM BOTOES", isActive: true },
+    { id: "c-gol-oca", descricao: "CHAVE CANIVETE OCA VW GOL G5 / POLO 03 BOTOES", isActive: true },
+    { id: "c-saveiro", descricao: "CARCAÇA CANIVETE SAVEIRO", isActive: true },
+    { id: "c-onix", descricao: "CANIVETE CHEVROLET CRUZE E ONIX 3 BOTÕES COM PARAFUSO OCO", isActive: true },
+    { id: "c-golf", descricao: "CANIVETE VW GOLF", isActive: true },
+    { id: "pilha", descricao: "PILHA CR2032", isActive: true },
+  ];
+  const doCarro = (marca, modelo, nomeRm = "CARCAÇA CANIVETE") => (escolherDoCarro(CATALOGO, nomeRm, marca, modelo) || {}).id;
+  await caso("carro: ONIX (Chevrolet) -> o canivete escrito CHEVROLET/ONIX", async () => {
+    assert.strictEqual(doCarro("CHEVROLET", "ONIX"), "c-onix");
+    assert.strictEqual(doCarro("CHEVROLET", "CRUZE"), "c-onix");
+    assert.strictEqual(doCarro("CHEVROLET", "SPIN"), "c-onix"); // sem o modelo: o primeiro da marca
+  });
+  await caso("carro: modelo escrito no nome ganha (SAVEIRO), senao o primeiro da marca", async () => {
+    assert.strictEqual(doCarro("VOLKSWAGEN", "SAVEIRO"), "c-saveiro");
+    assert.strictEqual(doCarro("VOLKSWAGEN", "GOL"), "c-gol-seca"); // GOL nao confunde com GOLF
+    assert.strictEqual(doCarro("VOLKSWAGEN", "POLO"), "c-gol-oca");
+    assert.strictEqual(doCarro("VOLKSWAGEN", "JETTA"), "c-gol-seca"); // VW sem o modelo: o primeiro
+    assert.strictEqual(doCarro("FIAT", "PALIO"), "c-palio");
+  });
+  await caso("carro: marca sem produto proprio -> null (o cupom usa o NOME NO RM de sempre)", async () => {
+    assert.strictEqual(doCarro("TOYOTA", "COROLA"), undefined);
+    assert.strictEqual(doCarro(null, null), undefined);
+    // a palavra do produto tem de bater: BOLACHA de um ONIX nao vira canivete
+    assert.strictEqual(doCarro("CHEVROLET", "ONIX", "BOLACHA"), undefined);
+  });
+  await caso("venda no RM sai com o canivete do carro; a PILHA (peca) continua a de sempre", async () => {
+    const rm = rmFalso({ produtos: CATALOGO });
+    const pedido = { ...PEDIDO, marca: "CHEVROLET", modelo: "ONIX", itens: [
+      { nomeRm: "CARCAÇA CANIVETE", quantidade: 1, valorUnitario: 138, peca: false },
+      { nomeRm: "PILHA CR2032", quantidade: 1, valorUnitario: 12, peca: true },
+    ] };
+    await emitirNoRm(pedido, rm.chamar, CONTEXTO, {});
+    const venda = rm.pedidos.find((x) => x.caminho === "/v1/pdv/vendas");
+    assert.deepStrictEqual(venda.corpo.itens.map((i) => i.produtoId), ["c-onix", "pilha"]);
+    assert.strictEqual(venda.corpo.totalMostrado, 150);
+  });
+  await caso("venda de carro sem produto proprio: usa o NOME NO RM (como antes)", async () => {
+    const rm = rmFalso({ produtos: CATALOGO });
+    await emitirNoRm({ ...PEDIDO, marca: "TOYOTA", modelo: "HILUX", itens: [{ nomeRm: "CARCAÇA CANIVETE", quantidade: 1, valorUnitario: 150 }], total: 150 }, rm.chamar, CONTEXTO, {});
+    const venda = rm.pedidos.find((x) => x.caminho === "/v1/pdv/vendas");
+    assert.deepStrictEqual(venda.corpo.itens.map((i) => i.produtoId), ["c-generico"]);
+  });
 
   await caso("emite como o operador: produtos pela palavra, dinheiro, total conferido", async () => {
     const rm = rmFalso();

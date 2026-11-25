@@ -29,11 +29,22 @@ public class CupomService {
     private static final Logger log = LoggerFactory.getLogger(CupomService.class);
 
     /** Uma linha do PDV: pesquisar pela palavra, escolher, ajustar quantidade e valor. */
-    public record ItemCupom(String nomeRm, int quantidade, BigDecimal valorUnitario) {
+    public record ItemCupom(String nomeRm, int quantidade, BigDecimal valorUnitario, boolean peca) {
+        public ItemCupom(String nomeRm, int quantidade, BigDecimal valorUnitario) {
+            this(nomeRm, quantidade, valorUnitario, false);
+        }
     }
 
     /** status != NAO_LANCADO: nada a emitir (itens vazio). */
-    public record PedidoCupom(long idGarantia, String status, String vendaUuid, BigDecimal total, List<ItemCupom> itens) {
+    /**
+     * `marca`/`modelo` do carro: com eles o desktop escolhe no RM o produto do carro (ex.:
+     * TROCA CARCACA num ONIX -> o canivete escrito CHEVROLET/ONIX); sem achar, usa o NOME NO RM.
+     */
+    public record PedidoCupom(long idGarantia, String status, String vendaUuid, BigDecimal total, List<ItemCupom> itens,
+                              String marca, String modelo) {
+        public PedidoCupom(long idGarantia, String status, String vendaUuid, BigDecimal total, List<ItemCupom> itens) {
+            this(idGarantia, status, vendaUuid, total, itens, null, null);
+        }
     }
 
     private final CupomRepository repository;
@@ -54,7 +65,8 @@ public class CupomService {
             }
             List<ItemCupom> itens = dividir(situacao.valorCentavos(), repository.linhas(idGarantia));
             String uuid = repository.garantirVendaUuid(idGarantia, UUID.randomUUID().toString());
-            return new PedidoCupom(idGarantia, situacao.status(), uuid, total, itens);
+            var carro = repository.carro(idGarantia);
+            return new PedidoCupom(idGarantia, situacao.status(), uuid, total, itens, carro.marca(), carro.modelo());
         } catch (SQLException erro) {
             log.error("falha ao montar o cupom da garantia id={}", idGarantia, erro);
             throw new IllegalStateException("falha ao montar o cupom", erro);
@@ -146,7 +158,7 @@ public class CupomService {
                 throw erro("O valor da garantia é pequeno demais para dividir entre os produtos.");
             }
             LinhaCupom l = linhas.get(i);
-            itens.add(new ItemCupom(l.nomeRm(), l.quantidade(), BigDecimal.valueOf(unitario[i], 2)));
+            itens.add(new ItemCupom(l.nomeRm(), l.quantidade(), BigDecimal.valueOf(unitario[i], 2), l.peca()));
         }
         return itens;
     }

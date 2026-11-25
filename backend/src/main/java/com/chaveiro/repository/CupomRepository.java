@@ -41,6 +41,28 @@ public class CupomRepository {
         }
     }
 
+    /** Carro da garantia para achar o produto certo no RM: { marca, modelo } (marca pode faltar). */
+    public record Carro(String marca, String modelo) {
+    }
+
+    /**
+     * Marca e modelo: pelo veiculo escolhido no cadastro; sem ele, pelo modelo digitado
+     * procurado na lista de veiculos (ONIX -> CHEVROLET).
+     */
+    public Carro carro(long idGarantia) throws SQLException {
+        String sql = "SELECT g.modelo, COALESCE(m.nome, (SELECT m2.nome FROM veiculos v2 JOIN marcas m2 ON m2.id_marca = v2.id_marca"
+                + " WHERE v2.modelo = g.modelo COLLATE NOCASE ORDER BY v2.ativo DESC, v2.id_veiculo LIMIT 1))"
+                + " FROM garantias g LEFT JOIN veiculos v ON v.id_veiculo = g.id_veiculo"
+                + " LEFT JOIN marcas m ON m.id_marca = v.id_marca WHERE g.id_garantia = ?";
+        try (Connection conn = conexao.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, idGarantia);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? new Carro(rs.getString(2), rs.getString(1)) : new Carro(null, null);
+            }
+        }
+    }
+
     public List<LinhaCupom> linhas(long idGarantia) throws SQLException {
         String sql = "SELECT i.descricao, i.quantidade, i.preco_centavos, COALESCE(s.peca, 0), s.nome_rm"
                 + " FROM garantia_itens i LEFT JOIN servicos s ON s.id_servico = i.id_servico"
