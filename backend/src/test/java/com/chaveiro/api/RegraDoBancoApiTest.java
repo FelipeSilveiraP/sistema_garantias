@@ -1,10 +1,8 @@
 package com.chaveiro.api;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,7 +31,7 @@ class RegraDoBancoApiTest {
     private ConnectionFactory conexao;
 
     @Test
-    void garantiaComNfceEmitidaNaoExcluiENaoDesmarcaOCupom() throws Exception {
+    void garantiaComNfceEmitidaPodeSerExcluida() throws Exception {
         String corpo = "{\"dataServico\":\"" + LocalDate.now() + "\",\"placa\":\"NFC1E23\",\"semPlaca\":false,"
                 + "\"modelo\":\"gol\",\"servico\":\"troca bolacha\",\"valor\":80.00,\"tecnico\":\"felipe\"}";
         String criado = mvc.perform(post("/api/garantias").header("X-FinDesk-Token", TOKEN)
@@ -44,13 +42,9 @@ class RegraDoBancoApiTest {
             st.execute("UPDATE garantias SET cupom_status = 'LANCADO', cupom_lancado_em = '" + LocalDate.now()
                     + "', cupom_nfce = '777', cupom_chave = 'CHAVE' WHERE id_garantia = " + id);
         }
+        // pedido do usuario (2026-11-25): exclui mesmo com NFC-e emitida
         mvc.perform(delete("/api/garantias/" + id).header("X-FinDesk-Token", TOKEN))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("NFC-e emitida no RM")));
-        mvc.perform(put("/api/garantias/" + id + "/cupom").header("X-FinDesk-Token", TOKEN)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"NAO_LANCADO\"}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("NFC-e emitida no RM")));
+                .andExpect(status().isNoContent());
     }
 
     /** Pedido do cupom leva o carro (marca pela lista de veiculos) para achar o canivete certo no RM. */

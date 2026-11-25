@@ -47,22 +47,18 @@ class ProtecoesBancoTest {
 
     @Test
     void versaoDez() throws SQLException {
-        assertThat(texto("PRAGMA user_version")).isEqualTo("10");
+        assertThat(texto("PRAGMA user_version")).isEqualTo("11");
     }
 
     @Test
-    void garantiaComNfceNaoExcluiNemMudaOCupom() throws SQLException {
+    void garantiaComNfcePodeSerExcluidaEAlterada() throws SQLException {
+        // pedido do usuario (2026-11-25, v11): o sistema nao impede excluir nem mudar o cupom
         long id = garantia();
         sql("UPDATE garantias SET cupom_status = 'LANCADO', cupom_lancado_em = '" + LocalDate.now()
                 + "', cupom_nfce = '262', cupom_chave = 'CHAVE123' WHERE id_garantia = " + id);
-        assertThatThrownBy(() -> sql("DELETE FROM garantias WHERE id_garantia = " + id)).hasMessageContaining("NFCE_EMITIDA");
-        assertThatThrownBy(() -> sql("UPDATE garantias SET cupom_nfce = '999' WHERE id_garantia = " + id))
-                .hasMessageContaining("NFCE_EMITIDA");
-        assertThatThrownBy(() -> sql("UPDATE garantias SET cupom_status = 'NAO_LANCADO', cupom_lancado_em = NULL WHERE id_garantia = " + id))
-                .hasMessageContaining("NFCE_EMITIDA");
-        // o resto da garantia continua editavel
-        sql("UPDATE garantias SET observacao = 'cliente voltou' WHERE id_garantia = " + id);
-        assertThat(texto("SELECT cupom_nfce FROM garantias WHERE id_garantia = " + id)).isEqualTo("262");
+        sql("UPDATE garantias SET cupom_status = 'NAO_LANCADO', cupom_lancado_em = NULL WHERE id_garantia = " + id);
+        sql("DELETE FROM garantias WHERE id_garantia = " + id);
+        assertThat(texto("SELECT count(*) FROM garantias")).isEqualTo("0");
     }
 
     @Test

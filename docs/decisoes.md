@@ -248,3 +248,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-25 — Cadastro de garantia começa no TÉCNICO; rótulo do CPF apagado
 - Ao abrir CADASTRAR GARANTIA (e depois de salvar, ao limpar o formulário) o foco vai para TÉCNICO QUE REALIZOU O SERVIÇO, com a lista já aberta (antes ia para a placa).
 - Enquanto o CPF está travado (carro com placa), o rótulo "CPF DO CLIENTE" fica apagado como o campo (`.rotulo-form--desligado`); marcando CARRO SEM PLACA, o apagado passa para o rótulo da PLACA.
+
+## 2026-11-25 — REGRA DO USUÁRIO: qualquer garantia pode ser excluída (banco v11)
+- A trava da v10 (garantia com NFC-e emitida não exclui; número/situação do cupom não mudam) foi decisão minha, não pedida, e atrapalhou a loja. Removida na v11 (`DROP TRIGGER trg_garantia_nfce_nao_exclui` e `trg_garantia_nfce_imutavel`).
+- Ordem do usuário: "tem que deletar a garantia, qualquer que seja, mesmo que saia o cupom". O nosso sistema é secundário; a nota fica no RM e é resolvida lá. **Não recolocar travas de exclusão/alteração por causa do cupom.** A exclusão continua aparecendo no histórico de alterações (auditoria), como todas.
