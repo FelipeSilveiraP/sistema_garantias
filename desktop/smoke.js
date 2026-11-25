@@ -151,6 +151,11 @@ async function executar() {
   // ---------- CADASTRAR ----------
   await js("document.querySelector('a[data-path=\"cadastrar-garantia\"]').click()");
   teste("CADASTRAR GARANTIA abre o formulário", await telaPronta("cadastrar-garantia"));
+  teste("Cadastro começa no TÉCNICO, com a lista aberta (não na placa)", await esperarPredicado(
+    "document.activeElement && document.activeElement.closest('.caixa-busca') && document.activeElement.closest('.caixa-busca').contains(document.getElementById('tecnico'))"
+    + " && !document.querySelector('#tecnico').closest('.caixa-busca').querySelector('.caixa-busca__lista').classList.contains('hidden')", 5000));
+  teste("Rótulo CPF DO CLIENTE apagado enquanto o CPF está travado", await js("document.querySelector('label[for=cpf]').classList.contains('rotulo-form--desligado') && parseFloat(getComputedStyle(document.querySelector('label[for=cpf]')).opacity) < 0.6"));
+  await capturar("cadastro-comeca-no-tecnico-1366x820");
   teste("Técnicos, modelos e serviços carregados", await esperarPredicado("document.body.dataset.listasCarregadas === 'true'"));
   teste("Letras maiores no formulário (rótulos >= 17px, campos >= 19px)", await js("parseFloat(getComputedStyle(document.querySelector('#form-garantia .rotulo-form')).fontSize) >= 17 && parseFloat(getComputedStyle(document.getElementById('placa')).fontSize) >= 19"));
   teste("Rótulo: TÉCNICO QUE REALIZOU O SERVIÇO", (await texto("label[for=tecnico_busca]")).includes("TÉCNICO QUE REALIZOU O SERVIÇO"));

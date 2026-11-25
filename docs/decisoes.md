@@ -244,3 +244,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 
 ## 2026-11-25 — "NOME NO RM" passa a se chamar "PRODUTO DO RM PARA QUALQUER CARRO"
 - Pedido do usuário: nome que diga para que serve. É o produto genérico do RM (ex.: CARCAÇA CANIVETE), usado quando o cupom não acha o produto do carro da garantia. Telas (Atualizar preços, Todos os produtos, Cadastrar produto) e mensagens do cupom usam o nome novo; a coluna no banco continua `nome_rm`.
+
+## 2026-11-25 — Cadastro de garantia começa no TÉCNICO; rótulo do CPF apagado
+- Ao abrir CADASTRAR GARANTIA (e depois de salvar, ao limpar o formulário) o foco vai para TÉCNICO QUE REALIZOU O SERVIÇO, com a lista já aberta (antes ia para a placa).
+- Enquanto o CPF está travado (carro com placa), o rótulo "CPF DO CLIENTE" fica apagado como o campo (`.rotulo-form--desligado`); marcando CARRO SEM PLACA, o apagado passa para o rótulo da PLACA.

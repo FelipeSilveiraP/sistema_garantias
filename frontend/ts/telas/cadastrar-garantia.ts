@@ -184,7 +184,21 @@ function atualizarSemPlaca(focar = true): void {
   el("placa-obrigatoria").classList.toggle("hidden", sem);
   el("cpf-obrigatorio").classList.toggle("hidden", !sem);
   el("cpf-dica").textContent = sem ? "11 NÚMEROS" : "SÓ PARA CARRO SEM PLACA";
+  // o ROTULO do campo travado tambem fica apagado (pedido do usuario, 2026-11-25: o
+  // "CPF DO CLIENTE" escuro confundia, parecia que tinha de preencher)
+  document.querySelector('label[for="cpf"]')?.classList.toggle("rotulo-form--desligado", !sem);
+  document.querySelector('label[for="placa"]')?.classList.toggle("rotulo-form--desligado", sem);
   if (focar) (sem ? cpf : placa).focus();
+}
+
+/**
+ * O formulario comeca pelo TECNICO QUE REALIZOU O SERVICO, com a lista ja aberta (pedido do
+ * usuario, 2026-11-25); antes comecava na placa. Sem a caixa (lista ainda nao montada), a placa.
+ */
+function focarInicio(): void {
+  const campo = caixaTecnico?.campo;
+  if (campo) campo.focus();
+  else el<HTMLInputElement>("placa").focus();
 }
 
 /** Regra propria (sem consulta externa), igual a do servidor e do banco. `completo` = cobrar tambem o tamanho. */
@@ -301,10 +315,10 @@ function limpar(): void {
   abrirObservacao(false);
   trocarModeloOutro(false);
   caixaTecnico?.sincronizar();
-  atualizarSemPlaca();
+  atualizarSemPlaca(false);
   reiniciarProdutos();
   mostrarErros({});
-  el<HTMLInputElement>("placa").focus();
+  focarInicio();
 }
 
 /** Depois de salvar: a tela volta para o comeco do formulario (pedido do usuario). */
@@ -515,7 +529,7 @@ function iniciar(): void {
   }, true);
 
   void verificarApi();
-  void carregarListas().then(() => el<HTMLInputElement>("placa").focus());
+  void carregarListas().then(() => focarInicio());
   console.info("[Garantias] cadastro de garantia iniciado");
 }
 

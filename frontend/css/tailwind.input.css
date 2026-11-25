@@ -1660,3 +1660,6 @@ textarea:not(.sem-maiusculas) {
   #tabelaPrecos td:nth-child(7) { align-items: flex-end; justify-content: flex-end; }
   #tabelaPrecos td input:not([type="checkbox"]) { width: 100%; }
 }
+
+/* rotulo do campo travado (CPF ate marcar "carro sem placa"; placa depois): apagado igual ao campo */
+.rotulo-form--desligado { opacity: 0.45; filter: blur(0.6px); }
