@@ -122,7 +122,7 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   tipo.dataset.rotulo = "Tipo";
   precoTd.dataset.rotulo = "Preço (R$)";
   codigoTd.dataset.rotulo = "Código no cupom";
-  nomeRmTd.dataset.rotulo = "Nome no RM (cupom)";
+  nomeRmTd.dataset.rotulo = "Nome no RM (padrão)";
   ativoTd.dataset.rotulo = "Ativo";
   acaoTd.dataset.rotulo = "";
   tr.append(nome, tipo, precoTd, codigoTd, nomeRmTd, ativoTd, acaoTd);
