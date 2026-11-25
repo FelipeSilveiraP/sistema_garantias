@@ -117,6 +117,14 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
       }
     })();
   });
+  // rotulos usados no modo "cartao" (janela estreita: cada produto vira um cartao com os campos largos)
+  nome.dataset.rotulo = "Serviço / peça";
+  tipo.dataset.rotulo = "Tipo";
+  precoTd.dataset.rotulo = "Preço (R$)";
+  codigoTd.dataset.rotulo = "Código no cupom";
+  nomeRmTd.dataset.rotulo = "Nome no RM (cupom)";
+  ativoTd.dataset.rotulo = "Ativo";
+  acaoTd.dataset.rotulo = "";
   tr.append(nome, tipo, precoTd, codigoTd, nomeRmTd, ativoTd, acaoTd);
   return tr;
 }
@@ -129,7 +137,8 @@ function naoSalvas(): number {
 async function carregarPrecos(): Promise<void> {
   const servicos = await listarServicos(await window.finDesk!.config());
   const corpo = el("corpoPrecos");
-  corpo.replaceChildren(...servicos.map(linhaServico));
+  // ativos primeiro; os desligados (ex.: combinacoes antigas CARCACA+BOTAO) vao para o fim
+  corpo.replaceChildren(...[...servicos].sort((a, b) => Number(b.ativo) - Number(a.ativo)).map(linhaServico));
   recolherTabela("precos", corpo, corpo.closest("table")!.parentElement as HTMLElement);
   document.body.dataset.precosCarregados = String(servicos.length);
 }

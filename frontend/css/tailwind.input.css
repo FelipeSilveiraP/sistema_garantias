@@ -1626,3 +1626,37 @@ textarea:not(.sem-maiusculas) {
 @media (prefers-reduced-motion: reduce) { .automacao-etapa--agora .material-symbols-outlined { animation: none; } }
 .automacao-cancelar { background: #dc2626 !important; color: #ffffff !important; min-width: 12rem; }
 .automacao-cancelar:disabled { background: #e8e5e4 !important; color: #7c775f !important; cursor: not-allowed; box-shadow: none; transform: none; }
+
+/* ===== ATUALIZAR PRECOS em janela estreita (pedido do usuario, 2026-11-25) =====
+   Abaixo de 1100px cada produto vira um CARTAO: nome em cima e os campos com largura de
+   verdade (preco, codigo, NOME NO RM inteiro), em vez de 7 colunas espremidas. */
+@media (max-width: 1099px) {
+  #tabelaPrecos, #tabelaPrecos tbody { display: block; }
+  #tabelaPrecos thead { display: none; }
+  #tabelaPrecos tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.6rem 0.9rem;
+    padding: 0.9rem 1rem;
+  }
+  #tabelaPrecos td { display: flex; flex-direction: column; gap: 0.3rem; padding: 0 !important; text-align: left; min-width: 0; }
+  #tabelaPrecos td::before {
+    content: attr(data-rotulo);
+    font-family: ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  #tabelaPrecos td[data-rotulo=""]::before { content: none; }
+  /* nome do produto: titulo do cartao, linha inteira, com o tipo ao lado */
+  #tabelaPrecos td:first-child { grid-column: 1; font-size: 1.05rem; justify-content: center; }
+  #tabelaPrecos td:first-child::before { content: none; }
+  #tabelaPrecos td:nth-child(2) { align-items: flex-end; justify-content: center; }
+  #tabelaPrecos td:nth-child(2)::before { content: none; }
+  /* NOME NO RM: linha inteira (e o mais comprido) */
+  #tabelaPrecos td:nth-child(5) { grid-column: 1 / -1; }
+  #tabelaPrecos td:nth-child(6) { flex-direction: row; align-items: center; gap: 0.6rem; }
+  #tabelaPrecos td:nth-child(7) { align-items: flex-end; justify-content: flex-end; }
+  #tabelaPrecos td input:not([type="checkbox"]) { width: 100%; }
+}

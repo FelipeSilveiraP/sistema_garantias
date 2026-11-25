@@ -232,3 +232,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 - **Erro de gatilho na tela:** `api/RegraDoBanco` (igual nos dois sistemas) transforma o `RAISE(ABORT, 'CODIGO: motivo')` em 409 com mensagem clara, em vez de "erro interno" 500.
 - Auditoria nova usa `json_object` completo (nunca `json_patch`, que apaga do histórico os campos vazios).
 - Regras de UPDATE só disparam quando a coluna MUDA (`NEW.x IS NOT OLD.x`): linhas antigas gravadas antes da regra continuam editáveis.
+
+## 2026-11-25 — Gráfico SERVIÇOS MAIS FEITOS por produto; ATUALIZAR PREÇOS em janela estreita
+- O gráfico agrupava pelo TEXTO do serviço da garantia, então apareciam nomes que não existem mais na tabela: "TROCA CARCAÇA (1 UN)" (planilha antiga), "TROCA CARCAÇA+BOTÃO" (combinações do VBA), "01 CHAVE COMPLETA KD". Agora conta por PRODUTO: garantias novas pelos produtos gravados (`garantia_itens`, com o nome atual da tabela); antigas pelo texto separado em "+", sem "(1 UN)" nem a quantidade do início, casado com a tabela de preços sem ligar para acento. Cada garantia conta 1 vez em cada produto (`EstatisticaRepository.porProduto`).
+- ATUALIZAR PREÇOS abaixo de 1100 px: cada produto vira um cartão (nome + tipo em cima, preço e código lado a lado, NOME NO RM na linha inteira). Produtos desligados vão para o fim da lista.
