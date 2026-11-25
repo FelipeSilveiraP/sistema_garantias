@@ -103,7 +103,7 @@ public class CupomService {
         }
         for (LinhaCupom l : linhas) {
             if (l.nomeRm() == null || l.nomeRm().isBlank()) {
-                throw erro("O produto " + l.descricao() + " está sem o NOME NO RM. Preencha em ATUALIZAR PREÇOS.");
+                throw erro("O produto " + l.descricao() + " está sem o PRODUTO DO RM PARA QUALQUER CARRO. Preencha em ATUALIZAR PREÇOS.");
             }
         }
         if (totalCentavos <= 0) {

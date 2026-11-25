@@ -110,7 +110,7 @@ class CupomServiceTest {
         assertThatThrownBy(() -> cupons.pedido(g.id()))
                 .isInstanceOf(DadosInvalidosException.class)
                 .satisfies(e -> assertThat(((DadosInvalidosException) e).getCampos().get("cupom"))
-                        .contains("CHAVE CODIFICADA").contains("NOME NO RM"));
+                        .contains("CHAVE CODIFICADA").contains("QUALQUER CARRO"));
     }
 
     @Test

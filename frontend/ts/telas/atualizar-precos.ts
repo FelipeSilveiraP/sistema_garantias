@@ -71,9 +71,9 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   const nomeRm = document.createElement("input");
   nomeRm.className = "entrada-form !py-1.5 uppercase";
   nomeRm.maxLength = 120;
-  nomeRm.placeholder = "COMO ESTÁ NO RM";
+  nomeRm.placeholder = "O GENÉRICO, COMO ESTÁ NO RM";
   nomeRm.value = s.nomeRm ?? "";
-  nomeRm.setAttribute("aria-label", `Nome no RM de ${s.nome}`);
+  nomeRm.setAttribute("aria-label", `Produto do RM para qualquer carro de ${s.nome}`);
   nomeRmTd.appendChild(nomeRm);
   const ativoTd = document.createElement("td");
   ativoTd.className = "py-2 px-3 text-center";
@@ -122,7 +122,7 @@ function linhaServico(s: ServicoDados): HTMLTableRowElement {
   tipo.dataset.rotulo = "Tipo";
   precoTd.dataset.rotulo = "Preço (R$)";
   codigoTd.dataset.rotulo = "Código no cupom";
-  nomeRmTd.dataset.rotulo = "Nome no RM (padrão)";
+  nomeRmTd.dataset.rotulo = "Produto do RM para qualquer carro";
   ativoTd.dataset.rotulo = "Ativo";
   acaoTd.dataset.rotulo = "";
   tr.append(nome, tipo, precoTd, codigoTd, nomeRmTd, ativoTd, acaoTd);

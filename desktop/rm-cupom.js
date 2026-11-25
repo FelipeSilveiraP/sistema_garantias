@@ -61,7 +61,7 @@ async function acharProduto(chamar, contexto, nomeRm) {
     if (iguais.length === 1) return iguais[0];
     if (iguais.length > 1) throw new ErroDefinitivo(`há ${iguais.length} produtos "${nomeRm}" no RM`);
   }
-  throw new ErroDefinitivo(`o produto "${nomeRm}" não foi encontrado no RM (confira o NOME NO RM em ATUALIZAR PREÇOS)`);
+  throw new ErroDefinitivo(`o produto "${nomeRm}" não foi encontrado no RM (confira o PRODUTO DO RM PARA QUALQUER CARRO em ATUALIZAR PREÇOS)`);
 }
 
 // ---------- produto do CARRO (pedido do usuario, 2026-11-25) ----------

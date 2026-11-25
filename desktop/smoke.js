@@ -385,7 +385,7 @@ async function executar() {
   // todos os produtos: palavra do cupom no RM + so 5 linhas, depois EXPANDIR TABELA
   await ir("todos-produtos");
   await esperarPredicado("Number(document.body.dataset.registros) > 0", 8000);
-  teste("Todos os produtos: colunas CÓDIGO NO CUPOM e NOME NO RM (PADRÃO)", await js("(() => { const th = [...document.querySelectorAll('#tabela thead th')].map(t => t.textContent); return th.includes('CÓDIGO NO CUPOM') && th.includes('NOME NO RM (PADRÃO)'); })()"));
+  teste("Todos os produtos: colunas CÓDIGO NO CUPOM e PRODUTO DO RM P/ QUALQUER CARRO", await js("(() => { const th = [...document.querySelectorAll('#tabela thead th')].map(t => t.textContent); return th.includes('CÓDIGO NO CUPOM') && th.includes('PRODUTO DO RM P/ QUALQUER CARRO'); })()"));
   await esperar(300);
   teste("Todos os produtos: altura de 5 linhas e rolagem por dentro (sem EXPANDIR)", await js(`(() => { const caixa = document.querySelector('#tableBody').closest('.tabela-rolagem');
     return !!caixa && caixa.scrollHeight > caixa.clientHeight && !document.querySelector('[data-expandir-tabela]'); })()`));

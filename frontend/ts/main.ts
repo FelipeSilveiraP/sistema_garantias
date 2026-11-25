@@ -23,7 +23,7 @@ ligarDicas({
   "GRÁFICOS": "Gráficos das garantias",
   "TÉCNICOS": "Técnicos: cadastrar e ver os técnicos",
   "VEÍCULOS": "Veículos: cadastrar e ver as marcas e modelos",
-  "TABELA DE VALORES": "Tabela de valores: produtos, preços e nome no RM",
+  "TABELA DE VALORES": "Tabela de valores: produtos, preços e produto do RM",
   "MENU PRINCIPAL": "Voltar para o Menu Principal",
   VOLTAR: "Voltar para a tela anterior",
   APLICAR: "Salvar a alteração deste campo",

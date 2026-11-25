@@ -377,7 +377,7 @@ async function principal() {
     const g2 = await nova("80.00", [{ idServico: null, descricao: "CHAVE CODIFICADA", quantidade: 1 }]);
     rm.emitir(g2.id);
     teste("produto sem nome no RM: pop-up FAÇA O CUPOM NO RM",
-      await ate(() => avisos.some((a) => a.titulo === "FAÇA O CUPOM NO RM" && /NOME NO RM/.test(a.mensagem)), 10000),
+      await ate(() => avisos.some((a) => a.titulo === "FAÇA O CUPOM NO RM" && /QUALQUER CARRO/.test(a.mensagem)), 10000),
       JSON.stringify(avisos));
 
     // 6) RM fora do ar: tenta, reconecta, tenta de novo e pede o cupom manual
