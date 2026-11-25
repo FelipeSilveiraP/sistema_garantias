@@ -127,7 +127,7 @@ const PRODUTOS: Config<ServicoDados> = {
     { titulo: "TIPO", classe: "text-center", valor: (s) => (s.peca ? selo("Peça", "bg-[#e0f2fe] text-[#075985]") : selo("Serviço", "bg-[#FFE600]/40 text-[#6a5f00]")) },
     { titulo: "PREÇO", classe: "text-right font-mono whitespace-nowrap", valor: (s) => formatarMoedaBR(Math.round(s.preco * 100)) },
     { titulo: "CÓDIGO NO CUPOM", classe: "font-mono", valor: (s) => s.codigoCupom ?? "—" },
-    { titulo: "NOME NO RM (CUPOM)", valor: (s) => s.nomeRm ?? "—" },
+    { titulo: "NOME NO RM (PADRÃO)", valor: (s) => s.nomeRm ?? "—" },
     { titulo: "SITUAÇÃO", classe: "text-center", valor: (s) => seloAtivo(s.ativo) },
   ],
   pesquisa: (s) => [s.nome, s.codigoCupom, s.nomeRm ?? null],
@@ -136,7 +136,7 @@ const PRODUTOS: Config<ServicoDados> = {
     { valor: "nome", rotulo: "Nome" },
     { valor: "preco", rotulo: "Preço (R$)", mascara: "moeda" },
     { valor: "codigoCupom", rotulo: "Código no cupom" },
-    { valor: "nomeRm", rotulo: "Nome no RM (cupom)" },
+    { valor: "nomeRm", rotulo: "Nome no RM (padrão)" },
   ],
   valorCampo: (s, campo) =>
     campo === "preco" ? formatarMoedaBR(Math.round(s.preco * 100)).replace("R$ ", "") : campo === "codigoCupom" ? s.codigoCupom ?? "" : campo === "nomeRm" ? s.nomeRm ?? "" : s.nome,
