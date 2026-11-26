@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int VERSAO_ATUAL = 11;
+    private static final int VERSAO_ATUAL = 12;
 
     /** Listas iniciais, iguais as do VBA (frmControleGarantias V17.1); editaveis no sistema. */
     static final List<String> TECNICOS = List.of("FELIPE", "RENATO", "JONATAN", "HABNER", "LUÍS", "CARLOS H.", "CARLOS A.");
@@ -132,6 +132,9 @@ public class DatabaseInitializer {
             // pedido do usuario (2026-11-25): qualquer garantia pode ser excluida e ter o cupom
             // alterado, mesmo com NFC-e emitida (o nosso sistema e secundario; o RM resolve a nota)
             case 11 -> List.of("DROP TRIGGER IF EXISTS trg_garantia_nfce_nao_exclui", "DROP TRIGGER IF EXISTS trg_garantia_nfce_imutavel");
+            // produto CHAVE COMPLETA na lista do cadastro (pedido do usuario, 2026-11-26; existe no RM/UpLife).
+            // OR IGNORE: se a loja ja criou um com esse nome, fica o dela
+            case 12 -> List.of("INSERT OR IGNORE INTO servicos (nome, preco_centavos, nome_rm, ativo) VALUES ('CHAVE COMPLETA', 0, 'CHAVE COMPLETA', 1)");
             default -> throw new IllegalStateException("migracao desconhecida: " + versao);
         };
     }

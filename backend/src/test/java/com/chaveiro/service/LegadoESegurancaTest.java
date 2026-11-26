@@ -132,7 +132,7 @@ class LegadoESegurancaTest {
         assertThat(cadastros.listarServicos()).extracting(s -> s.nome()).contains("TROCA CARCAÇA", "PILHA", "BOTÃO");
         int atualizados = cadastros.reajustar(new BigDecimal("10"), true);
 
-        assertThat(atualizados).isEqualTo(8); // 11 da lista do VBA menos os 3 combos desativados na v6
+        assertThat(atualizados).isEqualTo(9); // 11 da lista do VBA menos os 3 combos desativados na v6, mais a CHAVE COMPLETA (v12)
         assertThat(cadastros.listarServicos()).filteredOn(s -> s.nome().equals("PILHA"))
                 .singleElement().satisfies(s -> assertThat(s.preco()).isEqualByComparingTo("13.20"));
         // so as mudancas de PRECO (a v6 tambem audita a desativacao dos combos)

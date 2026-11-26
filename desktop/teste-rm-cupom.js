@@ -97,6 +97,15 @@ function rmFalso(opcoes = {}) {
     assert.strictEqual(doCarro("VOLKSWAGEN", "JETTA"), "c-gol-seca"); // VW sem o modelo: o primeiro
     assert.strictEqual(doCarro("FIAT", "PALIO"), "c-palio");
   });
+  await caso("CHAVE COMPLETA: a do carro (palavra COMPLETA + marca/modelo), senao a padrao", async () => {
+    const cat = [
+      { id: "cc-padrao", descricao: "CHAVE COMPLETA", isActive: true },
+      { id: "cc-onix", descricao: "CHAVE COMPLETA CANIVETE CHEVROLET ONIX", isActive: true },
+      { id: "canivete-onix", descricao: "CANIVETE CHEVROLET CRUZE E ONIX", isActive: true },
+    ];
+    assert.strictEqual((escolherDoCarro(cat, "CHAVE COMPLETA", "CHEVROLET", "ONIX") || {}).id, "cc-onix");
+    assert.strictEqual(escolherDoCarro(cat, "CHAVE COMPLETA", "FIAT", "UNO"), null);
+  });
   await caso("carro: marca sem produto proprio -> null (o cupom usa o NOME NO RM de sempre)", async () => {
     assert.strictEqual(doCarro("TOYOTA", "COROLA"), undefined);
     assert.strictEqual(doCarro(null, null), undefined);

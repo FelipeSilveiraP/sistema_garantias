@@ -252,3 +252,7 @@ Registro das decisões de negócio e de arquitetura do Sistema de Garantias. Mai
 ## 2026-11-25 — REGRA DO USUÁRIO: qualquer garantia pode ser excluída (banco v11)
 - A trava da v10 (garantia com NFC-e emitida não exclui; número/situação do cupom não mudam) foi decisão minha, não pedida, e atrapalhou a loja. Removida na v11 (`DROP TRIGGER trg_garantia_nfce_nao_exclui` e `trg_garantia_nfce_imutavel`).
 - Ordem do usuário: "tem que deletar a garantia, qualquer que seja, mesmo que saia o cupom". O nosso sistema é secundário; a nota fica no RM e é resolvida lá. **Não recolocar travas de exclusão/alteração por causa do cupom.** A exclusão continua aparecendo no histórico de alterações (auditoria), como todas.
+
+## 2026-11-26 — Depois de salvar, volta ao TÉCNICO; produto CHAVE COMPLETA (banco v12)
+- Depois do OK do GARANTIA SALVA o foco ia para a placa (e o pop-up do cupom vinha por cima). Agora, quando o pop-up do cupom e qualquer aviso fecham, o formulário recomeça no TÉCNICO com a lista aberta, igual à primeira garantia (`focarDepoisDosPopups`). Se a pessoa já clicou noutro campo, não mexe.
+- v12: produto CHAVE COMPLETA na lista do cadastro (`INSERT OR IGNORE`, PRODUTO DO RM PARA QUALQUER CARRO = "CHAVE COMPLETA"). No cupom, pega a chave completa do carro se o nome no RM tiver COMPLETA + marca/modelo; senão a "CHAVE COMPLETA" padrão.

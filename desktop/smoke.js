@@ -248,6 +248,9 @@ async function executar() {
   enterNoFoco();
   teste("Enter no pop-up GARANTIA SALVA = OK (fecha)", await esperarPredicado("!document.querySelector('[data-dialogo]')", 3000));
   teste("Formulário volta limpo para o próximo cadastro", await esperarPredicado("document.getElementById('placa').value === '' && !document.querySelector('[data-dialogo]')", 3000));
+  teste("Depois do OK, o próximo cadastro começa no TÉCNICO com a lista aberta", await esperarPredicado(
+    "document.activeElement && document.activeElement.closest('.caixa-busca') && document.activeElement.closest('.caixa-busca').contains(document.getElementById('tecnico'))"
+    + " && !document.querySelector('#tecnico').closest('.caixa-busca').querySelector('.caixa-busca__lista').classList.contains('hidden')", 6000));
   teste("Formulário limpo também limpa o modelo digitado", await js("document.getElementById('modelo_busca').value === '' && document.getElementById('modelo').value === ''"));
   // caixas MODELO e PRODUTO abertas perto do pe da tela (fotos do usuario, 2026-11-19): a area
   // do formulario sobe, a lista aparece inteira, nada de segunda rolagem nem tela branca

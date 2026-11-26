@@ -47,7 +47,8 @@ class ProtecoesBancoTest {
 
     @Test
     void versaoDez() throws SQLException {
-        assertThat(texto("PRAGMA user_version")).isEqualTo("11");
+        assertThat(texto("PRAGMA user_version")).isEqualTo("12");
+        assertThat(texto("SELECT nome_rm FROM servicos WHERE nome = 'CHAVE COMPLETA' AND ativo = 1 AND peca = 0")).isEqualTo("CHAVE COMPLETA");
     }
 
     @Test

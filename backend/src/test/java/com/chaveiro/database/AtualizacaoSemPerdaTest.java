@@ -143,7 +143,12 @@ class AtualizacaoSemPerdaTest {
             }
         }
         // servicos: mesmas linhas, mesmos precos (no maximo o "ativo" dos combos muda)
-        assertThat(depois.get("servicos")).hasSize(antes.get("servicos").size());
+        // (a v12 so ACRESCENTA o produto CHAVE COMPLETA no fim, se a loja ainda nao tinha)
+        boolean jaTinha = antes.get("servicos").stream().anyMatch(l -> l.contains("|nome=CHAVE COMPLETA|"));
+        assertThat(depois.get("servicos")).hasSize(antes.get("servicos").size() + (jaTinha ? 0 : 1));
+        if (!jaTinha) {
+            assertThat(depois.get("servicos").get(depois.get("servicos").size() - 1)).contains("|nome=CHAVE COMPLETA|");
+        }
         for (int i = 0; i < antes.get("servicos").size(); i++) {
             assertThat(depois.get("servicos").get(i).replaceAll("ativo=\\d", ""))
                     .startsWith(antes.get("servicos").get(i).replaceAll("ativo=\\d", ""));

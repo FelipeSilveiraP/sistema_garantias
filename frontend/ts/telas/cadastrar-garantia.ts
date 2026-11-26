@@ -321,6 +321,23 @@ function limpar(): void {
   focarInicio();
 }
 
+/**
+ * Depois do OK do GARANTIA SALVA: quando o pop-up do cupom (e qualquer aviso) fechar, o
+ * formulario recomeca no TECNICO com a lista aberta, igual a primeira garantia (pedido do
+ * usuario, 2026-11-26; antes o foco ia para a placa e a lista nao abria). Se a pessoa ja
+ * clicou em outro campo nesse meio tempo, nao mexe.
+ */
+async function focarDepoisDosPopups(): Promise<void> {
+  const esperar = (ms: number): Promise<void> => new Promise((ok) => window.setTimeout(ok, ms));
+  const livre = (): boolean => !document.body.dataset.automacaoCupom && !dialogoEstaAberto();
+  // o pop-up do cupom aparece logo depois do OK (se o cupom automatico estiver ligado)
+  await esperar(1200);
+  for (let i = 0; i < 2400 && !livre(); i++) await esperar(250); // ate 10 min
+  const atual = document.activeElement;
+  const ninguemDigitando = !atual || atual === document.body || atual.id === "btn-salvar";
+  if (document.body.dataset.tela === "cadastrar-garantia" && ninguemDigitando) focarInicio();
+}
+
 /** Depois de salvar: a tela volta para o comeco do formulario (pedido do usuario). */
 function voltarAoTopo(): void {
   // quem rola pode ser a janela ou uma area da pagina: zera todas acima do formulario
@@ -373,7 +390,7 @@ async function salvar(): Promise<void> {
     // automacao com as etapas e o CANCELAR (painel-cupom.ts)
     void window.finDesk!.emitirCupom?.(salva.id);
     voltarAoTopo();
-    el<HTMLInputElement>("placa").focus({ preventScroll: true });
+    void focarDepoisDosPopups();
   } catch (erro) {
     if (erro instanceof ErroValidacaoApi) {
       await avisarConfira("O sistema recusou a garantia. Corrija o que está abaixo:", erro.campos);
